@@ -1,11 +1,10 @@
 "use server";
 
-import { createServerActionClient } from "@/lib/supabase/server";
+import { supabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { v4 as uuid } from "uuid";
 
-// Validation schema
+// Validation schema for the form
 const RecurringRuleSchema = z.object({
   wallet_id: z.string(),
   category_id: z.string(),
@@ -14,13 +13,12 @@ const RecurringRuleSchema = z.object({
   description: z.string().optional().nullable(),
 });
 
-// Convert amount → amount_minor
 function toMinor(amount: number) {
   return Math.round(amount * 100);
 }
 
 export async function createRecurringRule(formData: FormData) {
-  const supabase = createServerActionClient();
+  const supabase = supabaseServerClient();
 
   const parsed = RecurringRuleSchema.safeParse({
     wallet_id: formData.get("wallet_id"),
@@ -37,31 +35,37 @@ export async function createRecurringRule(formData: FormData) {
 
   const { wallet_id, category_id, amount, date, description } = parsed.data;
 
-  // Get user ID
+  // Get current user
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser();
 
-  if (!user) throw new Error("Not authenticated");
+  if (userError || !user) {
+    console.error("Auth error:", userError);
+    throw new Error("Not authenticated");
+  }
 
-  // Fetch wallet to get its currency
-  const { data: wallet } = await supabase
+  // Get wallet currency
+  const { data: wallet, error: walletError } = await supabase
     .from("wallets")
     .select("currency_code")
     .eq("id", wallet_id)
     .single();
 
-  if (!wallet) throw new Error("Invalid wallet");
+  if (walletError || !wallet) {
+    console.error("Wallet lookup failed:", walletError);
+    throw new Error("Invalid wallet");
+  }
 
   const currency_code = wallet.currency_code;
 
-  // Compute first run date
+  // Compute schedule fields
   const firstRun = new Date(date);
   const dayOfMonth = firstRun.getUTCDate();
 
-  // Insert recurring rule
   const { error } = await supabase.from("recurring_rules").insert({
-    id: uuid(),
+    // id will use DB default gen_random_uuid()
     user_id: user.id,
     wallet_id,
     category_id,
@@ -82,5 +86,6 @@ export async function createRecurringRule(formData: FormData) {
     throw new Error("Insert failed");
   }
 
+  // Refresh the /recurring page data
   revalidatePath("/recurring");
 }
