@@ -1,78 +1,73 @@
 "use server";
 
-import * as serverClient from "@/lib/supabase/server";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 
-// Reuse the existing Supabase server helper from lib/supabase/server
-// (whatever its real exported name is – we just grab the first function).
-function getSupabaseServer(): any {
-  const mod: any = serverClient;
-
-  for (const key of Object.keys(mod)) {
-    const value = mod[key];
-    if (typeof value === "function") {
-      return value(); // call the existing helper (same one used by wallets/budgets/etc.)
-    }
-  }
-
-  throw new Error(
-    "No Supabase server helper export found in lib/supabase/server.ts"
-  );
-}
-
-const schema = z.object({
-  wallet_id: z.string().uuid(),
-  category_id: z.string().uuid(),
-  amount: z.number().positive(),
-  first_run_date: z.string(), // YYYY-MM-DD
-  description: z.string().optional(),
-});
-
+// Create a new recurring rule
 export async function createRecurringRule(formData: FormData) {
-  const parsed = schema.safeParse({
-    wallet_id: formData.get("wallet_id"),
-    category_id: formData.get("category_id"),
-    amount: Number(formData.get("amount")),
-    first_run_date: formData.get("first_run_date"),
-    description: formData.get("description") || "",
-  });
+  const walletId = formData.get("walletId")?.toString() || "";
+  const categoryComposite = formData.get("categoryId")?.toString() || "";
+  const amountStr = formData.get("amount")?.toString() || "";
+  const firstRunDate = formData.get("firstRunDate")?.toString() || "";
+  const description = formData.get("description")?.toString() || "";
 
-  if (!parsed.success) {
-    console.error(parsed.error);
-    return { error: "Invalid input" };
+  if (!walletId || !categoryComposite || !amountStr || !firstRunDate) {
+    return { success: false, error: "Missing required fields." };
   }
 
-  const data = parsed.data;
+  const amountNumber = Number(amountStr);
+  if (!Number.isFinite(amountNumber)) {
+    return { success: false, error: "Invalid amount." };
+  }
 
-  const supabase = getSupabaseServer();
+  const amountMinor = Math.round(amountNumber * 100);
 
-  const dayOfMonth = Number(data.first_run_date.split("-")[2]);
+  // We encode category info as: id|type|currency (e.g. "uuid|expense|USD")
+  const [categoryIdRaw, typeRaw, currencyRaw] = categoryComposite.split("|");
+
+  const categoryId = categoryIdRaw || null;
+  const type = typeRaw === "income" ? "income" : "expense";
+  const currencyCode = currencyRaw || "USD";
+
+  const firstDate = new Date(firstRunDate);
+  if (Number.isNaN(firstDate.getTime())) {
+    return { success: false, error: "Invalid first run date." };
+  }
+
+  const dayOfMonth = firstDate.getUTCDate();
+
+  const supabase = createServerSupabaseClient();
 
   const { error } = await supabase.from("recurring_rules").insert({
-    wallet_id: data.wallet_id,
-    category_id: data.category_id,
-    amount_minor: Math.round(data.amount * 100),
-    currency_code: "USD", // you can change this later to match wallet currency
+    wallet_id: walletId,
+    category_id: categoryId,
+    type,
+    amount_minor: amountMinor,
+    currency_code: currencyCode,
     frequency: "monthly",
     interval: 1,
     day_of_month: dayOfMonth,
-    start_date: data.first_run_date,
-    description: data.description,
+    start_date: firstRunDate,
+    next_run_at: firstRunDate,
+    description,
     is_active: true,
   });
 
   if (error) {
-    console.error("createRecurringRule error", error);
-    return { error: "Failed to create rule" };
+    console.error("Failed to create recurring rule", error);
+    return { success: false, error: "Database error while creating rule." };
   }
 
-  revalidatePath("/recurring");
+  await revalidatePath("/recurring");
   return { success: true };
 }
 
-export async function pauseRule(id: string) {
-  const supabase = getSupabaseServer();
+// Pause a rule
+export async function pauseRecurringRule(formData: FormData) {
+  const id = formData.get("id")?.toString();
+  if (!id) return { success: false, error: "Missing rule id." };
+
+  const supabase = createServerSupabaseClient();
 
   const { error } = await supabase
     .from("recurring_rules")
@@ -80,16 +75,20 @@ export async function pauseRule(id: string) {
     .eq("id", id);
 
   if (error) {
-    console.error("pauseRule error", error);
-    return { error: "Failed to pause rule" };
+    console.error("Failed to pause recurring rule", error);
+    return { success: false, error: "Database error while pausing rule." };
   }
 
-  revalidatePath("/recurring");
+  await revalidatePath("/recurring");
   return { success: true };
 }
 
-export async function activateRule(id: string) {
-  const supabase = getSupabaseServer();
+// Activate a rule
+export async function activateRecurringRule(formData: FormData) {
+  const id = formData.get("id")?.toString();
+  if (!id) return { success: false, error: "Missing rule id." };
+
+  const supabase = createServerSupabaseClient();
 
   const { error } = await supabase
     .from("recurring_rules")
@@ -97,16 +96,20 @@ export async function activateRule(id: string) {
     .eq("id", id);
 
   if (error) {
-    console.error("activateRule error", error);
-    return { error: "Failed to activate rule" };
+    console.error("Failed to activate recurring rule", error);
+    return { success: false, error: "Database error while activating rule." };
   }
 
-  revalidatePath("/recurring");
+  await revalidatePath("/recurring");
   return { success: true };
 }
 
-export async function deleteRule(id: string) {
-  const supabase = getSupabaseServer();
+// Delete a rule
+export async function deleteRecurringRule(formData: FormData) {
+  const id = formData.get("id")?.toString();
+  if (!id) return { success: false, error: "Missing rule id." };
+
+  const supabase = createServerSupabaseClient();
 
   const { error } = await supabase
     .from("recurring_rules")
@@ -114,10 +117,10 @@ export async function deleteRule(id: string) {
     .eq("id", id);
 
   if (error) {
-    console.error("deleteRule error", error);
-    return { error: "Failed to delete rule" };
+    console.error("Failed to delete recurring rule", error);
+    return { success: false, error: "Database error while deleting rule." };
   }
 
-  revalidatePath("/recurring");
+  await revalidatePath("/recurring");
   return { success: true };
 }
