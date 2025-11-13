@@ -1,10 +1,11 @@
 "use server";
 
-import { supabaseServerClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-// Validation schema for the form
+// Form validation schema
 const RecurringRuleSchema = z.object({
   wallet_id: z.string(),
   category_id: z.string(),
@@ -17,8 +18,31 @@ function toMinor(amount: number) {
   return Math.round(amount * 100);
 }
 
+// Helper to create an authenticated Supabase client in a server action
+function getSupabaseServerClient() {
+  const cookieStore = cookies();
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options: any) {
+          cookieStore.set({ name, value, ...options });
+        },
+        remove(name: string, options: any) {
+          cookieStore.set({ name, value: "", ...options, maxAge: -1 });
+        },
+      },
+    }
+  );
+}
+
 export async function createRecurringRule(formData: FormData) {
-  const supabase = supabaseServerClient();
+  const supabase = getSupabaseServerClient();
 
   const parsed = RecurringRuleSchema.safeParse({
     wallet_id: formData.get("wallet_id"),
@@ -65,7 +89,7 @@ export async function createRecurringRule(formData: FormData) {
   const dayOfMonth = firstRun.getUTCDate();
 
   const { error } = await supabase.from("recurring_rules").insert({
-    // id will use DB default gen_random_uuid()
+    // id uses DB default gen_random_uuid()
     user_id: user.id,
     wallet_id,
     category_id,
@@ -86,6 +110,6 @@ export async function createRecurringRule(formData: FormData) {
     throw new Error("Insert failed");
   }
 
-  // Refresh the /recurring page data
+  // Refresh the /recurring UI
   revalidatePath("/recurring");
 }
