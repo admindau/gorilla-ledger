@@ -1,60 +1,72 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
-export default function LoginPage() {
+export default function ResetPasswordRequestPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/dashboard";
-
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setErrorMsg("");
+    setSuccessMsg("");
     setLoading(true);
 
-    const { error } = await supabaseBrowserClient.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const origin =
+        typeof window !== "undefined"
+          ? window.location.origin
+          : "https://gl.savvyrilla.tech";
 
-    setLoading(false);
+      const { error } = await supabaseBrowserClient.auth.resetPasswordForEmail(
+        email,
+        {
+          redirectTo: `${origin}/auth/update-password`,
+        }
+      );
 
-    if (error) {
-      setErrorMsg(error.message);
-      return;
+      if (error) {
+        setErrorMsg(error.message);
+      } else {
+        setSuccessMsg(
+          "If this email exists in our system, a reset link has been sent."
+        );
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message ?? "Something went wrong.");
+    } finally {
+      setLoading(false);
     }
-
-    router.push(next);
   }
 
-  function goToRegister() {
-    router.push("/auth/register");
-  }
-
-  function goToResetPassword() {
-    router.push("/auth/reset-password");
+  function goBackToLogin() {
+    router.push("/auth/login");
   }
 
   return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
       <div className="w-full max-w-md border border-gray-800 rounded-lg p-6 bg-black/60">
         <h1 className="text-2xl font-semibold mb-1 text-center">
-          Login to Gorilla Ledger™
+          Reset your password
         </h1>
         <p className="text-gray-400 text-xs mb-6 text-center">
-          Enter your email and password to access your money command center.
+          Enter the email associated with your Gorilla Ledger account. We&apos;ll
+          send you a link to create a new password.
         </p>
 
         {errorMsg && (
           <p className="mb-4 text-xs text-red-400 border border-red-500/40 rounded px-3 py-2 bg-red-950/30">
             {errorMsg}
+          </p>
+        )}
+        {successMsg && (
+          <p className="mb-4 text-xs text-emerald-400 border border-emerald-500/40 rounded px-3 py-2 bg-emerald-950/30">
+            {successMsg}
           </p>
         )}
 
@@ -71,47 +83,23 @@ export default function LoginPage() {
             />
           </div>
 
-          <div>
-            <label className="block mb-1 text-xs text-gray-400">Password</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-black border border-gray-700 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-white"
-              placeholder="••••••••"
-            />
-          </div>
-
-          <div className="flex items-center justify-between text-xs">
-            <button
-              type="button"
-              onClick={goToResetPassword}
-              className="text-gray-300 hover:text-white underline"
-            >
-              Forgot password?
-            </button>
-            {/* we keep this empty span just to balance the layout if needed */}
-            <span />
-          </div>
-
           <button
             type="submit"
             disabled={loading}
             className="w-full mt-2 bg-white text-black py-2 rounded font-semibold text-sm hover:bg-gray-200 disabled:opacity-60"
           >
-            {loading ? "Logging in..." : "Login"}
+            {loading ? "Sending..." : "Send reset link"}
           </button>
         </form>
 
         <div className="mt-4 text-xs text-gray-400 text-center">
-          No account yet?{" "}
+          Remembered it?{" "}
           <button
             type="button"
-            onClick={goToRegister}
+            onClick={goBackToLogin}
             className="text-white underline"
           >
-            Register
+            Back to login
           </button>
         </div>
       </div>
