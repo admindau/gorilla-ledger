@@ -1,18 +1,13 @@
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/supabase/session";
-
-export default async function DashboardPage() {
-  const session = await getSession();
-
-  if (!session) {
-    redirect("/auth/login");
-  }
-
+export default function DashboardPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-black text-white">
-      <h1 className="text-3xl">
-        Welcome to Gorilla Ledger 🦍
-      </h1>
+      <div className="text-center space-y-4">
+        <h1 className="text-3xl font-semibold">Welcome to Gorilla Ledger 🦍</h1>
+        <p className="text-gray-400">
+          You are logged in. This is the placeholder dashboard. 
+          We’ll turn this into your real money command center soon.
+        </p>
+      </div>
     </div>
   );
 }

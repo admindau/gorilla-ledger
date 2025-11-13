@@ -7,30 +7,41 @@ import { useRouter } from "next/navigation";
 export default function LoginPage() {
   const router = useRouter();
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState("savvyrilla@gmail.com"); // prefilled for now
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [infoMsg, setInfoMsg] = useState("");
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setErrorMsg("");
+    setInfoMsg("");
     setLoading(true);
 
-    const { data, error } = await supabaseBrowserClient.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { data, error } = await supabaseBrowserClient.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    setLoading(false);
+      console.log("login result:", { data, error });
 
-    if (error) {
-      setErrorMsg(error.message);
-      return;
+      if (error) {
+        setErrorMsg(error.message);
+        setLoading(false);
+        return;
+      }
+
+      setInfoMsg("Login successful, redirecting to dashboard...");
+      setLoading(false);
+
+      router.push("/dashboard");
+    } catch (err: any) {
+      console.error("login exception:", err);
+      setErrorMsg(err?.message || "Unexpected error during login");
+      setLoading(false);
     }
-
-    // Redirect to dashboard upon success
-    router.push("/dashboard");
   }
 
   return (
@@ -59,6 +70,10 @@ export default function LoginPage() {
 
           {errorMsg && (
             <p className="text-red-400 text-sm">{errorMsg}</p>
+          )}
+
+          {infoMsg && (
+            <p className="text-green-400 text-sm">{infoMsg}</p>
           )}
 
           <button
