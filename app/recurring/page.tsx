@@ -44,32 +44,66 @@ export default function RecurringPage() {
   const [firstRunDate, setFirstRunDate] = useState("");
   const [description, setDescription] = useState("");
 
+  // ---------- initial load ----------
   useEffect(() => {
     async function loadData() {
-      setLoading(true);
-      const supabase = supabaseBrowserClient;
+      try {
+        setLoading(true);
+        const supabase = supabaseBrowserClient;
 
-      const [{ data: w }, { data: c }, { data: r }] = await Promise.all([
-        supabase.from("wallets").select("*").order("name", { ascending: true }),
-        supabase
-          .from("categories")
-          .select("*")
-          .order("name", { ascending: true }),
-        supabase
-          .from("recurring_rules_view") // if you made a view; otherwise join manually
-          .select("*")
-          .order("created_at", { ascending: true }),
-      ]);
+        const [{ data: w, error: wErr }, { data: c, error: cErr }, { data: r, error: rErr }] =
+          await Promise.all([
+            supabase
+              .from("wallets")
+              .select("*")
+              .order("name", { ascending: true }),
+            supabase
+              .from("categories")
+              .select("*")
+              .order("name", { ascending: true }),
+            supabase
+              .from("recurring_rules")
+              .select(
+                `
+                id,
+                description,
+                amount_minor,
+                currency_code,
+                day_of_month,
+                start_date,
+                next_run_at,
+                is_active,
+                wallet:wallets (
+                  id,
+                  name,
+                  currency_code
+                ),
+                category:categories (
+                  id,
+                  name,
+                  type
+                )
+              `
+              )
+              .order("created_at", { ascending: true }),
+          ]);
 
-      setWallets(w ?? []);
-      setCategories(c ?? []);
-      setRules((r as RecurringRule[]) ?? []);
-      setLoading(false);
+        if (wErr) console.error("Error loading wallets", wErr);
+        if (cErr) console.error("Error loading categories", cErr);
+        if (rErr) console.error("Error loading recurring rules", rErr);
+
+        setWallets(w ?? []);
+        setCategories(c ?? []);
+        setRules((r as RecurringRule[]) ?? []);
+      } finally {
+        setLoading(false);
+      }
     }
 
     loadData();
   }, []);
 
+  // ---------- create rule ----------
   async function handleCreateRule(e: FormEvent) {
     e.preventDefault();
 
@@ -88,22 +122,32 @@ export default function RecurringPage() {
 
     const amountMinor = Math.round(parsedAmount * 100);
 
+    const wallet = wallets.find((w) => w.id === walletId);
+    const category = categories.find((c) => c.id === categoryId);
+
+    // table requires a type with a check constraint
+    const type: "income" | "expense" =
+      (category?.type as "income" | "expense") ?? "expense";
+
+    const dayOfMonth = new Date(firstRunDate).getDate();
+
     const { error } = await supabase.from("recurring_rules").insert({
       wallet_id: walletId,
       category_id: categoryId,
+      type, // 👈 this fixes the recurring_rules_type_check failure
       amount_minor: amountMinor,
-      currency_code:
-        wallets.find((w) => w.id === walletId)?.currency_code ?? "USD",
+      currency_code: wallet?.currency_code ?? "USD",
       frequency: "monthly",
       interval: 1,
-      day_of_month: new Date(firstRunDate).getDate(),
+      day_of_month: dayOfMonth,
       start_date: firstRunDate,
+      next_run_at: firstRunDate, // first scheduled run
       description: description || null,
       is_active: true,
     });
 
     if (error) {
-      console.error(error);
+      console.error("Failed to create recurring rule", error);
       showToast("Failed to create recurring rule.", "error");
       return;
     }
@@ -112,15 +156,41 @@ export default function RecurringPage() {
     setAmount("");
     setDescription("");
 
-    // reload rules
-    const { data: r } = await supabase
-      .from("recurring_rules_view")
-      .select("*")
+    // reload rules list from the same joined query
+    const { data: r, error: rErr } = await supabase
+      .from("recurring_rules")
+      .select(
+        `
+        id,
+        description,
+        amount_minor,
+        currency_code,
+        day_of_month,
+        start_date,
+        next_run_at,
+        is_active,
+        wallet:wallets (
+          id,
+          name,
+          currency_code
+        ),
+        category:categories (
+          id,
+          name,
+          type
+        )
+      `
+      )
       .order("created_at", { ascending: true });
+
+    if (rErr) {
+      console.error("Error reloading recurring rules", rErr);
+    }
 
     setRules((r as RecurringRule[]) ?? []);
   }
 
+  // ---------- toggle active / paused ----------
   async function toggleRuleActive(rule: RecurringRule, isActive: boolean) {
     const supabase = supabaseBrowserClient;
 
@@ -150,6 +220,7 @@ export default function RecurringPage() {
     );
   }
 
+  // ---------- delete rule ----------
   async function deleteRule(rule: RecurringRule) {
     if (!window.confirm(`Delete recurring rule for ${rule.description || "rule"}?`)) {
       return;
@@ -172,8 +243,7 @@ export default function RecurringPage() {
     setRules((prev) => prev.filter((r) => r.id !== rule.id));
   }
 
-  // --- UI (keep your existing layout, I’m focusing on actions) ---
-
+  // ---------- UI ----------
   const now = new Date();
   const monthName = now.toLocaleString("en-US", { month: "long" });
   const year = now.getFullYear();
@@ -285,7 +355,6 @@ export default function RecurringPage() {
           </button>
         </form>
 
-        {/* Existing rules list – keep your styling, just wired actions to toast-enabled helpers */}
         <section className="border border-gray-800 rounded-lg p-4 bg-black/40 text-sm">
           <h2 className="text-sm font-semibold mb-4">Existing Rules</h2>
 
