@@ -1,11 +1,21 @@
 "use server";
 
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { createClient } from "@supabase/supabase-js";
 
-// Form validation schema
+// --- Supabase admin client (uses service role, no cookies needed) ---
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!, // you already use this for cron
+  {
+    auth: {
+      persistSession: false,
+    },
+  }
+);
+
+// --- Validation schema for the recurring form ---
 const RecurringRuleSchema = z.object({
   wallet_id: z.string(),
   category_id: z.string(),
@@ -18,32 +28,8 @@ function toMinor(amount: number) {
   return Math.round(amount * 100);
 }
 
-// Helper to create an authenticated Supabase client in a server action
-function getSupabaseServerClient() {
-  const cookieStore = cookies();
-
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: any) {
-          cookieStore.set({ name, value: "", ...options, maxAge: -1 });
-        },
-      },
-    }
-  );
-}
-
 export async function createRecurringRule(formData: FormData) {
-  const supabase = getSupabaseServerClient();
-
+  // 1) Validate input
   const parsed = RecurringRuleSchema.safeParse({
     wallet_id: formData.get("wallet_id"),
     category_id: formData.get("category_id"),
@@ -53,27 +39,16 @@ export async function createRecurringRule(formData: FormData) {
   });
 
   if (!parsed.success) {
-    console.error("Validation failed:", parsed.error);
+    console.error("Validation failed:", parsed.error.flatten());
     throw new Error("Invalid inputs");
   }
 
   const { wallet_id, category_id, amount, date, description } = parsed.data;
 
-  // Get current user
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    console.error("Auth error:", userError);
-    throw new Error("Not authenticated");
-  }
-
-  // Get wallet currency
-  const { data: wallet, error: walletError } = await supabase
+  // 2) Look up wallet to get user_id + currency_code
+  const { data: wallet, error: walletError } = await supabaseAdmin
     .from("wallets")
-    .select("currency_code")
+    .select("id, user_id, currency_code")
     .eq("id", wallet_id)
     .single();
 
@@ -82,20 +57,18 @@ export async function createRecurringRule(formData: FormData) {
     throw new Error("Invalid wallet");
   }
 
-  const currency_code = wallet.currency_code;
-
-  // Compute schedule fields
+  // 3) Compute schedule fields
   const firstRun = new Date(date);
   const dayOfMonth = firstRun.getUTCDate();
 
-  const { error } = await supabase.from("recurring_rules").insert({
-    // id uses DB default gen_random_uuid()
-    user_id: user.id,
-    wallet_id,
+  // 4) Insert recurring rule
+  const { error } = await supabaseAdmin.from("recurring_rules").insert({
+    user_id: wallet.user_id,
+    wallet_id: wallet_id,
     category_id,
     type: "expense",
     amount_minor: toMinor(amount),
-    currency_code,
+    currency_code: wallet.currency_code,
     frequency: "monthly",
     interval: 1,
     day_of_month: dayOfMonth,
@@ -110,6 +83,6 @@ export async function createRecurringRule(formData: FormData) {
     throw new Error("Insert failed");
   }
 
-  // Refresh the /recurring UI
+  // 5) Refresh the /recurring page so the new rule appears
   revalidatePath("/recurring");
 }
