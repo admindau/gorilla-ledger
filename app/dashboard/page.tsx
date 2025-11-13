@@ -16,10 +16,26 @@ type TransactionType = "income" | "expense";
 type Transaction = {
   id: string;
   wallet_id: string;
+  category_id: string | null;
   type: TransactionType;
   amount_minor: number;
   currency_code: string;
   occurred_at: string;
+};
+
+type Category = {
+  id: string;
+  name: string;
+  type: "income" | "expense";
+};
+
+type Budget = {
+  id: string;
+  wallet_id: string | null;
+  category_id: string;
+  year: number;
+  month: number;
+  amount_minor: number;
 };
 
 function formatMinorToAmount(minor: number): string {
@@ -35,6 +51,8 @@ export default function DashboardPage() {
   const [email, setEmail] = useState<string | null>(null);
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
@@ -55,41 +73,65 @@ export default function DashboardPage() {
       setEmail(session.user.email ?? null);
       setCheckingSession(false);
 
-      // 2) Load wallets
+      // 2) Load wallets, categories, transactions, budgets
       setLoadingData(true);
 
-      const { data: walletData, error: walletError } =
-        await supabaseBrowserClient
+      const [walletRes, categoryRes, txRes, budgetRes] = await Promise.all([
+        supabaseBrowserClient
           .from("wallets")
           .select("id, name, currency_code, starting_balance_minor")
-          .order("created_at", { ascending: true });
+          .order("created_at", { ascending: true }),
+        supabaseBrowserClient
+          .from("categories")
+          .select("id, name, type")
+          .eq("is_active", true)
+          .order("type", { ascending: true })
+          .order("name", { ascending: true }),
+        supabaseBrowserClient
+          .from("transactions")
+          .select(
+            "id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at"
+          )
+          .order("occurred_at", { ascending: false })
+          .limit(500),
+        supabaseBrowserClient
+          .from("budgets")
+          .select("id, wallet_id, category_id, year, month, amount_minor")
+          .order("year", { ascending: false })
+          .order("month", { ascending: false })
+          .limit(200),
+      ]);
 
-      if (walletError) {
-        console.error(walletError);
-        setErrorMsg(walletError.message);
+      if (walletRes.error) {
+        console.error(walletRes.error);
+        setErrorMsg(walletRes.error.message);
+        setLoadingData(false);
+        return;
+      }
+      if (categoryRes.error) {
+        console.error(categoryRes.error);
+        setErrorMsg(categoryRes.error.message);
+        setLoadingData(false);
+        return;
+      }
+      if (txRes.error) {
+        console.error(txRes.error);
+        setErrorMsg(txRes.error.message);
+        setLoadingData(false);
+        return;
+      }
+      if (budgetRes.error) {
+        console.error(budgetRes.error);
+        setErrorMsg(budgetRes.error.message);
         setLoadingData(false);
         return;
       }
 
-      setWallets(walletData as Wallet[]);
+      setWallets(walletRes.data as Wallet[]);
+      setCategories(categoryRes.data as Category[]);
+      setTransactions(txRes.data as Transaction[]);
+      setBudgets(budgetRes.data as Budget[]);
 
-      // 3) Load recent transactions (e.g. last 200)
-      const { data: txData, error: txError } = await supabaseBrowserClient
-        .from("transactions")
-        .select(
-          "id, wallet_id, type, amount_minor, currency_code, occurred_at"
-        )
-        .order("occurred_at", { ascending: false })
-        .limit(200);
-
-      if (txError) {
-        console.error(txError);
-        setErrorMsg(txError.message);
-        setLoadingData(false);
-        return;
-      }
-
-      setTransactions(txData as Transaction[]);
       setLoadingData(false);
     }
 
@@ -136,17 +178,24 @@ export default function DashboardPage() {
     totalsByCurrency[wb.currency_code] += wb.balanceMinor;
   }
 
-  // Current month income/expense
+  // helpers
   const now = new Date();
-  const currentMonth = now.getMonth();
+  const currentMonth = now.getMonth(); // 0–11
   const currentYear = now.getFullYear();
 
+  function isCurrentMonth(dateStr: string): boolean {
+    const d = new Date(dateStr);
+    return (
+      d.getFullYear() === currentYear && d.getMonth() === currentMonth
+    );
+  }
+
+  // Current month income/expense totals (across all wallets & currencies)
   let monthIncomeMinor = 0;
   let monthExpenseMinor = 0;
 
   for (const tx of transactions) {
-    const d = new Date(tx.occurred_at);
-    if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+    if (isCurrentMonth(tx.occurred_at)) {
       if (tx.type === "income") {
         monthIncomeMinor += tx.amount_minor;
       } else if (tx.type === "expense") {
@@ -154,6 +203,66 @@ export default function DashboardPage() {
       }
     }
   }
+
+  // Budget vs Actual for current month
+  const walletMap = Object.fromEntries(
+    wallets.map((w) => [w.id, w] as const)
+  );
+  const categoryMap = Object.fromEntries(
+    categories.map((c) => [c.id, c] as const)
+  );
+
+  const budgetsThisMonth = budgets.filter(
+    (b) => b.year === currentYear && b.month === currentMonth + 1
+  );
+
+  // For each budget, compute actual spent/received on that wallet+category this month
+  const budgetSummaries = budgetsThisMonth.map((b) => {
+    const wallet = b.wallet_id ? walletMap[b.wallet_id] : null;
+    const category = categoryMap[b.category_id];
+
+    // Filter transactions that match wallet, category and current month
+    const relevantTxs = transactions.filter((tx) => {
+      if (!isCurrentMonth(tx.occurred_at)) return false;
+      if (tx.category_id !== b.category_id) return false;
+      if (b.wallet_id && tx.wallet_id !== b.wallet_id) return false;
+      return true;
+    });
+
+    const actualMinor = relevantTxs.reduce((sum, tx) => {
+      // For expense budgets we care about expense amounts; for income budgets about income
+      if (!category) return sum;
+      if (category.type === "expense" && tx.type === "expense") {
+        return sum + tx.amount_minor;
+      }
+      if (category.type === "income" && tx.type === "income") {
+        return sum + tx.amount_minor;
+      }
+      return sum;
+    }, 0);
+
+    const remainingMinor =
+      category && category.type === "expense"
+        ? b.amount_minor - actualMinor
+        : b.amount_minor - actualMinor; // same math, label changes
+
+    const usedRatio =
+      b.amount_minor > 0 ? actualMinor / b.amount_minor : 0;
+
+    return {
+      budget: b,
+      wallet,
+      category,
+      actualMinor,
+      remainingMinor,
+      usedRatio,
+    };
+  });
+
+  const monthLabel = now.toLocaleString("en", {
+    month: "long",
+    year: "numeric",
+  });
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
@@ -170,6 +279,9 @@ export default function DashboardPage() {
           <a href="/transactions" className="underline">
             Transactions
           </a>
+          <a href="/budgets" className="underline">
+            Budgets
+          </a>
           {email && <span className="hidden sm:inline">{email}</span>}
           <button
             onClick={handleLogout}
@@ -181,12 +293,11 @@ export default function DashboardPage() {
       </header>
 
       <main className="flex-1 px-4 py-6 max-w-6xl mx-auto w-full">
-        <h1 className="text-2xl font-semibold mb-2">
-          Overview
-        </h1>
+        <h1 className="text-2xl font-semibold mb-2">Overview</h1>
         <p className="text-gray-400 mb-4 text-sm">
-          High-level snapshot of your wallets and activity. We&apos;ll evolve
-          this into charts and deeper analytics as we go.
+          High-level snapshot of your wallets, budgets, and activity for{" "}
+          {monthLabel}. We&apos;ll evolve this into charts and deeper
+          analytics as we go.
         </p>
 
         {errorMsg && (
@@ -265,7 +376,7 @@ export default function DashboardPage() {
         </section>
 
         {/* Wallet list with balances */}
-        <section>
+        <section className="mb-8">
           <h2 className="text-lg font-semibold mb-2">
             Wallet Balances
           </h2>
@@ -295,6 +406,64 @@ export default function DashboardPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </section>
+
+        {/* Budgets vs Actual */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">
+            Budgets vs Actual – {monthLabel}
+          </h2>
+
+          {loadingData ? (
+            <p className="text-gray-400 text-sm">Loading...</p>
+          ) : budgetSummaries.length === 0 ? (
+            <p className="text-gray-500 text-sm">
+              You don&apos;t have any budgets set for this month yet. Add
+              some from the Budgets page.
+            </p>
+          ) : (
+            <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
+              {budgetSummaries.map((item) => {
+                const { budget, wallet, category, actualMinor, usedRatio } =
+                  item;
+
+                const currency = wallet?.currency_code ?? "";
+                const isExpense =
+                  category && category.type === "expense";
+                const labelVerb = isExpense ? "Spent" : "Received";
+
+                const usedPercent = Math.round(usedRatio * 100);
+
+                return (
+                  <div
+                    key={budget.id}
+                    className="flex items-center justify-between px-4 py-2"
+                  >
+                    <div>
+                      <div className="font-medium">
+                        {category ? category.name : "Unknown category"}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {wallet ? wallet.name : "All wallets"}{" "}
+                        {currency ? `• ${currency}` : ""}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div>
+                        {labelVerb}{" "}
+                        {formatMinorToAmount(actualMinor)} /{" "}
+                        {formatMinorToAmount(budget.amount_minor)}{" "}
+                        {currency}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {usedPercent}% of budget used
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>
