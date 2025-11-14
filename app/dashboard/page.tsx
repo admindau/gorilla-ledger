@@ -192,19 +192,28 @@ export default function DashboardPage() {
     return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
   }
 
-  // Current month income/expense totals
-  let monthIncomeMinor = 0;
-  let monthExpenseMinor = 0;
+  // Current month income/expense totals — per currency (pure multi-currency)
+  const monthIncomeByCurrency: Record<string, number> = {};
+  const monthExpenseByCurrency: Record<string, number> = {};
 
   for (const tx of transactions) {
-    if (isCurrentMonth(tx.occurred_at)) {
-      if (tx.type === "income") {
-        monthIncomeMinor += tx.amount_minor;
-      } else if (tx.type === "expense") {
-        monthExpenseMinor += tx.amount_minor;
+    if (!isCurrentMonth(tx.occurred_at)) continue;
+
+    if (tx.type === "income") {
+      if (!monthIncomeByCurrency[tx.currency_code]) {
+        monthIncomeByCurrency[tx.currency_code] = 0;
       }
+      monthIncomeByCurrency[tx.currency_code] += tx.amount_minor;
+    } else if (tx.type === "expense") {
+      if (!monthExpenseByCurrency[tx.currency_code]) {
+        monthExpenseByCurrency[tx.currency_code] = 0;
+      }
+      monthExpenseByCurrency[tx.currency_code] += tx.amount_minor;
     }
   }
+
+  const monthIncomeEntries = Object.entries(monthIncomeByCurrency);
+  const monthExpenseEntries = Object.entries(monthExpenseByCurrency);
 
   // Budget vs Actual for current month
   const walletMap = Object.fromEntries(wallets.map((w) => [w.id, w] as const));
@@ -276,7 +285,7 @@ export default function DashboardPage() {
     .sort((a, b) => b.value - a.value)
     .slice(0, 5);
 
-  // -------- Monthly income vs expense (across all time) --------
+  // -------- Monthly income vs expense (across all time, still "mixed") --------
   const incomeExpenseByMonth: Record<
     string,
     { incomeMinor: number; expenseMinor: number }
@@ -370,11 +379,19 @@ export default function DashboardPage() {
             <div className="text-xs text-gray-400 uppercase mb-1">
               This Month – Income
             </div>
-            <div className="text-lg font-semibold">
-              {formatMinorToAmount(monthIncomeMinor)} (mixed currencies)
+            <div className="text-lg font-semibold space-y-1">
+              {monthIncomeEntries.length === 0 ? (
+                <div>0.00</div>
+              ) : (
+                monthIncomeEntries.map(([currency, minor]) => (
+                  <div key={currency}>
+                    {formatMinorToAmount(minor)} {currency}
+                  </div>
+                ))
+              )}
             </div>
             <div className="text-xs text-gray-500 mt-1">
-              Total of all income transactions this month.
+              Totals per currency. No FX conversion applied.
             </div>
           </div>
 
@@ -382,11 +399,19 @@ export default function DashboardPage() {
             <div className="text-xs text-gray-400 uppercase mb-1">
               This Month – Expenses
             </div>
-            <div className="text-lg font-semibold">
-              {formatMinorToAmount(monthExpenseMinor)} (mixed currencies)
+            <div className="text-lg font-semibold space-y-1">
+              {monthExpenseEntries.length === 0 ? (
+                <div>0.00</div>
+              ) : (
+                monthExpenseEntries.map(([currency, minor]) => (
+                  <div key={currency}>
+                    {formatMinorToAmount(minor)} {currency}
+                  </div>
+                ))
+              )}
             </div>
             <div className="text-xs text-gray-500 mt-1">
-              Total of all expense transactions this month.
+              Totals per currency. No FX conversion applied.
             </div>
           </div>
         </section>
@@ -465,7 +490,7 @@ export default function DashboardPage() {
               No expense transactions for this month yet.
             </p>
           ) : (
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
+            <div className="border border-gray-800 rounded p-4 bg.black/40 bg-black/40">
               <SpendingChart data={spendingByCategoryData} />
             </div>
           )}
