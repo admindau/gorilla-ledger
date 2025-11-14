@@ -283,6 +283,15 @@ export default function DashboardPage() {
     };
   });
 
+  // Budget health stats
+  const budgetsOnTrack = budgetSummaries.filter(
+    (b) => b.usedRatio <= 1
+  ).length;
+  const budgetsOver = budgetSummaries.filter(
+    (b) => b.usedRatio > 1
+  ).length;
+  const totalBudgets = budgetSummaries.length;
+
   // -------- Spending by category (selected month) --------
   const expenseByCategory: Record<string, number> = {};
   for (const tx of transactions) {
@@ -564,7 +573,7 @@ export default function DashboardPage() {
         {/* Top categories bar chart */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-2">
-            Top Spending Categories – {monthLabel}
+            Top Spending Categories – This Month
           </h2>
           {loadingData ? (
             <p className="text-gray-400 text-sm">Loading...</p>
@@ -587,82 +596,100 @@ export default function DashboardPage() {
 
           {loadingData ? (
             <p className="text-gray-400 text-sm">Loading...</p>
-          ) : budgetSummaries.length === 0 ? (
+          ) : totalBudgets === 0 ? (
             <p className="text-gray-500 text-sm">
               You don&apos;t have any budgets set for this month yet. Add some
               from the Budgets page.
             </p>
           ) : (
-            <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
-              {budgetSummaries.map((item) => {
-                const { budget, wallet, category, actualMinor, usedRatio } =
-                  item;
+            <>
+              {/* Budgets health summary */}
+              <div className="mb-3 flex flex-wrap gap-2 text-xs text-gray-300">
+                <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
+                  {totalBudgets}{" "}
+                  {totalBudgets === 1 ? "budget" : "budgets"} this month
+                </span>
+                <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
+                  {budgetsOnTrack}{" "}
+                  {budgetsOnTrack === 1 ? "on track" : "on track budgets"}
+                </span>
+                <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
+                  {budgetsOver}{" "}
+                  {budgetsOver === 1 ? "over budget" : "over-budget items"}
+                </span>
+              </div>
 
-                const currency = wallet?.currency_code ?? "";
-                const isExpense = category && category.type === "expense";
-                const labelVerb = isExpense ? "Spent" : "Received";
+              <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
+                {budgetSummaries.map((item) => {
+                  const { budget, wallet, category, actualMinor, usedRatio } =
+                    item;
 
-                const usedPercent = Math.round(usedRatio * 100);
-                const clampedPercent = Math.max(
-                  0,
-                  Math.min(usedPercent, 130)
-                );
+                  const currency = wallet?.currency_code ?? "";
+                  const isExpense = category && category.type === "expense";
+                  const labelVerb = isExpense ? "Spent" : "Received";
 
-                const barFillPercent = Math.max(
-                  0,
-                  Math.min(clampedPercent, 100)
-                );
+                  const usedPercent = Math.round(usedRatio * 100);
+                  const clampedPercent = Math.max(
+                    0,
+                    Math.min(usedPercent, 130)
+                  );
 
-                // Slightly different border if over 100%
-                const barBorderClass =
-                  usedPercent > 100 ? "border-white/60" : "border-gray-700";
+                  const barFillPercent = Math.max(
+                    0,
+                    Math.min(clampedPercent, 100)
+                  );
 
-                return (
-                  <div
-                    key={budget.id}
-                    className="flex flex-col md:flex-row md:items-center md:justify-between px-4 py-3 gap-3"
-                  >
-                    <div>
-                      <div className="font-medium">
-                        {category ? category.name : "Unknown category"}
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        {wallet ? wallet.name : "All wallets"}{" "}
-                        {currency ? `• ${currency}` : ""}
-                      </div>
-                    </div>
+                  const barBorderClass =
+                    usedPercent > 100 ? "border-white/60" : "border-gray-700";
 
-                    <div className="w-full md:w-1/2">
-                      <div className="flex items-baseline justify-between mb-1">
-                        <div className="text-sm">
-                          {labelVerb} {formatMinorToAmount(actualMinor)} /{" "}
-                          {formatMinorToAmount(budget.amount_minor)} {currency}
+                  return (
+                    <div
+                      key={budget.id}
+                      className="flex flex-col md:flex-row md:items-center md:justify-between px-4 py-3 gap-3"
+                    >
+                      <div>
+                        <div className="font-medium">
+                          {category ? category.name : "Unknown category"}
                         </div>
-                        <div className="text-xs text-gray-400 ml-3 whitespace-nowrap">
-                          {usedPercent}% of budget used
+                        <div className="text-xs text-gray-400">
+                          {wallet ? wallet.name : "All wallets"}{" "}
+                          {currency ? `• ${currency}` : ""}
                         </div>
                       </div>
 
-                      {/* Progress bar */}
-                      <div
-                        className={`w-full h-2 rounded-full bg-black border ${barBorderClass} overflow-hidden`}
-                      >
+                      <div className="w-full md:w-1/2">
+                        <div className="flex items-baseline justify-between mb-1">
+                          <div className="text-sm">
+                            {labelVerb} {formatMinorToAmount(actualMinor)} /{" "}
+                            {formatMinorToAmount(budget.amount_minor)}{" "}
+                            {currency}
+                          </div>
+                          <div className="text-xs text-gray-400 ml-3 whitespace-nowrap">
+                            {usedPercent}% of budget used
+                          </div>
+                        </div>
+
+                        {/* Progress bar */}
                         <div
-                          className="h-full bg-white"
-                          style={{ width: `${barFillPercent}%` }}
-                        />
-                      </div>
-
-                      {usedPercent > 100 && (
-                        <div className="mt-1 text-[11px] text-gray-400">
-                          You&apos;ve exceeded this budget.
+                          className={`w-full h-2 rounded-full bg-black border ${barBorderClass} overflow-hidden`}
+                        >
+                          <div
+                            className="h-full bg-white"
+                            style={{ width: `${barFillPercent}%` }}
+                          />
                         </div>
-                      )}
+
+                        {usedPercent > 100 && (
+                          <div className="mt-1 text-[11px] text-gray-400">
+                            You&apos;ve exceeded this budget.
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </section>
       </main>
