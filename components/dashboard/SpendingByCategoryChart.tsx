@@ -9,6 +9,7 @@ import {
   Legend,
   ResponsiveContainer,
   Cell,
+  Label,
 } from "recharts";
 
 type RawTransaction = {
@@ -67,7 +68,9 @@ export default function SpendingByCategoryChart() {
         const year = now.getFullYear();
         const monthIndex = now.getMonth(); // 0–11
 
-        const monthStart = new Date(Date.UTC(year, monthIndex, 1)).toISOString();
+        const monthStart = new Date(
+          Date.UTC(year, monthIndex, 1)
+        ).toISOString();
         const monthEnd = new Date(
           Date.UTC(year, monthIndex + 1, 1)
         ).toISOString();
@@ -123,9 +126,7 @@ export default function SpendingByCategoryChart() {
 
         // Sort categories by descending spend for nicer visuals
         for (const currency of Object.keys(aggregated)) {
-          aggregated[currency].sort(
-            (a, b) => b.totalMajor - a.totalMajor
-          );
+          aggregated[currency].sort((a, b) => b.totalMajor - a.totalMajor);
         }
 
         setDataByCurrency(aggregated);
@@ -153,6 +154,15 @@ export default function SpendingByCategoryChart() {
 
   const activeData =
     (activeCurrency ? dataByCurrency[activeCurrency] : undefined) ?? [];
+
+  // 👇 Total for center label
+  const activeTotal = useMemo(
+    () =>
+      activeData.reduce((sum, point) => {
+        return sum + point.totalMajor;
+      }, 0),
+    [activeData]
+  );
 
   return (
     <section className="mt-8 border border-gray-800 rounded-lg bg-black/40 p-4 text-sm">
@@ -220,6 +230,40 @@ export default function SpendingByCategoryChart() {
                     strokeWidth={1}
                   />
                 ))}
+
+                {/* 👇 Center label with total + currency */}
+                <Label
+                  position="center"
+                  content={(props) => {
+                    const { viewBox } = props;
+                    if (!viewBox || typeof viewBox !== "object") return null;
+                    const { cx, cy } = viewBox as { cx: number; cy: number };
+
+                    return (
+                      <g>
+                        <text
+                          x={cx}
+                          y={cy - 6}
+                          textAnchor="middle"
+                          fill="#a3a3a3"
+                          fontSize={11}
+                        >
+                          Total {activeCurrency}
+                        </text>
+                        <text
+                          x={cx}
+                          y={cy + 10}
+                          textAnchor="middle"
+                          fill="#ffffff"
+                          fontSize={14}
+                          fontWeight={600}
+                        >
+                          {formatAmount(activeTotal)}
+                        </text>
+                      </g>
+                    );
+                  }}
+                />
               </Pie>
               <Tooltip
                 formatter={(value: any) =>
