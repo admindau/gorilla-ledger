@@ -8,6 +8,7 @@ import { supabaseBrowserClient } from "@/lib/supabase/client";
 import SpendingByCategoryChart from "@/components/dashboard/SpendingByCategoryChart";
 import MonthlyIncomeExpenseChart from "@/components/dashboard/MonthlyIncomeExpenseChart";
 import TopCategoriesBarChart from "@/components/dashboard/TopCategoriesBarChart";
+import HistoricalIncomeExpenseChart from "@/components/dashboard/HistoricalIncomeExpenseChart";
 
 type Wallet = {
   id: string;
@@ -354,10 +355,14 @@ export default function DashboardPage() {
       expense: expenseMinor / 100,
     }));
 
+  // Last 12 months for the historical chart
+  const incomeExpenseTrendLast12 = incomeExpenseTrendData.slice(-12);
+
   // Relax typings for chart components to avoid prop-type friction
   const SpendingChart = SpendingByCategoryChart as any;
   const IncomeExpenseChart = MonthlyIncomeExpenseChart as any;
   const TopCategoriesChart = TopCategoriesBarChart as any;
+  const HistoricalIncomeExpense = HistoricalIncomeExpenseChart as any;
 
   const selectedDate = new Date(selectedYear, selectedMonth, 1);
   const monthLabel = selectedDate.toLocaleString("en", {
@@ -368,9 +373,9 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
       {/* Top bar */}
-      <header className="w-full flex items-center justify-between px-6 py-4 border-b border-gray-800">
+      <header className="w-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-6 py-4 border-b border-gray-800">
         <div className="font-semibold text-lg">Gorilla Ledger™</div>
-        <div className="flex items-center gap-4 text-sm text-gray-300">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-300">
           <a href="/wallets" className="underline">
             Wallets
           </a>
@@ -383,14 +388,17 @@ export default function DashboardPage() {
           <a href="/budgets" className="underline">
             Budgets
           </a>
-          {/* NEW: Recurring nav link */}
           <a href="/recurring" className="underline">
             Recurring
           </a>
-          {email && <span className="hidden sm:inline">{email}</span>}
+          {email && (
+            <span className="hidden md:inline max-w-[220px] truncate">
+              {email}
+            </span>
+          )}
           <button
             onClick={handleLogout}
-            className="px-3 py-1 rounded border border-gray-600 hover:bg:white hover:text-black transition"
+            className="px-3 py-1 rounded border border-gray-600 hover:bg-white hover:text-black transition"
           >
             Logout
           </button>
@@ -562,7 +570,7 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Monthly income vs expenses (trend) */}
+        {/* Monthly income vs expenses (mixed currencies, all time) */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-2">
             Monthly Income vs Expenses
@@ -576,6 +584,24 @@ export default function DashboardPage() {
           ) : (
             <div className="border border-gray-800 rounded p-4 bg-black/40">
               <IncomeExpenseChart data={incomeExpenseTrendData} />
+            </div>
+          )}
+        </section>
+
+        {/* Historical 12-month income vs expenses */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">
+            Historical Income vs Expenses – Last 12 Months
+          </h2>
+          {loadingData ? (
+            <p className="text-gray-400 text-sm">Loading...</p>
+          ) : incomeExpenseTrendLast12.length === 0 ? (
+            <p className="text-gray-500 text-sm">
+              Not enough history yet to show this trend.
+            </p>
+          ) : (
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              <HistoricalIncomeExpense data={incomeExpenseTrendLast12} />
             </div>
           )}
         </section>
