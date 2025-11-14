@@ -32,15 +32,16 @@ type ChartPoint = {
 
 type ChartDataByCurrency = Record<string, ChartPoint[]>;
 
+// Neutral grayscale palette (no pure white slice so the ring & tooltip stay readable)
 const COLORS = [
-  "#ffffff",
+  "#f5f5f5",
   "#e5e5e5",
-  "#b3b3b3",
+  "#d4d4d4",
+  "#a3a3a3",
   "#737373",
   "#525252",
   "#404040",
   "#262626",
-  "#171717",
 ];
 
 function formatAmount(amount: number) {
@@ -155,7 +156,7 @@ export default function SpendingByCategoryChart() {
   const activeData =
     (activeCurrency ? dataByCurrency[activeCurrency] : undefined) ?? [];
 
-  // 👇 Total for center label
+  // Total for center label
   const activeTotal = useMemo(
     () =>
       activeData.reduce((sum, point) => {
@@ -231,7 +232,7 @@ export default function SpendingByCategoryChart() {
                   />
                 ))}
 
-                {/* 👇 Center label with total + currency */}
+                {/* Center label with total + currency */}
                 <Label
                   position="center"
                   content={(props) => {
@@ -274,6 +275,12 @@ export default function SpendingByCategoryChart() {
                   borderColor: "#262626",
                   borderRadius: 8,
                   fontSize: 11,
+                }}
+                itemStyle={{
+                  color: "#f5f5f5", // value text
+                }}
+                labelStyle={{
+                  color: "#a3a3a3", // label (category name / date)
                 }}
               />
               <Legend
