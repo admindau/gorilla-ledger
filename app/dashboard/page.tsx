@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
+import SpendingByCategoryChart from "@/components/dashboard/SpendingByCategoryChart";
 
 type Wallet = {
   id: string;
@@ -185,9 +186,7 @@ export default function DashboardPage() {
 
   function isCurrentMonth(dateStr: string): boolean {
     const d = new Date(dateStr);
-    return (
-      d.getFullYear() === currentYear && d.getMonth() === currentMonth
-    );
+    return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
   }
 
   // Current month income/expense totals (across all wallets & currencies)
@@ -204,24 +203,21 @@ export default function DashboardPage() {
     }
   }
 
-  // Budget vs Actual for current month
-  const walletMap = Object.fromEntries(
-    wallets.map((w) => [w.id, w] as const)
-  );
+  // Maps for lookups
+  const walletMap = Object.fromEntries(wallets.map((w) => [w.id, w] as const));
   const categoryMap = Object.fromEntries(
     categories.map((c) => [c.id, c] as const)
   );
 
+  // Budget vs Actual for current month
   const budgetsThisMonth = budgets.filter(
     (b) => b.year === currentYear && b.month === currentMonth + 1
   );
 
-  // For each budget, compute actual spent/received on that wallet+category this month
   const budgetSummaries = budgetsThisMonth.map((b) => {
     const wallet = b.wallet_id ? walletMap[b.wallet_id] : null;
     const category = categoryMap[b.category_id];
 
-    // Filter transactions that match wallet, category and current month
     const relevantTxs = transactions.filter((tx) => {
       if (!isCurrentMonth(tx.occurred_at)) return false;
       if (tx.category_id !== b.category_id) return false;
@@ -230,7 +226,6 @@ export default function DashboardPage() {
     });
 
     const actualMinor = relevantTxs.reduce((sum, tx) => {
-      // For expense budgets we care about expense amounts; for income budgets about income
       if (!category) return sum;
       if (category.type === "expense" && tx.type === "expense") {
         return sum + tx.amount_minor;
@@ -241,13 +236,9 @@ export default function DashboardPage() {
       return sum;
     }, 0);
 
-    const remainingMinor =
-      category && category.type === "expense"
-        ? b.amount_minor - actualMinor
-        : b.amount_minor - actualMinor; // same math, label changes
+    const remainingMinor = b.amount_minor - actualMinor;
 
-    const usedRatio =
-      b.amount_minor > 0 ? actualMinor / b.amount_minor : 0;
+    const usedRatio = b.amount_minor > 0 ? actualMinor / b.amount_minor : 0;
 
     return {
       budget: b,
@@ -258,6 +249,30 @@ export default function DashboardPage() {
       usedRatio,
     };
   });
+
+  // -------- Spending by category (for chart) --------
+  // Aggregate current-month expenses per category
+  const expenseByCategory: Record<string, number> = {};
+  for (const tx of transactions) {
+    if (!isCurrentMonth(tx.occurred_at)) continue;
+    if (tx.type !== "expense") continue;
+    if (!tx.category_id) continue;
+
+    if (!expenseByCategory[tx.category_id]) {
+      expenseByCategory[tx.category_id] = 0;
+    }
+    expenseByCategory[tx.category_id] += tx.amount_minor;
+  }
+
+  const spendingByCategoryData = Object.entries(expenseByCategory).map(
+    ([categoryId, totalMinor]) => ({
+      name: categoryMap[categoryId]?.name ?? "Uncategorized",
+      value: totalMinor / 100, // convert to major units for the chart
+    })
+  );
+
+  // Cast chart component to any so we don't fight its prop typing here
+  const SpendingChart = SpendingByCategoryChart as any;
 
   const monthLabel = now.toLocaleString("en", {
     month: "long",
@@ -296,8 +311,8 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-semibold mb-2">Overview</h1>
         <p className="text-gray-400 mb-4 text-sm">
           High-level snapshot of your wallets, budgets, and activity for{" "}
-          {monthLabel}. We&apos;ll evolve this into charts and deeper
-          analytics as we go.
+          {monthLabel}. We&apos;ll evolve this into charts and deeper analytics
+          as we go.
         </p>
 
         {errorMsg && (
@@ -384,8 +399,8 @@ export default function DashboardPage() {
             <p className="text-gray-400 text-sm">Loading...</p>
           ) : walletBalances.length === 0 ? (
             <p className="text-gray-500 text-sm">
-              You don&apos;t have any wallets yet. Create one from the
-              Wallets page.
+              You don&apos;t have any wallets yet. Create one from the Wallets
+              page.
             </p>
           ) : (
             <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
@@ -410,6 +425,24 @@ export default function DashboardPage() {
           )}
         </section>
 
+        {/* Spending by Category chart */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">
+            Spending by Category – {monthLabel}
+          </h2>
+          {loadingData ? (
+            <p className="text-gray-400 text-sm">Loading...</p>
+          ) : spendingByCategoryData.length === 0 ? (
+            <p className="text-gray-500 text-sm">
+              No expense transactions for this month yet.
+            </p>
+          ) : (
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              <SpendingChart data={spendingByCategoryData} />
+            </div>
+          )}
+        </section>
+
         {/* Budgets vs Actual */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-2">
@@ -420,8 +453,8 @@ export default function DashboardPage() {
             <p className="text-gray-400 text-sm">Loading...</p>
           ) : budgetSummaries.length === 0 ? (
             <p className="text-gray-500 text-sm">
-              You don&apos;t have any budgets set for this month yet. Add
-              some from the Budgets page.
+              You don&apos;t have any budgets set for this month yet. Add some
+              from the Budgets page.
             </p>
           ) : (
             <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
