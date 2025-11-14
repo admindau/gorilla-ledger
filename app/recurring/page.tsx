@@ -18,6 +18,7 @@ type Category = {
 
 type RecurringRule = {
   id: string;
+  user_id: string;
   wallet_id: string;
   category_id: string | null;
   description: string | null;
@@ -65,7 +66,7 @@ export default function RecurringPage() {
             supabase
               .from("recurring_rules")
               .select(
-                "id, wallet_id, category_id, description, amount_minor, currency_code, day_of_month, start_date, next_run_at, is_active"
+                "id,user_id,wallet_id,category_id,description,amount_minor,currency_code,day_of_month,start_date,next_run_at,is_active"
               )
               .order("created_at", { ascending: true }),
           ]);
@@ -102,6 +103,21 @@ export default function RecurringPage() {
 
     const supabase = supabaseBrowserClient;
 
+    // 🔐 Get current user for user_id / RLS
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError) {
+      console.error("Error getting user:", userError);
+    }
+
+    if (!user) {
+      showToast("You must be logged in to create a recurring rule.", "error");
+      return;
+    }
+
     const amountMinor = Math.round(parsedAmount * 100);
 
     const selectedWallet = wallets.find((w) => w.id === walletId);
@@ -112,14 +128,15 @@ export default function RecurringPage() {
 
     const firstDate = new Date(firstRunDate);
     const dayOfMonth = firstDate.getDate();
-    const nextRunAt = firstDate.toISOString(); // ok for timestamptz column
+    const nextRunAt = firstDate.toISOString(); // timestamptz-safe
 
     setSaving(true);
 
     const { error } = await supabase.from("recurring_rules").insert({
+      user_id: user.id, // 🔑 satisfy NOT NULL + RLS
       wallet_id: walletId,
       category_id: categoryId,
-      type, // <-- important: satisfies recurring_rules_type_check
+      type, // 🔑 satisfy recurring_rules_type_check
       amount_minor: amountMinor,
       currency_code: currencyCode,
       frequency: "monthly",
@@ -147,7 +164,7 @@ export default function RecurringPage() {
     const { data: r, error: rErr } = await supabase
       .from("recurring_rules")
       .select(
-        "id, wallet_id, category_id, description, amount_minor, currency_code, day_of_month, start_date, next_run_at, is_active"
+        "id,user_id,wallet_id,category_id,description,amount_minor,currency_code,day_of_month,start_date,next_run_at,is_active"
       )
       .order("created_at", { ascending: true });
 
