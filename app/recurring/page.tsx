@@ -44,53 +44,24 @@ export default function RecurringPage() {
   const [firstRunDate, setFirstRunDate] = useState("");
   const [description, setDescription] = useState("");
 
-  // ---------- initial load ----------
+  // Load wallets, categories, and existing rules
   useEffect(() => {
     async function loadData() {
+      setLoading(true);
+      const supabase = supabaseBrowserClient;
+
       try {
-        setLoading(true);
-        const supabase = supabaseBrowserClient;
-
-        const [{ data: w, error: wErr }, { data: c, error: cErr }, { data: r, error: rErr }] =
-          await Promise.all([
-            supabase
-              .from("wallets")
-              .select("*")
-              .order("name", { ascending: true }),
-            supabase
-              .from("categories")
-              .select("*")
-              .order("name", { ascending: true }),
-            supabase
-              .from("recurring_rules")
-              .select(
-                `
-                id,
-                description,
-                amount_minor,
-                currency_code,
-                day_of_month,
-                start_date,
-                next_run_at,
-                is_active,
-                wallet:wallets (
-                  id,
-                  name,
-                  currency_code
-                ),
-                category:categories (
-                  id,
-                  name,
-                  type
-                )
-              `
-              )
-              .order("created_at", { ascending: true }),
-          ]);
-
-        if (wErr) console.error("Error loading wallets", wErr);
-        if (cErr) console.error("Error loading categories", cErr);
-        if (rErr) console.error("Error loading recurring rules", rErr);
+        const [{ data: w }, { data: c }, { data: r }] = await Promise.all([
+          supabase.from("wallets").select("*").order("name", { ascending: true }),
+          supabase
+            .from("categories")
+            .select("*")
+            .order("name", { ascending: true }),
+          supabase
+            .from("recurring_rules_view")
+            .select("*")
+            .order("created_at", { ascending: true }),
+        ]);
 
         setWallets(w ?? []);
         setCategories(c ?? []);
@@ -103,7 +74,7 @@ export default function RecurringPage() {
     loadData();
   }, []);
 
-  // ---------- create rule ----------
+  // Create a new recurring rule
   async function handleCreateRule(e: FormEvent) {
     e.preventDefault();
 
@@ -122,32 +93,34 @@ export default function RecurringPage() {
 
     const amountMinor = Math.round(parsedAmount * 100);
 
-    const wallet = wallets.find((w) => w.id === walletId);
-    const category = categories.find((c) => c.id === categoryId);
+    const selectedWallet = wallets.find((w) => w.id === walletId);
+    const selectedCategory = categories.find((c) => c.id === categoryId);
 
-    // table requires a type with a check constraint
+    // Required by the recurring_rules_type_check constraint
     const type: "income" | "expense" =
-      (category?.type as "income" | "expense") ?? "expense";
+      selectedCategory?.type === "income" ? "income" : "expense";
 
-    const dayOfMonth = new Date(firstRunDate).getDate();
+    const currencyCode = selectedWallet?.currency_code ?? "USD";
+    const firstDate = new Date(firstRunDate);
+    const dayOfMonth = firstDate.getUTCDate();
 
     const { error } = await supabase.from("recurring_rules").insert({
       wallet_id: walletId,
       category_id: categoryId,
-      type, // 👈 this fixes the recurring_rules_type_check failure
+      type, // 👈 THIS was missing before
       amount_minor: amountMinor,
-      currency_code: wallet?.currency_code ?? "USD",
+      currency_code: currencyCode,
       frequency: "monthly",
       interval: 1,
       day_of_month: dayOfMonth,
       start_date: firstRunDate,
-      next_run_at: firstRunDate, // first scheduled run
+      next_run_at: firstRunDate,
       description: description || null,
       is_active: true,
     });
 
     if (error) {
-      console.error("Failed to create recurring rule", error);
+      console.error(error);
       showToast("Failed to create recurring rule.", "error");
       return;
     }
@@ -156,41 +129,20 @@ export default function RecurringPage() {
     setAmount("");
     setDescription("");
 
-    // reload rules list from the same joined query
-    const { data: r, error: rErr } = await supabase
-      .from("recurring_rules")
-      .select(
-        `
-        id,
-        description,
-        amount_minor,
-        currency_code,
-        day_of_month,
-        start_date,
-        next_run_at,
-        is_active,
-        wallet:wallets (
-          id,
-          name,
-          currency_code
-        ),
-        category:categories (
-          id,
-          name,
-          type
-        )
-      `
-      )
+    // Reload rules list
+    const { data: r, error: reloadError } = await supabase
+      .from("recurring_rules_view")
+      .select("*")
       .order("created_at", { ascending: true });
 
-    if (rErr) {
-      console.error("Error reloading recurring rules", rErr);
+    if (reloadError) {
+      console.error(reloadError);
+      return;
     }
 
     setRules((r as unknown as RecurringRule[]) ?? []);
   }
 
-  // ---------- toggle active / paused ----------
   async function toggleRuleActive(rule: RecurringRule, isActive: boolean) {
     const supabase = supabaseBrowserClient;
 
@@ -220,9 +172,12 @@ export default function RecurringPage() {
     );
   }
 
-  // ---------- delete rule ----------
   async function deleteRule(rule: RecurringRule) {
-    if (!window.confirm(`Delete recurring rule for ${rule.description || "rule"}?`)) {
+    if (
+      !window.confirm(
+        `Delete recurring rule for ${rule.description || "rule"}?`
+      )
+    ) {
       return;
     }
 
@@ -243,7 +198,6 @@ export default function RecurringPage() {
     setRules((prev) => prev.filter((r) => r.id !== rule.id));
   }
 
-  // ---------- UI ----------
   const now = new Date();
   const monthName = now.toLocaleString("en-US", { month: "long" });
   const year = now.getFullYear();
