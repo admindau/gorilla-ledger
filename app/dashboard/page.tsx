@@ -383,10 +383,14 @@ export default function DashboardPage() {
           <a href="/budgets" className="underline">
             Budgets
           </a>
+          {/* NEW: Recurring nav link */}
+          <a href="/recurring" className="underline">
+            Recurring
+          </a>
           {email && <span className="hidden sm:inline">{email}</span>}
           <button
             onClick={handleLogout}
-            className="px-3 py-1 rounded border border-gray-600 hover:bg-white hover:text-black transition"
+            className="px-3 py-1 rounded border border-gray-600 hover:bg:white hover:text-black transition"
           >
             Logout
           </button>
@@ -478,7 +482,7 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Totals per currency */}
+        {/* Total Balance by currency */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-2">
             Total Balance by Currency
@@ -508,7 +512,7 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Wallet list with balances */}
+        {/* Wallet Balances */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-2">Wallet Balances</h2>
           {loadingData ? (
@@ -558,7 +562,7 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Monthly income vs expense (line / area) */}
+        {/* Monthly income vs expenses (trend) */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-2">
             Monthly Income vs Expenses
