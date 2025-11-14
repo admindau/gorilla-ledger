@@ -60,6 +60,31 @@ export default function DashboardPage() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
 
+  // --- Month selector state (0–11) ---
+  const today = new Date();
+  const [selectedYear, setSelectedYear] = useState(today.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(today.getMonth()); // 0-based
+
+  function goToPreviousMonth() {
+    setSelectedMonth((prev) => {
+      if (prev === 0) {
+        setSelectedYear((y) => y - 1);
+        return 11;
+      }
+      return prev - 1;
+    });
+  }
+
+  function goToNextMonth() {
+    setSelectedMonth((prev) => {
+      if (prev === 11) {
+        setSelectedYear((y) => y + 1);
+        return 0;
+      }
+      return prev + 1;
+    });
+  }
+
   useEffect(() => {
     async function init() {
       setCheckingSession(true);
@@ -183,21 +208,19 @@ export default function DashboardPage() {
     totalsByCurrency[wb.currency_code] += wb.balanceMinor;
   }
 
-  const now = new Date();
-  const currentMonth = now.getMonth(); // 0–11
-  const currentYear = now.getFullYear();
-
-  function isCurrentMonth(dateStr: string): boolean {
+  function isSelectedMonth(dateStr: string): boolean {
     const d = new Date(dateStr);
-    return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+    return (
+      d.getFullYear() === selectedYear && d.getMonth() === selectedMonth
+    );
   }
 
-  // Current month income/expense totals — per currency (pure multi-currency)
+  // Current (selected) month income/expense totals — per currency (pure multi-currency)
   const monthIncomeByCurrency: Record<string, number> = {};
   const monthExpenseByCurrency: Record<string, number> = {};
 
   for (const tx of transactions) {
-    if (!isCurrentMonth(tx.occurred_at)) continue;
+    if (!isSelectedMonth(tx.occurred_at)) continue;
 
     if (tx.type === "income") {
       if (!monthIncomeByCurrency[tx.currency_code]) {
@@ -215,14 +238,14 @@ export default function DashboardPage() {
   const monthIncomeEntries = Object.entries(monthIncomeByCurrency);
   const monthExpenseEntries = Object.entries(monthExpenseByCurrency);
 
-  // Budget vs Actual for current month
+  // Budget vs Actual for selected month
   const walletMap = Object.fromEntries(wallets.map((w) => [w.id, w] as const));
   const categoryMap = Object.fromEntries(
     categories.map((c) => [c.id, c] as const)
   );
 
   const budgetsThisMonth = budgets.filter(
-    (b) => b.year === currentYear && b.month === currentMonth + 1
+    (b) => b.year === selectedYear && b.month === selectedMonth + 1
   );
 
   const budgetSummaries = budgetsThisMonth.map((b) => {
@@ -230,7 +253,7 @@ export default function DashboardPage() {
     const category = categoryMap[b.category_id];
 
     const relevantTxs = transactions.filter((tx) => {
-      if (!isCurrentMonth(tx.occurred_at)) return false;
+      if (!isSelectedMonth(tx.occurred_at)) return false;
       if (tx.category_id !== b.category_id) return false;
       if (b.wallet_id && tx.wallet_id !== b.wallet_id) return false;
       return true;
@@ -260,10 +283,10 @@ export default function DashboardPage() {
     };
   });
 
-  // -------- Spending by category (current month) --------
+  // -------- Spending by category (selected month) --------
   const expenseByCategory: Record<string, number> = {};
   for (const tx of transactions) {
-    if (!isCurrentMonth(tx.occurred_at)) continue;
+    if (!isSelectedMonth(tx.occurred_at)) continue;
     if (tx.type !== "expense") continue;
     if (!tx.category_id) continue;
 
@@ -321,7 +344,8 @@ export default function DashboardPage() {
   const IncomeExpenseChart = MonthlyIncomeExpenseChart as any;
   const TopCategoriesChart = TopCategoriesBarChart as any;
 
-  const monthLabel = now.toLocaleString("en", {
+  const selectedDate = new Date(selectedYear, selectedMonth, 1);
+  const monthLabel = selectedDate.toLocaleString("en", {
     month: "long",
     year: "numeric",
   });
@@ -347,7 +371,7 @@ export default function DashboardPage() {
           {email && <span className="hidden sm:inline">{email}</span>}
           <button
             onClick={handleLogout}
-            className="px-3 py-1 rounded border border-gray-600 hover:bg-white hover:text-black transition"
+            className="px-3 py-1 rounded border border-gray-600 hover:bg.white hover:bg-white hover:text-black transition"
           >
             Logout
           </button>
@@ -355,11 +379,34 @@ export default function DashboardPage() {
       </header>
 
       <main className="flex-1 px-4 py-6 max-w-6xl mx-auto w-full">
-        <h1 className="text-2xl font-semibold mb-2">Overview</h1>
-        <p className="text-gray-400 mb-4 text-sm">
-          High-level snapshot of your wallets, budgets, and activity for{" "}
-          {monthLabel}.
-        </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <div>
+            <h1 className="text-2xl font-semibold">Overview</h1>
+            <p className="text-gray-400 text-sm">
+              High-level snapshot of your wallets, budgets, and activity.
+            </p>
+          </div>
+          {/* Month selector */}
+          <div className="inline-flex items-center gap-2 text-sm">
+            <button
+              type="button"
+              onClick={goToPreviousMonth}
+              className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
+            >
+              ◀
+            </button>
+            <div className="px-3 py-1 border border-gray-800 rounded-full bg-black/40 text-xs uppercase tracking-wide text-gray-300">
+              {monthLabel}
+            </div>
+            <button
+              type="button"
+              onClick={goToNextMonth}
+              className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
+            >
+              ▶
+            </button>
+          </div>
+        </div>
 
         {errorMsg && (
           <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>
@@ -377,7 +424,7 @@ export default function DashboardPage() {
 
           <div className="border border-gray-800 rounded p-4">
             <div className="text-xs text-gray-400 uppercase mb-1">
-              This Month – Income
+              Income – {monthLabel}
             </div>
             <div className="text-lg font-semibold space-y-1">
               {monthIncomeEntries.length === 0 ? (
@@ -397,7 +444,7 @@ export default function DashboardPage() {
 
           <div className="border border-gray-800 rounded p-4">
             <div className="text-xs text-gray-400 uppercase mb-1">
-              This Month – Expenses
+              Expenses – {monthLabel}
             </div>
             <div className="text-lg font-semibold space-y-1">
               {monthExpenseEntries.length === 0 ? (
@@ -490,7 +537,7 @@ export default function DashboardPage() {
               No expense transactions for this month yet.
             </p>
           ) : (
-            <div className="border border-gray-800 rounded p-4 bg.black/40 bg-black/40">
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
               <SpendingChart data={spendingByCategoryData} />
             </div>
           )}
