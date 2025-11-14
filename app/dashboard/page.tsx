@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
+
+// ⬇️ Your two chart components
 import SpendingByCategoryChart from "@/components/dashboard/SpendingByCategoryChart";
+import MonthlySpendingTrendChart from "@/components/dashboard/MonthlySpendingTrendChart";
 
 type Wallet = {
   id: string;
@@ -147,7 +150,7 @@ export default function DashboardPage() {
   if (checkingSession) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <p className="text-gray-400">Checking your session...</p>
+        <p className="text-gray-400">Checking your session.</p>
       </div>
     );
   }
@@ -203,13 +206,12 @@ export default function DashboardPage() {
     }
   }
 
-  // Maps for lookups
+  // Budget vs Actual for current month
   const walletMap = Object.fromEntries(wallets.map((w) => [w.id, w] as const));
   const categoryMap = Object.fromEntries(
     categories.map((c) => [c.id, c] as const)
   );
 
-  // Budget vs Actual for current month
   const budgetsThisMonth = budgets.filter(
     (b) => b.year === currentYear && b.month === currentMonth + 1
   );
@@ -237,7 +239,6 @@ export default function DashboardPage() {
     }, 0);
 
     const remainingMinor = b.amount_minor - actualMinor;
-
     const usedRatio = b.amount_minor > 0 ? actualMinor / b.amount_minor : 0;
 
     return {
@@ -250,8 +251,7 @@ export default function DashboardPage() {
     };
   });
 
-  // -------- Spending by category (for chart) --------
-  // Aggregate current-month expenses per category
+  // -------- Spending by category (for donut chart) --------
   const expenseByCategory: Record<string, number> = {};
   for (const tx of transactions) {
     if (!isCurrentMonth(tx.occurred_at)) continue;
@@ -267,12 +267,35 @@ export default function DashboardPage() {
   const spendingByCategoryData = Object.entries(expenseByCategory).map(
     ([categoryId, totalMinor]) => ({
       name: categoryMap[categoryId]?.name ?? "Uncategorized",
-      value: totalMinor / 100, // convert to major units for the chart
+      value: totalMinor / 100, // major units for chart
     })
   );
 
-  // Cast chart component to any so we don't fight its prop typing here
+  // -------- Spending trend (for line/area chart) --------
+  const trendByDate: Record<string, number> = {};
+  for (const tx of transactions) {
+    if (!isCurrentMonth(tx.occurred_at)) continue;
+    if (tx.type !== "expense") continue;
+
+    const d = new Date(tx.occurred_at);
+    const key = d.toISOString().slice(0, 10); // YYYY-MM-DD
+
+    if (!trendByDate[key]) {
+      trendByDate[key] = 0;
+    }
+    trendByDate[key] += tx.amount_minor;
+  }
+
+  const spendingTrendData = Object.entries(trendByDate)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, totalMinor]) => ({
+      date,
+      value: totalMinor / 100, // major units
+    }));
+
+  // Cast chart components to any so we don't fight their prop typings here
   const SpendingChart = SpendingByCategoryChart as any;
+  const TrendChart = MonthlySpendingTrendChart as any;
 
   const monthLabel = now.toLocaleString("en", {
     month: "long",
@@ -322,12 +345,8 @@ export default function DashboardPage() {
         {/* Summary cards */}
         <section className="grid gap-4 md:grid-cols-3 mb-8">
           <div className="border border-gray-800 rounded p-4">
-            <div className="text-xs text-gray-400 uppercase mb-1">
-              Wallets
-            </div>
-            <div className="text-2xl font-semibold">
-              {wallets.length}
-            </div>
+            <div className="text-xs text-gray-400 uppercase mb-1">Wallets</div>
+            <div className="text-2xl font-semibold">{wallets.length}</div>
             <div className="text-xs text-gray-500 mt-1">
               Total number of wallets you&apos;re tracking.
             </div>
@@ -371,30 +390,26 @@ export default function DashboardPage() {
             </p>
           ) : (
             <div className="flex flex-wrap gap-4 text-sm">
-              {Object.entries(totalsByCurrency).map(
-                ([currency, minor]) => (
-                  <div
-                    key={currency}
-                    className="border border-gray-800 rounded px-4 py-2"
-                  >
-                    <div className="text-xs text-gray-400 uppercase">
-                      {currency}
-                    </div>
-                    <div className="text-lg font-semibold">
-                      {formatMinorToAmount(minor)} {currency}
-                    </div>
+              {Object.entries(totalsByCurrency).map(([currency, minor]) => (
+                <div
+                  key={currency}
+                  className="border border-gray-800 rounded px-4 py-2"
+                >
+                  <div className="text-xs text-gray-400 uppercase">
+                    {currency}
                   </div>
-                )
-              )}
+                  <div className="text-lg font-semibold">
+                    {formatMinorToAmount(minor)} {currency}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </section>
 
         {/* Wallet list with balances */}
         <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-2">
-            Wallet Balances
-          </h2>
+          <h2 className="text-lg font-semibold mb-2">Wallet Balances</h2>
           {loadingData ? (
             <p className="text-gray-400 text-sm">Loading...</p>
           ) : walletBalances.length === 0 ? (
@@ -416,8 +431,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div className="font-semibold">
-                    {formatMinorToAmount(w.balanceMinor)}{" "}
-                    {w.currency_code}
+                    {formatMinorToAmount(w.balanceMinor)} {w.currency_code}
                   </div>
                 </div>
               ))}
@@ -443,6 +457,24 @@ export default function DashboardPage() {
           )}
         </section>
 
+        {/* Spending Trend chart */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">
+            Spending Trend – {monthLabel}
+          </h2>
+          {loadingData ? (
+            <p className="text-gray-400 text-sm">Loading...</p>
+          ) : spendingTrendData.length === 0 ? (
+            <p className="text-gray-500 text-sm">
+              No expense transactions to chart yet for this month.
+            </p>
+          ) : (
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              <TrendChart data={spendingTrendData} />
+            </div>
+          )}
+        </section>
+
         {/* Budgets vs Actual */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-2">
@@ -463,8 +495,7 @@ export default function DashboardPage() {
                   item;
 
                 const currency = wallet?.currency_code ?? "";
-                const isExpense =
-                  category && category.type === "expense";
+                const isExpense = category && category.type === "expense";
                 const labelVerb = isExpense ? "Spent" : "Received";
 
                 const usedPercent = Math.round(usedRatio * 100);
@@ -485,10 +516,8 @@ export default function DashboardPage() {
                     </div>
                     <div className="text-right">
                       <div>
-                        {labelVerb}{" "}
-                        {formatMinorToAmount(actualMinor)} /{" "}
-                        {formatMinorToAmount(budget.amount_minor)}{" "}
-                        {currency}
+                        {labelVerb} {formatMinorToAmount(actualMinor)} /{" "}
+                        {formatMinorToAmount(budget.amount_minor)} {currency}
                       </div>
                       <div className="text-xs text-gray-400">
                         {usedPercent}% of budget used
