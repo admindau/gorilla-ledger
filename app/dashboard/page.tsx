@@ -371,7 +371,7 @@ export default function DashboardPage() {
           {email && <span className="hidden sm:inline">{email}</span>}
           <button
             onClick={handleLogout}
-            className="px-3 py-1 rounded border border-gray-600 hover:bg.white hover:bg-white hover:text-black transition"
+            className="px-3 py-1 rounded border border-gray-600 hover:bg-white hover:text-black transition"
           >
             Logout
           </button>
@@ -603,11 +603,24 @@ export default function DashboardPage() {
                 const labelVerb = isExpense ? "Spent" : "Received";
 
                 const usedPercent = Math.round(usedRatio * 100);
+                const clampedPercent = Math.max(
+                  0,
+                  Math.min(usedPercent, 130)
+                );
+
+                const barFillPercent = Math.max(
+                  0,
+                  Math.min(clampedPercent, 100)
+                );
+
+                // Slightly different border if over 100%
+                const barBorderClass =
+                  usedPercent > 100 ? "border-white/60" : "border-gray-700";
 
                 return (
                   <div
                     key={budget.id}
-                    className="flex items-center justify-between px-4 py-2"
+                    className="flex flex-col md:flex-row md:items-center md:justify-between px-4 py-3 gap-3"
                   >
                     <div>
                       <div className="font-medium">
@@ -618,14 +631,33 @@ export default function DashboardPage() {
                         {currency ? `• ${currency}` : ""}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div>
-                        {labelVerb} {formatMinorToAmount(actualMinor)} /{" "}
-                        {formatMinorToAmount(budget.amount_minor)} {currency}
+
+                    <div className="w-full md:w-1/2">
+                      <div className="flex items-baseline justify-between mb-1">
+                        <div className="text-sm">
+                          {labelVerb} {formatMinorToAmount(actualMinor)} /{" "}
+                          {formatMinorToAmount(budget.amount_minor)} {currency}
+                        </div>
+                        <div className="text-xs text-gray-400 ml-3 whitespace-nowrap">
+                          {usedPercent}% of budget used
+                        </div>
                       </div>
-                      <div className="text-xs text-gray-400">
-                        {usedPercent}% of budget used
+
+                      {/* Progress bar */}
+                      <div
+                        className={`w-full h-2 rounded-full bg-black border ${barBorderClass} overflow-hidden`}
+                      >
+                        <div
+                          className="h-full bg-white"
+                          style={{ width: `${barFillPercent}%` }}
+                        />
                       </div>
+
+                      {usedPercent > 100 && (
+                        <div className="mt-1 text-[11px] text-gray-400">
+                          You&apos;ve exceeded this budget.
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
