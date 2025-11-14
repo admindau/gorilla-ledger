@@ -284,13 +284,19 @@ export default function DashboardPage() {
   });
 
   // Budget health stats
-  const budgetsOnTrack = budgetSummaries.filter(
-    (b) => b.usedRatio <= 1
-  ).length;
+  const RISK_THRESHOLD = 0.8;
+
+  const totalBudgets = budgetSummaries.length;
   const budgetsOver = budgetSummaries.filter(
     (b) => b.usedRatio > 1
   ).length;
-  const totalBudgets = budgetSummaries.length;
+  const budgetsAtRisk = budgetSummaries.filter(
+    (b) => b.usedRatio > RISK_THRESHOLD && b.usedRatio <= 1
+  ).length;
+  const budgetsOnTrack =
+    totalBudgets - budgetsAtRisk - budgetsOver >= 0
+      ? totalBudgets - budgetsAtRisk - budgetsOver
+      : 0;
 
   // -------- Spending by category (selected month) --------
   const expenseByCategory: Record<string, number> = {};
@@ -614,6 +620,10 @@ export default function DashboardPage() {
                   {budgetsOnTrack === 1 ? "on track" : "on track budgets"}
                 </span>
                 <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
+                  {budgetsAtRisk}{" "}
+                  {budgetsAtRisk === 1 ? "at risk" : "at risk budgets"}
+                </span>
+                <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
                   {budgetsOver}{" "}
                   {budgetsOver === 1 ? "over budget" : "over-budget items"}
                 </span>
@@ -642,14 +652,38 @@ export default function DashboardPage() {
                   const barBorderClass =
                     usedPercent > 100 ? "border-white/60" : "border-gray-700";
 
+                  let statusLabel = "ON TRACK";
+                  let statusBorder = "border-gray-700";
+                  let statusText = "text-gray-300";
+
+                  if (usedRatio > 1) {
+                    statusLabel = "OVER BUDGET";
+                    statusBorder = "border-white/70";
+                    statusText = "text-white";
+                  } else if (
+                    usedRatio > RISK_THRESHOLD &&
+                    usedRatio <= 1
+                  ) {
+                    statusLabel = "AT RISK";
+                    statusBorder = "border-gray-500";
+                    statusText = "text-gray-200";
+                  }
+
                   return (
                     <div
                       key={budget.id}
                       className="flex flex-col md:flex-row md:items-center md:justify-between px-4 py-3 gap-3"
                     >
                       <div>
-                        <div className="font-medium">
-                          {category ? category.name : "Unknown category"}
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium">
+                            {category ? category.name : "Unknown category"}
+                          </div>
+                          <span
+                            className={`text-[9px] px-2 py-0.5 rounded-full border ${statusBorder} ${statusText} tracking-wide uppercase`}
+                          >
+                            {statusLabel}
+                          </span>
                         </div>
                         <div className="text-xs text-gray-400">
                           {wallet ? wallet.name : "All wallets"}{" "}
@@ -684,6 +718,13 @@ export default function DashboardPage() {
                             You&apos;ve exceeded this budget.
                           </div>
                         )}
+                        {usedPercent <= 100 &&
+                          usedRatio > RISK_THRESHOLD && (
+                            <div className="mt-1 text-[11px] text-gray-400">
+                              You&apos;re approaching this budget&apos;s
+                              limit.
+                            </div>
+                          )}
                       </div>
                     </div>
                   );
