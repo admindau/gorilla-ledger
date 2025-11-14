@@ -94,7 +94,7 @@ export default function RecurringPage() {
 
         setWallets(w ?? []);
         setCategories(c ?? []);
-        setRules((r as RecurringRule[]) ?? []);
+        setRules((r as unknown as RecurringRule[]) ?? []);
       } finally {
         setLoading(false);
       }
@@ -187,7 +187,7 @@ export default function RecurringPage() {
       console.error("Error reloading recurring rules", rErr);
     }
 
-    setRules((r as RecurringRule[]) ?? []);
+    setRules((r as unknown as RecurringRule[]) ?? []);
   }
 
   // ---------- toggle active / paused ----------
