@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
-// ⬇️ Your two chart components
+// Dashboard charts
 import SpendingByCategoryChart from "@/components/dashboard/SpendingByCategoryChart";
-import MonthlySpendingTrendChart from "@/components/dashboard/MonthlySpendingTrendChart";
+import MonthlyIncomeExpenseChart from "@/components/dashboard/MonthlyIncomeExpenseChart";
+import TopCategoriesBarChart from "@/components/dashboard/TopCategoriesBarChart";
 
 type Wallet = {
   id: string;
@@ -182,7 +183,6 @@ export default function DashboardPage() {
     totalsByCurrency[wb.currency_code] += wb.balanceMinor;
   }
 
-  // helpers
   const now = new Date();
   const currentMonth = now.getMonth(); // 0–11
   const currentYear = now.getFullYear();
@@ -192,7 +192,7 @@ export default function DashboardPage() {
     return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
   }
 
-  // Current month income/expense totals (across all wallets & currencies)
+  // Current month income/expense totals
   let monthIncomeMinor = 0;
   let monthExpenseMinor = 0;
 
@@ -251,7 +251,7 @@ export default function DashboardPage() {
     };
   });
 
-  // -------- Spending by category (for donut chart) --------
+  // -------- Spending by category (current month) --------
   const expenseByCategory: Record<string, number> = {};
   for (const tx of transactions) {
     if (!isCurrentMonth(tx.occurred_at)) continue;
@@ -267,35 +267,50 @@ export default function DashboardPage() {
   const spendingByCategoryData = Object.entries(expenseByCategory).map(
     ([categoryId, totalMinor]) => ({
       name: categoryMap[categoryId]?.name ?? "Uncategorized",
-      value: totalMinor / 100, // major units for chart
+      value: totalMinor / 100, // major units for charts
     })
   );
 
-  // -------- Spending trend (for line/area chart) --------
-  const trendByDate: Record<string, number> = {};
+  // Top categories (take top 5 of above)
+  const topCategoriesData = [...spendingByCategoryData]
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 5);
+
+  // -------- Monthly income vs expense (across all time) --------
+  const incomeExpenseByMonth: Record<
+    string,
+    { incomeMinor: number; expenseMinor: number }
+  > = {};
+
   for (const tx of transactions) {
-    if (!isCurrentMonth(tx.occurred_at)) continue;
-    if (tx.type !== "expense") continue;
-
     const d = new Date(tx.occurred_at);
-    const key = d.toISOString().slice(0, 10); // YYYY-MM-DD
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}`;
 
-    if (!trendByDate[key]) {
-      trendByDate[key] = 0;
+    if (!incomeExpenseByMonth[key]) {
+      incomeExpenseByMonth[key] = { incomeMinor: 0, expenseMinor: 0 };
     }
-    trendByDate[key] += tx.amount_minor;
+    if (tx.type === "income") {
+      incomeExpenseByMonth[key].incomeMinor += tx.amount_minor;
+    } else if (tx.type === "expense") {
+      incomeExpenseByMonth[key].expenseMinor += tx.amount_minor;
+    }
   }
 
-  const spendingTrendData = Object.entries(trendByDate)
+  const incomeExpenseTrendData = Object.entries(incomeExpenseByMonth)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, totalMinor]) => ({
-      date,
-      value: totalMinor / 100, // major units
+    .map(([month, { incomeMinor, expenseMinor }]) => ({
+      month,
+      income: incomeMinor / 100,
+      expense: expenseMinor / 100,
     }));
 
-  // Cast chart components to any so we don't fight their prop typings here
+  // Relax typings for chart components to avoid prop-type friction
   const SpendingChart = SpendingByCategoryChart as any;
-  const TrendChart = MonthlySpendingTrendChart as any;
+  const IncomeExpenseChart = MonthlyIncomeExpenseChart as any;
+  const TopCategoriesChart = TopCategoriesBarChart as any;
 
   const monthLabel = now.toLocaleString("en", {
     month: "long",
@@ -334,8 +349,7 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-semibold mb-2">Overview</h1>
         <p className="text-gray-400 mb-4 text-sm">
           High-level snapshot of your wallets, budgets, and activity for{" "}
-          {monthLabel}. We&apos;ll evolve this into charts and deeper analytics
-          as we go.
+          {monthLabel}.
         </p>
 
         {errorMsg && (
@@ -439,7 +453,7 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Spending by Category chart */}
+        {/* Spending by Category (donut) */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-2">
             Spending by Category – {monthLabel}
@@ -457,20 +471,38 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Spending Trend chart */}
+        {/* Monthly income vs expense (line / area) */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-2">
-            Spending Trend – {monthLabel}
+            Monthly Income vs Expenses
           </h2>
           {loadingData ? (
             <p className="text-gray-400 text-sm">Loading...</p>
-          ) : spendingTrendData.length === 0 ? (
+          ) : incomeExpenseTrendData.length === 0 ? (
             <p className="text-gray-500 text-sm">
-              No expense transactions to chart yet for this month.
+              No transactions yet to build a trend.
             </p>
           ) : (
             <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <TrendChart data={spendingTrendData} />
+              <IncomeExpenseChart data={incomeExpenseTrendData} />
+            </div>
+          )}
+        </section>
+
+        {/* Top categories bar chart */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">
+            Top Spending Categories – {monthLabel}
+          </h2>
+          {loadingData ? (
+            <p className="text-gray-400 text-sm">Loading...</p>
+          ) : topCategoriesData.length === 0 ? (
+            <p className="text-gray-500 text-sm">
+              No expense transactions for this month yet.
+            </p>
+          ) : (
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              <TopCategoriesChart data={topCategoriesData} />
             </div>
           )}
         </section>
