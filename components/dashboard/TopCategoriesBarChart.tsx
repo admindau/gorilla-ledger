@@ -10,6 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
+  Cell,
 } from "recharts";
 
 type TxRow = {
@@ -35,6 +36,13 @@ type CurrencyBucket = {
   categories: CategoryPoint[];
 };
 
+// --- Rasta color helpers (red, gold, green) ---
+const RASTA_COLORS = ["#ef4444", "#facc15", "#22c55e"];
+
+function getRastaColor(index: number) {
+  return RASTA_COLORS[index % RASTA_COLORS.length];
+}
+
 function getCurrentMonthRange(date: Date) {
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -48,10 +56,7 @@ function getCurrentMonthRange(date: Date) {
   };
 }
 
-function buildBuckets(
-  rows: TxRow[],
-  categories: Category[]
-): CurrencyBucket[] {
+function buildBuckets(rows: TxRow[], categories: Category[]): CurrencyBucket[] {
   const byCurrency: Record<string, Record<string, number>> = {};
   const categoryMap = new Map<string, string>();
 
@@ -221,7 +226,11 @@ export default function TopCategoriesBarChart() {
                     : value
                 }
               />
-              <Bar dataKey="total" fill="#ffffff" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="total" radius={[6, 6, 0, 0]}>
+                {activeBucket.categories.map((entry, index) => (
+                  <Cell key={entry.categoryName} fill={getRastaColor(index)} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         )}
