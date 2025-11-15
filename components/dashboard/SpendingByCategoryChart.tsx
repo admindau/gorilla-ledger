@@ -32,16 +32,17 @@ type ChartPoint = {
 
 type ChartDataByCurrency = Record<string, ChartPoint[]>;
 
-// Neutral grayscale palette (no pure white slice so the ring & tooltip stay readable)
+// Rasta-inspired palette (red, gold, green) with a few darker tints.
+// We still avoid pure white so the ring + tooltip stay readable on black.
 const COLORS = [
-  "#f5f5f5",
-  "#e5e5e5",
-  "#d4d4d4",
-  "#a3a3a3",
-  "#737373",
-  "#525252",
-  "#404040",
-  "#262626",
+  "#ef4444", // bright red
+  "#f97316", // orange accent
+  "#facc15", // gold
+  "#22c55e", // bright green
+  "#16a34a", // medium green
+  "#15803d", // deep green
+  "#b91c1c", // deep red
+  "#854d0e", // deep golden brown
 ];
 
 function formatAmount(amount: number) {
