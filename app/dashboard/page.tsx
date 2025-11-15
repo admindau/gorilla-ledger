@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
+
+// Dashboard charts
 import SpendingByCategoryChart from "@/components/dashboard/SpendingByCategoryChart";
+import MonthlyIncomeExpenseChart from "@/components/dashboard/MonthlyIncomeExpenseChart";
+import TopCategoriesBarChart from "@/components/dashboard/TopCategoriesBarChart";
+import HistoricalIncomeExpenseChart from "@/components/dashboard/HistoricalIncomeExpenseChart";
 
 type Wallet = {
   id: string;
@@ -27,30 +32,16 @@ type Transaction = {
 type Category = {
   id: string;
   name: string;
-  type: TransactionType;
+  type: "income" | "expense";
 };
 
 type Budget = {
   id: string;
   wallet_id: string | null;
-  category_id: string | null;
+  category_id: string;
+  year: number;
+  month: number;
   amount_minor: number;
-  currency_code: string;
-  month: string; // "YYYY-MM"
-};
-
-type CurrencyTotal = {
-  currency_code: string;
-  total_minor: number;
-};
-
-type BudgetSummary = {
-  budget: Budget;
-  wallet: Wallet | null;
-  category: Category | null;
-  actualMinor: number;
-  remainingMinor: number;
-  usedRatio: number;
 };
 
 function formatMinorToAmount(minor: number): string {
@@ -70,81 +61,113 @@ export default function DashboardPage() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Month label for static overview text
-  const now = new Date();
-  const monthLabel = now.toLocaleString("default", { month: "long", year: "numeric" });
-  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  // --- Month selector state (0–11) ---
+  const today = new Date();
+  const [selectedYear, setSelectedYear] = useState(today.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(today.getMonth()); // 0-based
+
+  function goToPreviousMonth() {
+    setSelectedMonth((prev) => {
+      if (prev === 0) {
+        setSelectedYear((y) => y - 1);
+        return 11;
+      }
+      return prev - 1;
+    });
+  }
+
+  function goToNextMonth() {
+    setSelectedMonth((prev) => {
+      if (prev === 11) {
+        setSelectedYear((y) => y + 1);
+        return 0;
+      }
+      return prev + 1;
+    });
+  }
 
   useEffect(() => {
-    async function load() {
-      try {
-        // 1) Check session
-        const {
-          data: { session },
-        } = await supabaseBrowserClient.auth.getSession();
+    async function init() {
+      setCheckingSession(true);
+      setErrorMsg("");
 
-        if (!session) {
-          router.replace("/auth/login");
-          return;
-        }
+      // 1) Check auth session
+      const {
+        data: { session },
+      } = await supabaseBrowserClient.auth.getSession();
 
-        setEmail(session.user.email ?? null);
-        setCheckingSession(false);
-
-        // 2) Load wallets, categories, transactions, budgets
-        setLoadingData(true);
-
-        const [walletRes, categoryRes, txRes, budgetRes] = await Promise.all([
-          supabaseBrowserClient
-            .from("wallets")
-            .select("id, name, currency_code, starting_balance_minor")
-            .order("created_at", { ascending: true }),
-          supabaseBrowserClient
-            .from("categories")
-            .select("id, name, type")
-            .eq("is_active", true)
-            .order("type", { ascending: true })
-            .order("name", { ascending: true }),
-          supabaseBrowserClient
-            .from("transactions")
-            .select(
-              "id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at"
-            )
-            .order("occurred_at", { ascending: false }),
-          supabaseBrowserClient
-            .from("budgets")
-            .select(
-              "id, wallet_id, category_id, amount_minor, currency_code, month"
-            )
-            .eq("month", monthKey),
-        ]);
-
-        if (walletRes.error || categoryRes.error || txRes.error || budgetRes.error) {
-          console.error("Error loading dashboard data", {
-            walletError: walletRes.error,
-            categoryError: categoryRes.error,
-            txError: txRes.error,
-            budgetError: budgetRes.error,
-          });
-          setErrorMsg("Failed to load dashboard data.");
-          return;
-        }
-
-        setWallets((walletRes.data ?? []) as Wallet[]);
-        setCategories((categoryRes.data ?? []) as Category[]);
-        setTransactions((txRes.data ?? []) as Transaction[]);
-        setBudgets((budgetRes.data ?? []) as Budget[]);
-        setErrorMsg("");
-      } catch (err) {
-        console.error(err);
-        setErrorMsg("An unexpected error occurred while loading the dashboard.");
-      } finally {
-        setLoadingData(false);
+      if (!session) {
+        router.replace("/auth/login");
+        return;
       }
+
+      setEmail(session.user.email ?? null);
+      setCheckingSession(false);
+
+      // 2) Load wallets, categories, transactions, budgets
+      setLoadingData(true);
+
+      const [walletRes, categoryRes, txRes, budgetRes] = await Promise.all([
+        supabaseBrowserClient
+          .from("wallets")
+          .select("id, name, currency_code, starting_balance_minor")
+          .order("created_at", { ascending: true }),
+        supabaseBrowserClient
+          .from("categories")
+          .select("id, name, type")
+          .eq("is_active", true)
+          .order("type", { ascending: true })
+          .order("name", { ascending: true }),
+        supabaseBrowserClient
+          .from("transactions")
+          .select(
+            "id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at"
+          )
+          .order("occurred_at", { ascending: false })
+          .limit(500),
+        supabaseBrowserClient
+          .from("budgets")
+          .select("id, wallet_id, category_id, year, month, amount_minor")
+          .order("year", { ascending: false })
+          .order("month", { ascending: false })
+          .limit(200),
+      ]);
+
+      if (walletRes.error) {
+        console.error(walletRes.error);
+        setErrorMsg(walletRes.error.message);
+        setLoadingData(false);
+        return;
+      }
+      if (categoryRes.error) {
+        console.error(categoryRes.error);
+        setErrorMsg(categoryRes.error.message);
+        setLoadingData(false);
+        return;
+      }
+      if (txRes.error) {
+        console.error(txRes.error);
+        setErrorMsg(txRes.error.message);
+        setLoadingData(false);
+        return;
+      }
+      if (budgetRes.error) {
+        console.error(budgetRes.error);
+        setErrorMsg(budgetRes.error.message);
+        setLoadingData(false);
+        return;
+      }
+
+      setWallets(walletRes.data as Wallet[]);
+      setCategories(categoryRes.data as Category[]);
+      setTransactions(txRes.data as Transaction[]);
+      setBudgets(budgetRes.data as Budget[]);
+
+      setLoadingData(false);
     }
 
-    load();
-  }, [router, monthKey]);
+    init();
+  }, [router]);
 
   async function handleLogout() {
     await supabaseBrowserClient.auth.signOut();
@@ -153,112 +176,103 @@ export default function DashboardPage() {
 
   if (checkingSession) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <p className="text-sm text-gray-400">Checking session…</p>
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <p className="text-gray-400">Checking your session.</p>
       </div>
     );
   }
 
-  // --- Derived stats ---
+  // ----- Derived data -----
 
-  // 1) Total balance by wallet (balance = starting_balance + sum of tx in that wallet)
-  const walletBalances = wallets.map((wallet) => {
-    const walletTx = transactions.filter((tx) => tx.wallet_id === wallet.id);
-    const txSumMinor = walletTx.reduce((sum, tx) => {
-      return tx.type === "income"
-        ? sum + tx.amount_minor
-        : sum - tx.amount_minor;
+  // Per-wallet balance
+  const walletBalances = wallets.map((w) => {
+    const walletTxs = transactions.filter((tx) => tx.wallet_id === w.id);
+    const delta = walletTxs.reduce((sum, tx) => {
+      const sign = tx.type === "income" ? 1 : -1;
+      return sum + sign * tx.amount_minor;
     }, 0);
-    const balanceMinor = wallet.starting_balance_minor + txSumMinor;
+
+    const balanceMinor = w.starting_balance_minor + delta;
 
     return {
-      wallet,
+      ...w,
       balanceMinor,
     };
   });
 
-  // 2) Monthly income/expenses by currency – for current calendar month
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-  const monthlyByCurrency: Record<
-    string,
-    {
-      income_minor: number;
-      expense_minor: number;
+  // Totals per currency
+  const totalsByCurrency: Record<string, number> = {};
+  for (const wb of walletBalances) {
+    if (!totalsByCurrency[wb.currency_code]) {
+      totalsByCurrency[wb.currency_code] = 0;
     }
-  > = {};
+    totalsByCurrency[wb.currency_code] += wb.balanceMinor;
+  }
+
+  function isSelectedMonth(dateStr: string): boolean {
+    const d = new Date(dateStr);
+    return (
+      d.getFullYear() === selectedYear && d.getMonth() === selectedMonth
+    );
+  }
+
+  // Current (selected) month income/expense totals — per currency (pure multi-currency)
+  const monthIncomeByCurrency: Record<string, number> = {};
+  const monthExpenseByCurrency: Record<string, number> = {};
 
   for (const tx of transactions) {
-    const occurred = new Date(tx.occurred_at);
-    if (occurred < monthStart || occurred >= monthEnd) continue;
-
-    const code = tx.currency_code ?? "MIXED";
-
-    if (!monthlyByCurrency[code]) {
-      monthlyByCurrency[code] = { income_minor: 0, expense_minor: 0 };
-    }
+    if (!isSelectedMonth(tx.occurred_at)) continue;
 
     if (tx.type === "income") {
-      monthlyByCurrency[code].income_minor += tx.amount_minor;
-    } else {
-      monthlyByCurrency[code].expense_minor += tx.amount_minor;
+      if (!monthIncomeByCurrency[tx.currency_code]) {
+        monthIncomeByCurrency[tx.currency_code] = 0;
+      }
+      monthIncomeByCurrency[tx.currency_code] += tx.amount_minor;
+    } else if (tx.type === "expense") {
+      if (!monthExpenseByCurrency[tx.currency_code]) {
+        monthExpenseByCurrency[tx.currency_code] = 0;
+      }
+      monthExpenseByCurrency[tx.currency_code] += tx.amount_minor;
     }
   }
 
-  const monthIncomeEntries: [string, number][] = Object.entries(monthlyByCurrency).map(
-    ([currency, v]) => [currency, v.income_minor]
-  );
-  const monthExpenseEntries: [string, number][] = Object.entries(
-    monthlyByCurrency
-  ).map(([currency, v]) => [currency, v.expense_minor]);
+  const monthIncomeEntries = Object.entries(monthIncomeByCurrency);
+  const monthExpenseEntries = Object.entries(monthExpenseByCurrency);
 
-  // 3) Total balance by currency (sum of wallet balances per currency)
-  const totalByCurrencyMap = new Map<string, number>();
-  for (const { wallet, balanceMinor } of walletBalances) {
-    const code = wallet.currency_code;
-    totalByCurrencyMap.set(code, (totalByCurrencyMap.get(code) ?? 0) + balanceMinor);
-  }
-  const totalByCurrency: CurrencyTotal[] = Array.from(totalByCurrencyMap.entries()).map(
-    ([currency_code, total_minor]) => ({
-      currency_code,
-      total_minor,
-    })
+  // Budget vs Actual for selected month
+  const walletMap = Object.fromEntries(wallets.map((w) => [w.id, w] as const));
+  const categoryMap = Object.fromEntries(
+    categories.map((c) => [c.id, c] as const)
   );
 
-  // 4) Budgets vs actual
-  const budgetSummaries: BudgetSummary[] = budgets.map((b) => {
-    const wallet = b.wallet_id
-      ? wallets.find((w) => w.id === b.wallet_id) ?? null
-      : null;
-    const category = b.category_id
-      ? categories.find((c) => c.id === b.category_id) ?? null
-      : null;
+  const budgetsThisMonth = budgets.filter(
+    (b) => b.year === selectedYear && b.month === selectedMonth + 1
+  );
 
-    const filteredTx = transactions.filter((tx) => {
-      const occurred = new Date(tx.occurred_at);
-      if (occurred < monthStart || occurred >= monthEnd) return false;
+  const budgetSummaries = budgetsThisMonth.map((b) => {
+    const wallet = b.wallet_id ? walletMap[b.wallet_id] : null;
+    const category = categoryMap[b.category_id];
 
-      const walletMatches = b.wallet_id ? tx.wallet_id === b.wallet_id : true;
-      const categoryMatches = b.category_id ? tx.category_id === b.category_id : true;
-      if (!walletMatches || !categoryMatches) return false;
-
-      if (!category) return false;
-      if (category.type === "expense" && tx.type !== "expense") return false;
-      if (category.type === "income" && tx.type !== "income") return false;
-
+    const relevantTxs = transactions.filter((tx) => {
+      if (!isSelectedMonth(tx.occurred_at)) return false;
+      if (tx.category_id !== b.category_id) return false;
+      if (b.wallet_id && tx.wallet_id !== b.wallet_id) return false;
       return true;
     });
 
-    const actualMinor = filteredTx.reduce((sum, tx) => sum + tx.amount_minor, 0);
+    const actualMinor = relevantTxs.reduce((sum, tx) => {
+      if (!category) return sum;
+      if (category.type === "expense" && tx.type === "expense") {
+        return sum + tx.amount_minor;
+      }
+      if (category.type === "income" && tx.type === "income") {
+        return sum + tx.amount_minor;
+      }
+      return sum;
+    }, 0);
 
-    const remainingMinor =
-      (category && category.type === "expense")
-        ? b.amount_minor - actualMinor
-        : b.amount_minor - actualMinor;
-
-    const usedRatio =
-      b.amount_minor > 0 ? actualMinor / b.amount_minor : 0;
+    const remainingMinor = b.amount_minor - actualMinor;
+    const usedRatio = b.amount_minor > 0 ? actualMinor / b.amount_minor : 0;
 
     return {
       budget: b,
@@ -274,18 +288,94 @@ export default function DashboardPage() {
   const RISK_THRESHOLD = 0.8;
 
   const totalBudgets = budgetSummaries.length;
-  const budgetsOnTrack = budgetSummaries.filter((b) => b.usedRatio < RISK_THRESHOLD)
-    .length;
-  const budgetsAtRisk = budgetSummaries.filter((b) =>
-    b.usedRatio >= RISK_THRESHOLD && b.usedRatio < 1
+  const budgetsOver = budgetSummaries.filter(
+    (b) => b.usedRatio > 1
   ).length;
-  const budgetsOver = budgetSummaries.filter((b) => b.usedRatio >= 1).length;
+  const budgetsAtRisk = budgetSummaries.filter(
+    (b) => b.usedRatio > RISK_THRESHOLD && b.usedRatio <= 1
+  ).length;
+  const budgetsOnTrack =
+    totalBudgets - budgetsAtRisk - budgetsOver >= 0
+      ? totalBudgets - budgetsAtRisk - budgetsOver
+      : 0;
+
+  // -------- Spending by category (selected month) --------
+  const expenseByCategory: Record<string, number> = {};
+  for (const tx of transactions) {
+    if (!isSelectedMonth(tx.occurred_at)) continue;
+    if (tx.type !== "expense") continue;
+    if (!tx.category_id) continue;
+
+    if (!expenseByCategory[tx.category_id]) {
+      expenseByCategory[tx.category_id] = 0;
+    }
+    expenseByCategory[tx.category_id] += tx.amount_minor;
+  }
+
+  const spendingByCategoryData = Object.entries(expenseByCategory).map(
+    ([categoryId, totalMinor]) => ({
+      name: categoryMap[categoryId]?.name ?? "Uncategorized",
+      value: totalMinor / 100, // major units for charts
+    })
+  );
+
+  // Top categories (take top 5 of above)
+  const topCategoriesData = [...spendingByCategoryData]
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 5);
+
+  // -------- Monthly income vs expense (across all time, still "mixed") --------
+  const incomeExpenseByMonth: Record<
+    string,
+    { incomeMinor: number; expenseMinor: number }
+  > = {};
+
+  for (const tx of transactions) {
+    const d = new Date(tx.occurred_at);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}`;
+
+    if (!incomeExpenseByMonth[key]) {
+      incomeExpenseByMonth[key] = { incomeMinor: 0, expenseMinor: 0 };
+    }
+    if (tx.type === "income") {
+      incomeExpenseByMonth[key].incomeMinor += tx.amount_minor;
+    } else if (tx.type === "expense") {
+      incomeExpenseByMonth[key].expenseMinor += tx.amount_minor;
+    }
+  }
+
+  const incomeExpenseTrendData = Object.entries(incomeExpenseByMonth)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, { incomeMinor, expenseMinor }]) => ({
+      month,
+      income: incomeMinor / 100,
+      expense: expenseMinor / 100,
+    }));
+
+  // Last 12 months for the historical chart
+  const incomeExpenseTrendLast12 = incomeExpenseTrendData.slice(-12);
+
+  // Relax typings for chart components to avoid prop-type friction
+  const SpendingChart = SpendingByCategoryChart as any;
+  const IncomeExpenseChart = MonthlyIncomeExpenseChart as any;
+  const TopCategoriesChart = TopCategoriesBarChart as any;
+  const HistoricalIncomeExpense = HistoricalIncomeExpenseChart as any;
+
+  const selectedDate = new Date(selectedYear, selectedMonth, 1);
+  const monthLabel = selectedDate.toLocaleString("en", {
+    month: "long",
+    year: "numeric",
+  });
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      <header className="w-full flex items-center justify-between px-6 py-4 border-b border-gray-800">
+      {/* Top bar */}
+      <header className="w-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-6 py-4 border-b border-gray-800">
         <div className="font-semibold text-lg">Gorilla Ledger™</div>
-        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-300 justify-end">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-300">
           <a href="/wallets" className="underline">
             Wallets
           </a>
@@ -298,11 +388,14 @@ export default function DashboardPage() {
           <a href="/budgets" className="underline">
             Budgets
           </a>
-          {/* NEW: Recurring nav link */}
           <a href="/recurring" className="underline">
             Recurring
           </a>
-          {email && <span className="hidden sm:inline">{email}</span>}
+          {email && (
+            <span className="hidden md:inline max-w-[220px] truncate">
+              {email}
+            </span>
+          )}
           <button
             onClick={handleLogout}
             className="px-3 py-1 rounded border border-gray-600 hover:bg-white hover:text-black transition"
@@ -313,22 +406,32 @@ export default function DashboardPage() {
       </header>
 
       <main className="flex-1 px-4 py-6 max-w-6xl mx-auto w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-semibold">Overview</h1>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-gray-700 text-[10px] uppercase tracking-wide">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#ef4444]" />
-                <span className="w-1.5 h-1.5 rounded-full bg-[#facc15]" />
-                <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e]" />
-                <span>Rasta mode</span>
-              </span>
-            </div>
+            <h1 className="text-2xl font-semibold">Overview</h1>
             <p className="text-gray-400 text-sm">
-              High-level snapshot of your wallets, budgets, and activity for{" "}
-              {monthLabel}. We&apos;ll evolve this into charts and deeper analytics as we go.
+              High-level snapshot of your wallets, budgets, and activity.
             </p>
-            <div className="mt-2 h-px w-32 bg-gradient-to-r from-[#ef4444] via-[#facc15] to-[#22c55e]" />
+          </div>
+          {/* Month selector */}
+          <div className="inline-flex items-center gap-2 text-sm">
+            <button
+              type="button"
+              onClick={goToPreviousMonth}
+              className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
+            >
+              ◀
+            </button>
+            <div className="px-3 py-1 border border-gray-800 rounded-full bg-black/40 text-xs uppercase tracking-wide text-gray-300">
+              {monthLabel}
+            </div>
+            <button
+              type="button"
+              onClick={goToNextMonth}
+              className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
+            >
+              ▶
+            </button>
           </div>
         </div>
 
@@ -339,12 +442,8 @@ export default function DashboardPage() {
         {/* Summary cards */}
         <section className="grid gap-4 md:grid-cols-3 mb-8">
           <div className="border border-gray-800 rounded p-4">
-            <div className="text-xs text-gray-400 uppercase mb-1">
-              Wallets
-            </div>
-            <div className="text-2xl font-semibold">
-              {wallets.length}
-            </div>
+            <div className="text-xs text-gray-400 uppercase mb-1">Wallets</div>
+            <div className="text-2xl font-semibold">{wallets.length}</div>
             <div className="text-xs text-gray-500 mt-1">
               Total number of wallets you&apos;re tracking.
             </div>
@@ -352,7 +451,7 @@ export default function DashboardPage() {
 
           <div className="border border-gray-800 rounded p-4">
             <div className="text-xs text-gray-400 uppercase mb-1">
-              This Month – Income
+              Income – {monthLabel}
             </div>
             <div className="text-lg font-semibold space-y-1">
               {monthIncomeEntries.length === 0 ? (
@@ -360,8 +459,7 @@ export default function DashboardPage() {
               ) : (
                 monthIncomeEntries.map(([currency, minor]) => (
                   <div key={currency}>
-                    {formatMinorToAmount(minor)}{" "}
-                    <span className="text-xs text-gray-400">{currency}</span>
+                    {formatMinorToAmount(minor)} {currency}
                   </div>
                 ))
               )}
@@ -373,7 +471,7 @@ export default function DashboardPage() {
 
           <div className="border border-gray-800 rounded p-4">
             <div className="text-xs text-gray-400 uppercase mb-1">
-              This Month – Expenses
+              Expenses – {monthLabel}
             </div>
             <div className="text-lg font-semibold space-y-1">
               {monthExpenseEntries.length === 0 ? (
@@ -381,8 +479,7 @@ export default function DashboardPage() {
               ) : (
                 monthExpenseEntries.map(([currency, minor]) => (
                   <div key={currency}>
-                    {formatMinorToAmount(minor)}{" "}
-                    <span className="text-xs text-gray-400">{currency}</span>
+                    {formatMinorToAmount(minor)} {currency}
                   </div>
                 ))
               )}
@@ -398,27 +495,24 @@ export default function DashboardPage() {
           <h2 className="text-lg font-semibold mb-2">
             Total Balance by Currency
           </h2>
-          <p className="text-xs text-gray-400 mb-3">
-            Wallet starting balances plus all income and expenses applied.
-          </p>
-
-          {totalByCurrency.length === 0 ? (
+          {loadingData ? (
+            <p className="text-gray-400 text-sm">Loading...</p>
+          ) : Object.keys(totalsByCurrency).length === 0 ? (
             <p className="text-gray-500 text-sm">
-              You don&apos;t have any wallets yet. Create one from the
-              Wallets page.
+              No wallets found yet. Create one to start tracking.
             </p>
           ) : (
-            <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
-              {totalByCurrency.map((row) => (
+            <div className="flex flex-wrap gap-4 text-sm">
+              {Object.entries(totalsByCurrency).map(([currency, minor]) => (
                 <div
-                  key={row.currency_code}
-                  className="flex items-center justify-between px-4 py-3"
+                  key={currency}
+                  className="border border-gray-800 rounded px-4 py-2"
                 >
-                  <div className="text-xs text-gray-400">
-                    {row.currency_code}
+                  <div className="text-xs text-gray-400 uppercase">
+                    {currency}
                   </div>
-                  <div className="font-semibold">
-                    {formatMinorToAmount(row.total_minor)}
+                  <div className="text-lg font-semibold">
+                    {formatMinorToAmount(minor)} {currency}
                   </div>
                 </div>
               ))}
@@ -426,75 +520,108 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Charts row */}
-        <section className="mb-8 grid gap-4 md:grid-cols-2">
-          <div className="border border-gray-800 rounded p-4">
-            <h2 className="text-sm font-semibold mb-1">
-              This Month&apos;s Spending by Category
-            </h2>
-            <p className="text-xs text-gray-500 mb-3">
-              Quick view of which categories are driving your expenses this
-              month.
+        {/* Wallet Balances */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">Wallet Balances</h2>
+          {loadingData ? (
+            <p className="text-gray-400 text-sm">Loading...</p>
+          ) : walletBalances.length === 0 ? (
+            <p className="text-gray-500 text-sm">
+              You don&apos;t have any wallets yet. Create one from the Wallets
+              page.
             </p>
-            <div className="h-64">
-              <SpendingByCategoryChart />
-            </div>
-          </div>
-
-          <div className="border border-gray-800 rounded p-4">
-            <h2 className="text-sm font-semibold mb-1">
-              Recent Activity
-            </h2>
-            <p className="text-xs text-gray-500 mb-3">
-              Latest transactions across all wallets. We&apos;ll build richer
-              analytics later.
-            </p>
-            {transactions.length === 0 ? (
-              <p className="text-xs text-gray-500">
-                No transactions recorded yet.
-              </p>
-            ) : (
-              <div className="max-h-64 overflow-y-auto text-xs divide-y divide-gray-800">
-                {transactions.slice(0, 10).map((tx) => {
-                  const wallet = wallets.find((w) => w.id === tx.wallet_id);
-                  const category = tx.category_id
-                    ? categories.find((c) => c.id === tx.category_id)
-                    : null;
-                  const sign = tx.type === "income" ? "+" : "-";
-
-                  return (
-                    <div
-                      key={tx.id}
-                      className="flex items-center justify-between py-2"
-                    >
-                      <div>
-                        <div className="font-medium">
-                          {category ? category.name : "Uncategorized"}
-                        </div>
-                        <div className="text-gray-500">
-                          {wallet ? wallet.name : "No wallet"} •{" "}
-                          {new Date(tx.occurred_at).toLocaleDateString()}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div
-                          className={
-                            tx.type === "income"
-                              ? "text-emerald-400"
-                              : "text-red-400"
-                          }
-                        >
-                          {sign}
-                          {formatMinorToAmount(tx.amount_minor)}{" "}
-                          {tx.currency_code}
-                        </div>
-                      </div>
+          ) : (
+            <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
+              {walletBalances.map((w) => (
+                <div
+                  key={w.id}
+                  className="flex items-center justify-between px-4 py-2"
+                >
+                  <div>
+                    <div className="font-medium">{w.name}</div>
+                    <div className="text-xs text-gray-400">
+                      {w.currency_code}
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                  </div>
+                  <div className="font-semibold">
+                    {formatMinorToAmount(w.balanceMinor)} {w.currency_code}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Spending by Category (donut) */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">
+            Spending by Category – {monthLabel}
+          </h2>
+          {loadingData ? (
+            <p className="text-gray-400 text-sm">Loading...</p>
+          ) : spendingByCategoryData.length === 0 ? (
+            <p className="text-gray-500 text-sm">
+              No expense transactions for this month yet.
+            </p>
+          ) : (
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              <SpendingChart data={spendingByCategoryData} />
+            </div>
+          )}
+        </section>
+
+        {/* Monthly income vs expenses (mixed currencies, all time) */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">
+            Monthly Income vs Expenses
+          </h2>
+          {loadingData ? (
+            <p className="text-gray-400 text-sm">Loading...</p>
+          ) : incomeExpenseTrendData.length === 0 ? (
+            <p className="text-gray-500 text-sm">
+              No transactions yet to build a trend.
+            </p>
+          ) : (
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              <IncomeExpenseChart data={incomeExpenseTrendData} />
+            </div>
+          )}
+        </section>
+
+        {/* Historical 12-month income vs expenses */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">
+            Historical Income vs Expenses – Last 12 Months
+          </h2>
+          {loadingData ? (
+            <p className="text-gray-400 text-sm">Loading...</p>
+          ) : incomeExpenseTrendLast12.length === 0 ? (
+            <p className="text-gray-500 text-sm">
+              Not enough history yet to show this trend.
+            </p>
+          ) : (
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              <HistoricalIncomeExpense data={incomeExpenseTrendLast12} />
+            </div>
+          )}
+        </section>
+
+        {/* Top categories bar chart */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">
+            Top Spending Categories – This Month
+          </h2>
+          {loadingData ? (
+            <p className="text-gray-400 text-sm">Loading...</p>
+          ) : topCategoriesData.length === 0 ? (
+            <p className="text-gray-500 text-sm">
+              No expense transactions for this month yet.
+            </p>
+          ) : (
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              <TopCategoriesChart data={topCategoriesData} />
+            </div>
+          )}
         </section>
 
         {/* Budgets vs Actual */}
@@ -507,111 +634,134 @@ export default function DashboardPage() {
             <p className="text-gray-400 text-sm">Loading...</p>
           ) : totalBudgets === 0 ? (
             <p className="text-gray-500 text-sm">
-              You don&apos;t have any budgets set for this month yet. Add
-              some from the Budgets page.
+              You don&apos;t have any budgets set for this month yet. Add some
+              from the Budgets page.
             </p>
           ) : (
-            <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
-              {budgetSummaries.map((item) => {
-                const { budget, wallet, category, actualMinor, usedRatio } =
-                  item;
+            <>
+              {/* Budgets health summary */}
+              <div className="mb-3 flex flex-wrap gap-2 text-xs text-gray-300">
+                <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
+                  {totalBudgets}{" "}
+                  {totalBudgets === 1 ? "budget" : "budgets"} this month
+                </span>
+                <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
+                  {budgetsOnTrack}{" "}
+                  {budgetsOnTrack === 1 ? "on track" : "on track budgets"}
+                </span>
+                <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
+                  {budgetsAtRisk}{" "}
+                  {budgetsAtRisk === 1 ? "at risk" : "at risk budgets"}
+                </span>
+                <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
+                  {budgetsOver}{" "}
+                  {budgetsOver === 1 ? "over budget" : "over-budget items"}
+                </span>
+              </div>
 
-                const currency = wallet?.currency_code ?? "";
-                const isExpense =
-                  category && category.type === "expense";
-                const labelVerb = isExpense ? "Spent" : "Received";
+              <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
+                {budgetSummaries.map((item) => {
+                  const { budget, wallet, category, actualMinor, usedRatio } =
+                    item;
 
-                const usedPercent = Math.round(usedRatio * 100);
-                const remainingMinor = budget.amount_minor - actualMinor;
+                  const currency = wallet?.currency_code ?? "";
+                  const isExpense = category && category.type === "expense";
+                  const labelVerb = isExpense ? "Spent" : "Received";
 
-                let statusLabel = "On track";
-                let statusBorder = "border-emerald-500/60";
-                let statusText = "text-emerald-300";
+                  const usedPercent = Math.round(usedRatio * 100);
+                  const clampedPercent = Math.max(
+                    0,
+                    Math.min(usedPercent, 130)
+                  );
 
-                if (usedRatio >= 1) {
-                  statusLabel = "Over budget";
-                  statusBorder = "border-red-500/70";
-                  statusText = "text-red-300";
-                } else if (usedRatio >= RISK_THRESHOLD) {
-                  statusLabel = "At risk";
-                  statusBorder = "border-amber-500/70";
-                  statusText = "text-amber-300";
-                }
+                  const barFillPercent = Math.max(
+                    0,
+                    Math.min(clampedPercent, 100)
+                  );
 
-                const barFillPercent = Math.min(100, usedPercent);
-                const barBorderClass =
-                  usedRatio >= 1
-                    ? "border-red-500/70"
-                    : usedRatio >= RISK_THRESHOLD
-                    ? "border-amber-500/70"
-                    : "border-gray-700";
+                  const barBorderClass =
+                    usedPercent > 100 ? "border-white/60" : "border-gray-700";
 
-                return (
-                  <div
-                    key={budget.id}
-                    className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 px-4 py-3"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <div>
+                  let statusLabel = "ON TRACK";
+                  let statusBorder = "border-gray-700";
+                  let statusText = "text-gray-300";
+
+                  if (usedRatio > 1) {
+                    statusLabel = "OVER BUDGET";
+                    statusBorder = "border-white/70";
+                    statusText = "text-white";
+                  } else if (
+                    usedRatio > RISK_THRESHOLD &&
+                    usedRatio <= 1
+                  ) {
+                    statusLabel = "AT RISK";
+                    statusBorder = "border-gray-500";
+                    statusText = "text-gray-200";
+                  }
+
+                  return (
+                    <div
+                      key={budget.id}
+                      className="flex flex-col md:flex-row md:items-center md:justify-between px-4 py-3 gap-3"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
                           <div className="font-medium">
-                            {category ? category.name : "All categories"}
+                            {category ? category.name : "Unknown category"}
                           </div>
-                          <div className="text-xs text-gray-400">
-                            {wallet ? wallet.name : "All wallets"}{" "}
-                            {currency ? `• ${currency}` : ""}
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-1">
                           <span
                             className={`text-[9px] px-2 py-0.5 rounded-full border ${statusBorder} ${statusText} tracking-wide uppercase`}
                           >
                             {statusLabel}
                           </span>
-                          <div className="text-xs text-gray-400">
-                            {labelVerb}{" "}
-                            {formatMinorToAmount(actualMinor)} /{" "}
-                            {formatMinorToAmount(budget.amount_minor)}{" "}
-                            {currency}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            {usedPercent}% of budget used
-                          </div>
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {wallet ? wallet.name : "All wallets"}{" "}
+                          {currency ? `• ${currency}` : ""}
                         </div>
                       </div>
 
-                      {/* Progress bar */}
-                      <div
-                        className={`w-full h-2 rounded-full bg-black border ${barBorderClass} overflow-hidden`}
-                      >
+                      <div className="w-full md:w-1/2">
+                        <div className="flex items-baseline justify-between mb-1">
+                          <div className="text-sm">
+                            {labelVerb} {formatMinorToAmount(actualMinor)} /{" "}
+                            {formatMinorToAmount(budget.amount_minor)}{" "}
+                            {currency}
+                          </div>
+                          <div className="text-xs text-gray-400 ml-3 whitespace-nowrap">
+                            {usedPercent}% of budget used
+                          </div>
+                        </div>
+
+                        {/* Progress bar */}
                         <div
-                          className="h-full bg-white"
-                          style={{ width: `${barFillPercent}%` }}
-                        />
+                          className={`w-full h-2 rounded-full bg-black border ${barBorderClass} overflow-hidden`}
+                        >
+                          <div
+                            className="h-full bg-white"
+                            style={{ width: `${barFillPercent}%` }}
+                          />
+                        </div>
+
+                        {usedPercent > 100 && (
+                          <div className="mt-1 text-[11px] text-gray-400">
+                            You&apos;ve exceeded this budget.
+                          </div>
+                        )}
+                        {usedPercent <= 100 &&
+                          usedRatio > RISK_THRESHOLD && (
+                            <div className="mt-1 text-[11px] text-gray-400">
+                              You&apos;re approaching this budget&apos;s
+                              limit.
+                            </div>
+                          )}
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            </>
           )}
-        </section>
-
-        <section className="mt-8 border-t border-gray-900 pt-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-[11px] text-gray-500">
-            <div>
-              Powered by <span className="font-semibold text-gray-300">Gorilla Ledger™</span>{" "}
-              <span className="text-gray-400">· Personal tracking only – no FX conversion applied.</span>
-            </div>
-            <div className="inline-flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-[#ef4444]" />
-              <span className="w-2 h-2 rounded-full bg-[#facc15]" />
-              <span className="w-2 h-2 rounded-full bg-[#22c55e]" />
-              <span className="uppercase tracking-wide text-[10px] text-gray-400">
-                Rasta mode always on
-              </span>
-            </div>
-          </div>
         </section>
       </main>
     </div>
