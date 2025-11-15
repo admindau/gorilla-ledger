@@ -279,10 +279,19 @@ export default function HistoricalIncomeExpenseChart() {
                   borderRadius: "0.75rem",
                   fontSize: "11px",
                 }}
-                formatter={(value: any, name) => [
-                  formatAmount(typeof value === "number" ? value : 0),
-                  name === "income" ? "Income" : "Expenses",
-                ]}
+                formatter={(value: any, name, props: any) => {
+                  const key = props?.dataKey as string | undefined;
+                  const label =
+                    key === "income"
+                      ? "Income"
+                      : key === "expenses"
+                      ? "Expenses"
+                      : String(name);
+                  return [
+                    formatAmount(typeof value === "number" ? value : 0),
+                    label,
+                  ];
+                }}
                 labelStyle={{ color: "#e4e4e7" }}
               />
               <Legend
