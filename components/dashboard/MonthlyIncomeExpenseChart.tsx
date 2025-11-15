@@ -220,7 +220,7 @@ export default function MonthlyIncomeExpenseChart() {
                 type="monotone"
                 dataKey="income"
                 name="Income"
-                stroke="#ffffff"
+                stroke="#22c55e" // green (Rasta)
                 strokeWidth={1.8}
                 dot={false}
               />
@@ -228,7 +228,7 @@ export default function MonthlyIncomeExpenseChart() {
                 type="monotone"
                 dataKey="expenses"
                 name="Expenses"
-                stroke="#6b7280"
+                stroke="#ef4444" // red (Rasta)
                 strokeWidth={1.8}
                 dot={false}
               />
