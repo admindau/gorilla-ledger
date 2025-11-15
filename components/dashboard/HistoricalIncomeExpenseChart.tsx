@@ -294,7 +294,7 @@ export default function HistoricalIncomeExpenseChart() {
                 type="monotone"
                 dataKey="income"
                 name="Income"
-                stroke="#f9fafb"
+                stroke="#22c55e" // green (Rasta)
                 strokeWidth={1.6}
                 dot={{ r: 2 }}
                 activeDot={{ r: 3 }}
@@ -303,7 +303,7 @@ export default function HistoricalIncomeExpenseChart() {
                 type="monotone"
                 dataKey="expenses"
                 name="Expenses"
-                stroke="#a1a1aa"
+                stroke="#ef4444" // red (Rasta)
                 strokeWidth={1.4}
                 dot={{ r: 2 }}
                 activeDot={{ r: 3 }}
