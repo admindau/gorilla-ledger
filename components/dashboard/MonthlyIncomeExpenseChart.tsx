@@ -56,6 +56,7 @@ export default function MonthlyIncomeExpenseChart({
       return data;
     }
 
+    // Option A behaviour: show ONE currency at a time
     return data.filter((row) => getCurrency(row) === activeCurrency);
   }, [data, hasRawData, hasCurrencyInfo, activeCurrency]);
 

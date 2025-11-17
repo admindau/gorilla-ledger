@@ -343,42 +343,66 @@ export default function DashboardPage() {
     .sort((a, b) => b.value - a.value)
     .slice(0, 5);
 
-  // -------- Monthly income vs expense (across all time, mixed currencies) --------
-  const incomeExpenseByMonth: Record<
-    string,
-    { incomeMinor: number; expenseMinor: number }
-  > = {};
+  // -------- Monthly income vs expense (across all time, PER CURRENCY) --------
+  type IncomeExpenseBucket = {
+    month: string;
+    currency: string;
+    incomeMinor: number;
+    expenseMinor: number;
+  };
+
+  const incomeExpenseByMonthCurrency: Record<string, IncomeExpenseBucket> = {};
 
   for (const tx of transactions) {
     const category = tx.category_id ? categoryMap[tx.category_id] : null;
     if (isInternalTransferCategory(category)) continue;
 
     const d = new Date(tx.occurred_at);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+    const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
       2,
       "0"
     )}`;
+    const currency = tx.currency_code;
+    const key = `${monthKey}|${currency}`;
 
-    if (!incomeExpenseByMonth[key]) {
-      incomeExpenseByMonth[key] = { incomeMinor: 0, expenseMinor: 0 };
+    if (!incomeExpenseByMonthCurrency[key]) {
+      incomeExpenseByMonthCurrency[key] = {
+        month: monthKey,
+        currency,
+        incomeMinor: 0,
+        expenseMinor: 0,
+      };
     }
+
     if (tx.type === "income") {
-      incomeExpenseByMonth[key].incomeMinor += tx.amount_minor;
+      incomeExpenseByMonthCurrency[key].incomeMinor += tx.amount_minor;
     } else if (tx.type === "expense") {
-      incomeExpenseByMonth[key].expenseMinor += tx.amount_minor;
+      incomeExpenseByMonthCurrency[key].expenseMinor += tx.amount_minor;
     }
   }
 
-  const incomeExpenseTrendData = Object.entries(incomeExpenseByMonth)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, { incomeMinor, expenseMinor }]) => ({
-      month,
-      income: incomeMinor / 100,
-      expense: expenseMinor / 100,
+  const incomeExpenseTrendData = Object.values(incomeExpenseByMonthCurrency)
+    .sort((a, b) => {
+      if (a.month === b.month) {
+        return a.currency.localeCompare(b.currency);
+      }
+      return a.month.localeCompare(b.month);
+    })
+    .map((bucket) => ({
+      month: bucket.month,
+      income: bucket.incomeMinor / 100,
+      expense: bucket.expenseMinor / 100,
+      currencyCode: bucket.currency,
     }));
 
-  // Last 12 months for the historical chart
-  const incomeExpenseTrendLast12 = incomeExpenseTrendData.slice(-12);
+  // Last 12 calendar months (per currency) for the historical chart
+  const uniqueMonths = Array.from(
+    new Set(incomeExpenseTrendData.map((row) => row.month))
+  ).sort();
+  const last12MonthKeys = new Set(uniqueMonths.slice(-12));
+  const incomeExpenseTrendLast12 = incomeExpenseTrendData.filter((row) =>
+    last12MonthKeys.has(row.month)
+  );
 
   const selectedDate = new Date(selectedYear, selectedMonth, 1);
   const monthLabel = selectedDate.toLocaleString("en", {
@@ -589,7 +613,7 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Monthly income vs expenses (mixed currencies, all time) */}
+        {/* Monthly income vs expenses (per currency, all time) */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-2">
             Monthly Income vs Expenses
@@ -607,7 +631,7 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Historical 12-month income vs expenses */}
+        {/* Historical 12-month income vs expenses (per currency) */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-2">
             Historical Income vs Expenses – Last 12 Months

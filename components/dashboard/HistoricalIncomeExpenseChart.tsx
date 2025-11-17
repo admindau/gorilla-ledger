@@ -57,6 +57,7 @@ export default function HistoricalIncomeExpenseChart({
       return data;
     }
 
+    // Option A behaviour: filter to ONE currency at a time
     return data.filter((row) => getCurrency(row) === activeCurrency);
   }, [data, hasRawData, hasCurrencyInfo, activeCurrency]);
 
