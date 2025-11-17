@@ -152,17 +152,17 @@ export default function MonthlyIncomeExpenseChart({
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "white",
-                  border: "1px solid #e5e7eb",
+                  backgroundColor: "rgba(0,0,0,0.9)",
+                  border: "1px solid #374151",
                   borderRadius: "0.5rem",
-                  fontSize: 12,
-                  color: "black",
+                  fontSize: 11,
+                  color: "#f9fafb",
                 }}
                 labelStyle={{
-                  color: "black",
+                  color: "#e5e7eb",
                 }}
                 itemStyle={{
-                  color: "black",
+                  color: "#f9fafb",
                 }}
                 formatter={(value: number | string) => {
                   const num = typeof value === "number" ? value : Number(value);
