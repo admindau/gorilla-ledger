@@ -142,7 +142,10 @@ export default function TransactionsPage() {
     }
 
     loadData();
-  }, []); // run once
+    // Include walletId, categoryId, and date so the lint rule is happy.
+    // This will run again when those change, but defaults are only set when empty,
+    // so it won't loop infinitely.
+  }, [walletId, categoryId, date]);
 
   async function handleCreateTransaction(e: React.FormEvent) {
     e.preventDefault();
@@ -337,7 +340,7 @@ export default function TransactionsPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-2 rounded bg-white text-black font-semibold"
+                  className="px-4 py-2 rounded bg:white text-black font-semibold"
                 >
                   {saving ? "Saving..." : "Save Transaction"}
                 </button>

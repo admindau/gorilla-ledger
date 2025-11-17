@@ -23,12 +23,10 @@ export default function ResetPasswordRequestPage() {
           ? window.location.origin
           : "https://gl.savvyrilla.tech";
 
-      const { error } = await supabaseBrowserClient.auth.resetPasswordForEmail(
-        email,
-        {
+      const { error } =
+        await supabaseBrowserClient.auth.resetPasswordForEmail(email, {
           redirectTo: `${origin}/auth/update-password`,
-        }
-      );
+        });
 
       if (error) {
         setErrorMsg(error.message);
@@ -37,8 +35,12 @@ export default function ResetPasswordRequestPage() {
           "If this email exists in our system, a reset link has been sent."
         );
       }
-    } catch (err: any) {
-      setErrorMsg(err.message ?? "Something went wrong.");
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setErrorMsg(err.message || "Something went wrong.");
+      } else {
+        setErrorMsg("Something went wrong.");
+      }
     } finally {
       setLoading(false);
     }
@@ -55,8 +57,8 @@ export default function ResetPasswordRequestPage() {
           Reset your password
         </h1>
         <p className="text-gray-400 text-xs mb-6 text-center">
-          Enter the email associated with your Gorilla Ledger account. We&apos;ll
-          send you a link to create a new password.
+          Enter the email associated with your Gorilla Ledger account.
+          We&apos;ll send you a link to create a new password.
         </p>
 
         {errorMsg && (
@@ -72,7 +74,9 @@ export default function ResetPasswordRequestPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4 text-sm">
           <div>
-            <label className="block mb-1 text-xs text-gray-400">Email</label>
+            <label className="block mb-1 text-xs text-gray-400">
+              Email
+            </label>
             <input
               type="email"
               required

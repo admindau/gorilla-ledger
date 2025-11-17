@@ -101,34 +101,29 @@ export default function HistoricalIncomeExpenseChart() {
         const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         end.setHours(23, 59, 59, 999);
 
-        const { data, error } = await supabase
+        const { data, error: queryError } = await supabase
           .from("transactions")
           .select("occurred_at, amount_minor, type, currency_code")
           .gte("occurred_at", start.toISOString())
           .lte("occurred_at", end.toISOString());
 
-        if (error) {
-          console.error("Error loading historical income/expenses", error);
+        if (queryError) {
+          console.error("Error loading historical income/expenses", queryError);
           setError("Failed to load income and expense history.");
           return;
         }
 
-        const cleaned =
-          (data as any[])
-            ?.filter(
-              (row) =>
-                row &&
-                typeof row.amount_minor === "number" &&
-                typeof row.occurred_at === "string" &&
-                (row.type === "income" || row.type === "expense") &&
-                typeof row.currency_code === "string"
-            )
-            .map((row) => ({
-              occurred_at: row.occurred_at,
-              amount_minor: row.amount_minor,
-              type: row.type as "income" | "expense",
-              currency_code: row.currency_code as string,
-            })) ?? [];
+        const typedData = (data ?? []) as TxRow[];
+
+        const cleaned: TxRow[] = typedData.filter((row) => {
+          return (
+            !!row &&
+            typeof row.amount_minor === "number" &&
+            typeof row.occurred_at === "string" &&
+            (row.type === "income" || row.type === "expense") &&
+            typeof row.currency_code === "string"
+          );
+        });
 
         setRows(cleaned);
 
@@ -279,18 +274,24 @@ export default function HistoricalIncomeExpenseChart() {
                   borderRadius: "0.75rem",
                   fontSize: "11px",
                 }}
-                formatter={(value: any, name, props: any) => {
-                  const key = props?.dataKey as string | undefined;
+                formatter={(
+                  value: number | string,
+                  name: string,
+                  props: { dataKey?: string }
+                ) => {
+                  const key = props?.dataKey;
                   const label =
                     key === "income"
                       ? "Income"
                       : key === "expenses"
                       ? "Expenses"
-                      : String(name);
-                  return [
-                    formatAmount(typeof value === "number" ? value : 0),
-                    label,
-                  ];
+                      : name;
+                  const numericValue =
+                    typeof value === "number"
+                      ? value
+                      : Number(value) || 0;
+
+                  return [formatAmount(numericValue), label];
                 }}
                 labelStyle={{ color: "#e4e4e7" }}
               />

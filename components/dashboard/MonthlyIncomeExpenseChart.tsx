@@ -105,14 +105,14 @@ export default function MonthlyIncomeExpenseChart() {
         const now = new Date();
         const { startIso, endIso } = getCurrentMonthRange(now);
 
-        const { data, error } = await supabaseBrowserClient
+        const { data, error: queryError } = await supabaseBrowserClient
           .from("transactions")
           .select("amount_minor,type,currency_code,occurred_at")
           .gte("occurred_at", startIso)
           .lt("occurred_at", endIso);
 
-        if (error) {
-          console.error("Failed to load monthly transactions", error);
+        if (queryError) {
+          console.error("Failed to load monthly transactions", queryError);
           if (!cancelled) setError("Unable to load income/expense trend.");
           return;
         }
@@ -201,14 +201,22 @@ export default function MonthlyIncomeExpenseChart() {
                   borderRadius: "0.5rem",
                   fontSize: 11,
                 }}
-                formatter={(value: any) =>
-                  typeof value === "number"
-                    ? value.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })
-                    : value
-                }
+                formatter={(value: number | string) => {
+                  if (typeof value === "number") {
+                    return value.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    });
+                  }
+                  const parsed = Number(value);
+                  if (!Number.isNaN(parsed)) {
+                    return parsed.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    });
+                  }
+                  return value;
+                }}
               />
               <Legend
                 wrapperStyle={{

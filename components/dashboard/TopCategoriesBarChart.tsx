@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { supabaseBrowserClient } from "@/lib/supabase/client";
 import {
   BarChart,
   Bar,
@@ -9,215 +7,138 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  CartesianGrid,
-  Cell,
 } from "recharts";
+import { useEffect, useMemo, useState } from "react";
+import { supabaseBrowserClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/ToastProvider";
 
-type TxRow = {
-  amount_minor: number;
-  type: "income" | "expense";
-  currency_code: string;
+type RawRow = {
   category_id: string | null;
-  occurred_at: string;
+  category_name: string | null;
+  wallet_currency_code: string;
+  total_amount_minor: number;
 };
 
-type Category = {
-  id: string;
-  name: string;
-};
-
-type CategoryPoint = {
+type ChartDatum = {
+  categoryId: string | null;
   categoryName: string;
-  total: number;
+  currencyCode: string;
+  totalAmount: number;
 };
 
-type CurrencyBucket = {
-  currency: string;
-  categories: CategoryPoint[];
+type Currency = "USD" | "SSP" | "KES";
+
+const BAR_COLORS: Record<Currency, string> = {
+  USD: "#22C55E",
+  SSP: "#F97373",
+  KES: "#FACC15",
 };
-
-// --- Rasta color helpers (red, gold, green) ---
-const RASTA_COLORS = ["#ef4444", "#facc15", "#22c55e"];
-
-function getRastaColor(index: number) {
-  return RASTA_COLORS[index % RASTA_COLORS.length];
-}
-
-function getCurrentMonthRange(date: Date) {
-  const year = date.getFullYear();
-  const month = date.getMonth();
-
-  const start = new Date(Date.UTC(year, month, 1, 0, 0, 0));
-  const end = new Date(Date.UTC(year, month + 1, 1, 0, 0, 0));
-
-  return {
-    startIso: start.toISOString(),
-    endIso: end.toISOString(),
-  };
-}
-
-function buildBuckets(rows: TxRow[], categories: Category[]): CurrencyBucket[] {
-  const byCurrency: Record<string, Record<string, number>> = {};
-  const categoryMap = new Map<string, string>();
-
-  categories.forEach((c) => categoryMap.set(c.id, c.name));
-
-  for (const row of rows) {
-    if (row.type !== "expense") continue;
-    if (!row.category_id) continue;
-
-    const currency = row.currency_code;
-    const categoryId = row.category_id;
-
-    if (!byCurrency[currency]) byCurrency[currency] = {};
-    if (!byCurrency[currency][categoryId]) byCurrency[currency][categoryId] = 0;
-
-    const major = row.amount_minor / 100;
-    byCurrency[currency][categoryId] += major;
-  }
-
-  return Object.entries(byCurrency).map(([currency, byCategory]) => {
-    const categoriesPoints: CategoryPoint[] = Object.entries(byCategory)
-      .map(([catId, total]) => ({
-        categoryName: categoryMap.get(catId) ?? "Unknown",
-        total,
-      }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 5);
-
-    return { currency, categories: categoriesPoints };
-  });
-}
 
 export default function TopCategoriesBarChart() {
-  const [buckets, setBuckets] = useState<CurrencyBucket[]>([]);
-  const [activeCurrency, setActiveCurrency] = useState<string | null>(null);
+  const { showToast } = useToast();
+  const [rawData, setRawData] = useState<RawRow[]>([]);
+  const [activeCurrency, setActiveCurrency] = useState<Currency>("SSP");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-
     async function load() {
-      setLoading(true);
-      setError(null);
-
       try {
-        const now = new Date();
-        const { startIso, endIso } = getCurrentMonthRange(now);
+        setLoading(true);
+        const supabase = supabaseBrowserClient;
 
-        const [
-          { data: txData, error: txError },
-          { data: catData, error: catError },
-        ] = await Promise.all([
-          supabaseBrowserClient
-            .from("transactions")
-            .select(
-              "amount_minor,type,currency_code,category_id,occurred_at"
-            )
-            .gte("occurred_at", startIso)
-            .lt("occurred_at", endIso),
-          supabaseBrowserClient.from("categories").select("id,name"),
-        ]);
+        const { data: rows, error } = await supabase
+          .from("category_spending_current_month")
+          .select("*");
 
-        if (txError || catError) {
-          console.error("Failed to load top categories", txError || catError);
-          if (!cancelled) {
-            setError("Unable to load top spending categories.");
-          }
-          return;
-        }
+        if (error) throw error;
 
-        const rows = (txData ?? []) as TxRow[];
-        const categories = (catData ?? []) as Category[];
-        const built = buildBuckets(rows, categories);
-
-        if (!cancelled) {
-          setBuckets(built);
-          if (built.length > 0 && !activeCurrency) {
-            setActiveCurrency(built[0].currency);
-          }
-        }
+        setRawData(rows ?? []);
+      } catch (error) {
+        console.error("Error loading top categories:", error);
+        showToast("Failed to load top spending categories.", "error");
       } finally {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       }
     }
 
     load();
+  }, [showToast]);
 
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const chartData = useMemo<ChartDatum[]>(() => {
+    if (!rawData.length) return [];
 
-  const activeBucket = useMemo(
-    () => buckets.find((b) => b.currency === activeCurrency),
-    [buckets, activeCurrency]
-  );
+    return rawData
+      .filter((row) => row.wallet_currency_code === activeCurrency)
+      .map((row) => ({
+        categoryId: row.category_id,
+        categoryName: row.category_name ?? "Uncategorized",
+        currencyCode: row.wallet_currency_code,
+        totalAmount: row.total_amount_minor / 100,
+      }))
+      .sort((a, b) => b.totalAmount - a.totalAmount)
+      .slice(0, 5);
+  }, [rawData, activeCurrency]);
+
+  const hasData = chartData.length > 0;
+  const barColor = BAR_COLORS[activeCurrency] ?? "#22C55E";
 
   return (
-    <section className="mt-10">
-      <h2 className="text-lg font-semibold mb-1">
-        Top Spending Categories – This Month
-      </h2>
-      <p className="text-xs text-gray-400 mb-4">
-        Highest expense categories for the current month (top five per currency).
-      </p>
-
-      <div className="flex justify-end gap-2 mb-4">
-        {buckets.map((b) => (
-          <button
-            key={b.currency}
-            type="button"
-            onClick={() => setActiveCurrency(b.currency)}
-            className={`px-3 py-1 rounded-full text-[11px] border transition ${
-              activeCurrency === b.currency
-                ? "bg-white text-black border-white"
-                : "border-gray-700 text-gray-300 hover:bg-gray-900"
-            }`}
-          >
-            {b.currency}
-          </button>
-        ))}
+    <section className="border border-gray-900 rounded-lg bg-black/50 px-4 py-4 sm:px-6 sm:py-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+        <div>
+          <h2 className="text-sm font-semibold">
+            Top Spending Categories – This Month
+          </h2>
+          <p className="text-[11px] text-gray-400">
+            Highest expense categories for the current month (top five per
+            currency).
+          </p>
+        </div>
+        <div className="inline-flex rounded-full border border-gray-800 bg-black/60 p-0.5 text-[11px]">
+          {(["SSP", "USD", "KES"] as Currency[]).map((code) => (
+            <button
+              key={code}
+              type="button"
+              onClick={() => setActiveCurrency(code)}
+              className={`px-2 py-0.5 rounded-full ${
+                activeCurrency === code
+                  ? "bg-white text-black"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              {code}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="border border-gray-800 rounded-lg bg-black/40 p-4 h-72">
-        {loading ? (
-          <p className="text-xs text-gray-500">Loading categories…</p>
-        ) : error ? (
-          <p className="text-xs text-red-400">{error}</p>
-        ) : !activeBucket || activeBucket.categories.length === 0 ? (
-          <p className="text-xs text-gray-500">
-            No expense transactions recorded for this month yet.
-          </p>
-        ) : (
+      {!hasData ? (
+        <p className="text-xs text-gray-500">
+          No expenses recorded yet for{" "}
+          <span className="font-mono">{activeCurrency}</span> this month. Record
+          some transactions to see top categories.
+        </p>
+      ) : (
+        <div className="h-[260px] sm:h-[280px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={activeBucket.categories}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#111827" />
+            <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 40 }}>
               <XAxis
                 dataKey="categoryName"
-                tick={{ fontSize: 10, fill: "#9ca3af" }}
-                axisLine={{ stroke: "#374151" }}
-                tickLine={{ stroke: "#374151" }}
+                tickLine={false}
+                axisLine={false}
+                tick={{ fontSize: 11, fill: "#9CA3AF" }}
+                angle={-30}
+                textAnchor="end"
                 interval={0}
-                tickFormatter={(value: string) =>
-                  value.length > 10 ? value.slice(0, 9) + "…" : value
-                }
               />
               <YAxis
-                tick={{ fontSize: 10, fill: "#9ca3af" }}
-                axisLine={{ stroke: "#374151" }}
-                tickLine={{ stroke: "#374151" }}
+                tickLine={false}
+                axisLine={{ stroke: "#1F2937" }}
+                tick={{ fontSize: 11, fill: "#6B7280" }}
+                width={60}
               />
               <Tooltip
-                contentStyle={{
-                  backgroundColor: "rgba(0,0,0,0.9)",
-                  border: "1px solid #374151",
-                  borderRadius: "0.5rem",
-                  fontSize: 11,
-                }}
-                formatter={(value: any) =>
+                formatter={(value: number | string) =>
                   typeof value === "number"
                     ? value.toLocaleString(undefined, {
                         minimumFractionDigits: 2,
@@ -225,16 +146,23 @@ export default function TopCategoriesBarChart() {
                       })
                     : value
                 }
+                contentStyle={{
+                  backgroundColor: "#020617",
+                  borderColor: "#1f2937",
+                  borderRadius: 8,
+                  fontSize: 11,
+                }}
+                labelFormatter={(label) => `${label}`}
               />
-              <Bar dataKey="total" radius={[6, 6, 0, 0]}>
-                {activeBucket.categories.map((entry, index) => (
-                  <Cell key={entry.categoryName} fill={getRastaColor(index)} />
-                ))}
-              </Bar>
+              <Bar dataKey="totalAmount" radius={[4, 4, 0, 0]} fill={barColor} />
             </BarChart>
           </ResponsiveContainer>
-        )}
-      </div>
+        </div>
+      )}
+
+      {loading && (
+        <p className="mt-2 text-[11px] text-gray-500">Loading chart data…</p>
+      )}
     </section>
   );
 }

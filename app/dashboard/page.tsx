@@ -384,12 +384,6 @@ export default function DashboardPage() {
   // Last 12 months for the historical chart
   const incomeExpenseTrendLast12 = incomeExpenseTrendData.slice(-12);
 
-  // Relax typings for chart components to avoid prop-type friction
-  const SpendingChart = SpendingByCategoryChart as any;
-  const IncomeExpenseChart = MonthlyIncomeExpenseChart as any;
-  const TopCategoriesChart = TopCategoriesBarChart as any;
-  const HistoricalIncomeExpense = HistoricalIncomeExpenseChart as any;
-
   const selectedDate = new Date(selectedYear, selectedMonth, 1);
   const monthLabel = selectedDate.toLocaleString("en", {
     month: "long",
@@ -424,7 +418,7 @@ export default function DashboardPage() {
           )}
           <button
             onClick={handleLogout}
-            className="px-3 py-1 rounded border border-gray-600 hover:bg:white hover:text-black transition"
+            className="px-3 py-1 rounded border border-gray-600 hover:bg-white hover:text-black transition"
           >
             Logout
           </button>
@@ -593,7 +587,7 @@ export default function DashboardPage() {
             </p>
           ) : (
             <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <SpendingChart data={spendingByCategoryData} />
+              <SpendingByCategoryChart data={spendingByCategoryData} />
             </div>
           )}
         </section>
@@ -611,7 +605,7 @@ export default function DashboardPage() {
             </p>
           ) : (
             <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <IncomeExpenseChart data={incomeExpenseTrendData} />
+              <MonthlyIncomeExpenseChart data={incomeExpenseTrendData} />
             </div>
           )}
         </section>
@@ -629,7 +623,9 @@ export default function DashboardPage() {
             </p>
           ) : (
             <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <HistoricalIncomeExpense data={incomeExpenseTrendLast12} />
+              <HistoricalIncomeExpenseChart
+                data={incomeExpenseTrendLast12}
+              />
             </div>
           )}
         </section>
@@ -647,7 +643,7 @@ export default function DashboardPage() {
             </p>
           ) : (
             <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <TopCategoriesChart data={topCategoriesData} />
+              <TopCategoriesBarChart data={topCategoriesData} />
             </div>
           )}
         </section>
