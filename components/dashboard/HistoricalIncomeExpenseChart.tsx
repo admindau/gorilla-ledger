@@ -14,9 +14,8 @@ import {
 
 type HistoricalPoint = {
   month: string; // e.g. "2025-01"
-  income: number; // major units
-  expense: number; // major units
-  // Optional currency code to enable per-currency toggles.
+  income: number;
+  expense: number;
   currencyCode?: string;
 };
 
@@ -52,24 +51,21 @@ export default function HistoricalIncomeExpenseChart({
       return data;
     }
 
-    const filtered = data.filter(
-      (row) => row.currencyCode === activeCurrency
-    );
-    return filtered;
+    return data.filter((row) => row.currencyCode === activeCurrency);
   }, [data, hasRawData, hasCurrencyInfo, activeCurrency]);
 
   const hasData = chartData.length > 0;
 
   return (
-    <section>
+    <section className="mt-4">
       <div className="flex items-center justify-between mb-1">
         <div>
-          <h2 className="text-sm font-semibold">
-            Historical Income vs Expenses (12 months)
+          <h2 className="text-lg font-semibold">
+            Historical Income vs Expenses – Last 12 Months
           </h2>
-          <p className="text-[11px] text-gray-400">
-            If currency information is present, this shows one currency at a
-            time across the last 12 months.
+          <p className="text-xs text-gray-400">
+            Rolling 12-month view. If currency information is available, use the
+            toggle to see one currency at a time.
           </p>
         </div>
         {hasCurrencyInfo && (
@@ -93,11 +89,11 @@ export default function HistoricalIncomeExpenseChart({
       </div>
 
       {!hasData ? (
-        <div className="h-72 flex items-center justify-center text-xs text-gray-500">
-          No historical data to display yet.
-        </div>
+        <p className="text-xs text-gray-500">
+          Not enough data yet to show a 12-month trend.
+        </p>
       ) : (
-        <div className="h-72">
+        <div className="border border-gray-800 rounded-lg bg-black/40 p-4 h-72">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#222222" />
@@ -147,7 +143,7 @@ export default function HistoricalIncomeExpenseChart({
                 type="monotone"
                 dataKey="income"
                 name="Income"
-                stroke="#22c55e" // green (Rasta)
+                stroke="#22c55e"
                 strokeWidth={1.8}
                 dot={false}
               />
@@ -155,7 +151,7 @@ export default function HistoricalIncomeExpenseChart({
                 type="monotone"
                 dataKey="expense"
                 name="Expenses"
-                stroke="#ef4444" // red (Rasta)
+                stroke="#ef4444"
                 strokeWidth={1.8}
                 dot={false}
               />

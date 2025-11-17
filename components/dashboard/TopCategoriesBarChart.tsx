@@ -12,35 +12,45 @@ import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
 type RawRow = {
-  category_id: string | null;
-  category_name: string | null;
-  wallet_currency_code: string;
-  total_amount_minor: number;
+  user_id: string;
+  currency: string;
+  category_name: string;
+  total_spent: number;
 };
 
 type ChartDatum = {
-  categoryId: string | null;
   categoryName: string;
   currencyCode: string;
   totalAmount: number;
 };
 
 type TopCategoriesBarChartProps = {
-  data?: { name: string; value: number }[];
+  data?: { name: string; value: number; currency?: string }[];
 };
 
 const BAR_COLORS: Record<string, string> = {
-  SSP: "#F97373", // soft red
-  USD: "#22C55E", // green
-  KES: "#FACC15", // gold/yellow
+  SSP: "#F97373",
+  USD: "#22C55E",
+  KES: "#FACC15",
 };
 
 export default function TopCategoriesBarChart(
-  _props: TopCategoriesBarChartProps
+  props: TopCategoriesBarChartProps
 ) {
   const [rawData, setRawData] = useState<RawRow[]>([]);
   const [activeCurrency, setActiveCurrency] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const initialRowsFromProps = useMemo<RawRow[]>(
+    () =>
+      (props.data ?? []).map((d) => ({
+        user_id: "",
+        currency: d.currency ?? "",
+        category_name: d.name,
+        total_spent: d.value,
+      })),
+    [props.data]
+  );
 
   useEffect(() => {
     async function load() {
@@ -48,33 +58,38 @@ export default function TopCategoriesBarChart(
         setLoading(true);
         const supabase = supabaseBrowserClient;
 
-        const { data: rows, error } = await supabase
+        const { data, error } = await supabase
           .from("category_spending_current_month")
           .select("*");
 
         if (error) {
           console.error("Error loading top categories:", error);
-          setRawData([]);
+          setRawData(initialRowsFromProps);
           return;
         }
 
-        setRawData(rows ?? []);
+        const typed = (data ?? []) as RawRow[];
+        if (typed.length === 0 && initialRowsFromProps.length > 0) {
+          setRawData(initialRowsFromProps);
+        } else {
+          setRawData(typed);
+        }
       } catch (error) {
         console.error("Unexpected error loading top categories:", error);
-        setRawData([]);
+        setRawData(initialRowsFromProps);
       } finally {
         setLoading(false);
       }
     }
 
     load();
-  }, []);
+  }, [initialRowsFromProps]);
 
   const currencies = useMemo(() => {
     const set = new Set<string>();
     for (const row of rawData) {
-      if (row.wallet_currency_code) {
-        set.add(row.wallet_currency_code);
+      if (row.currency) {
+        set.add(row.currency);
       }
     }
     return Array.from(set).sort();
@@ -90,12 +105,11 @@ export default function TopCategoriesBarChart(
     if (!activeCurrency) return [];
 
     return rawData
-      .filter((row) => row.wallet_currency_code === activeCurrency)
+      .filter((row) => row.currency === activeCurrency)
       .map((row) => ({
-        categoryId: row.category_id,
         categoryName: row.category_name ?? "Uncategorized",
-        currencyCode: row.wallet_currency_code,
-        totalAmount: row.total_amount_minor / 100,
+        currencyCode: row.currency,
+        totalAmount: row.total_spent,
       }))
       .sort((a, b) => b.totalAmount - a.totalAmount)
       .slice(0, 5);
@@ -114,7 +128,11 @@ export default function TopCategoriesBarChart(
           </h2>
           <p className="text-[11px] text-gray-400">
             Highest expense categories for the current month (top five per
-            currency).
+            currency), powered by the{" "}
+            <span className="font-mono text-gray-300">
+              category_spending_current_month
+            </span>{" "}
+            view.
           </p>
         </div>
 

@@ -16,8 +16,7 @@ type MonthlyPoint = {
   month: string; // e.g. "2025-01"
   income: number; // major units
   expense: number; // major units
-  // Optional currency code to enable per-currency toggles.
-  currencyCode?: string;
+  currencyCode?: string; // e.g. "SSP", "USD"
 };
 
 type MonthlyIncomeExpenseChartProps = {
@@ -48,15 +47,12 @@ export default function MonthlyIncomeExpenseChart({
   const chartData = useMemo(() => {
     if (!hasRawData) return [];
 
-    // If no currency info is present, fall back to original combined behavior.
+    // If we don't have per-currency info, fall back to combined data.
     if (!hasCurrencyInfo || !activeCurrency) {
       return data;
     }
 
-    const filtered = data.filter(
-      (row) => row.currencyCode === activeCurrency
-    );
-    return filtered;
+    return data.filter((row) => row.currencyCode === activeCurrency);
   }, [data, hasRawData, hasCurrencyInfo, activeCurrency]);
 
   const hasData = chartData.length > 0;
@@ -67,9 +63,9 @@ export default function MonthlyIncomeExpenseChart({
         <div>
           <h2 className="text-lg font-semibold">Monthly Income vs Expenses</h2>
           <p className="text-xs text-gray-400">
-            Totals per month. If currency information is available, you&apos;ll
-            see one currency at a time. Internal transfers are excluded in the
-            aggregate passed in.
+            Totals per month across your transactions. If currency information
+            is available, you&apos;ll see one currency at a time. Internal
+            transfers should already be excluded in the data passed in.
           </p>
         </div>
         {hasCurrencyInfo && (
@@ -147,7 +143,7 @@ export default function MonthlyIncomeExpenseChart({
                 type="monotone"
                 dataKey="income"
                 name="Income"
-                stroke="#22c55e" // green (Rasta)
+                stroke="#22c55e" // green
                 strokeWidth={1.8}
                 dot={false}
               />
@@ -155,7 +151,7 @@ export default function MonthlyIncomeExpenseChart({
                 type="monotone"
                 dataKey="expense"
                 name="Expenses"
-                stroke="#ef4444" // red (Rasta)
+                stroke="#ef4444" // red
                 strokeWidth={1.8}
                 dot={false}
               />
