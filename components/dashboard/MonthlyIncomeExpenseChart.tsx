@@ -28,6 +28,7 @@ export default function MonthlyIncomeExpenseChart({
 }: MonthlyIncomeExpenseChartProps) {
   const hasRawData = data && data.length > 0;
 
+  // Collect distinct currencies present in the data (if any)
   const currencies = useMemo(() => {
     const set = new Set<string>();
     for (const row of data) {
