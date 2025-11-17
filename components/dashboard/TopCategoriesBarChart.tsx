@@ -10,7 +10,6 @@ import {
 } from "recharts";
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
-import { useToast } from "@/components/ui/ToastProvider";
 
 type RawRow = {
   category_id: string | null;
@@ -28,22 +27,21 @@ type ChartDatum = {
 
 type Currency = "USD" | "SSP" | "KES";
 
-// We accept an optional data prop now, but we don't use it yet.
-// This keeps the external API happy (dashboard) without changing behavior.
+// Optional prop so the dashboard can pass `data` if needed later.
+// Currently we ignore it and still fetch directly from Supabase.
 type TopCategoriesBarChartProps = {
   data?: { name: string; value: number }[];
 };
 
 const BAR_COLORS: Record<Currency, string> = {
-  USD: "#22C55E",
-  SSP: "#F97373",
-  KES: "#FACC15",
+  USD: "#22C55E", // green
+  SSP: "#F97373", // soft red
+  KES: "#FACC15", // gold/yellow
 };
 
 export default function TopCategoriesBarChart(
   _props: TopCategoriesBarChartProps
 ) {
-  const { showToast } = useToast();
   const [rawData, setRawData] = useState<RawRow[]>([]);
   const [activeCurrency, setActiveCurrency] = useState<Currency>("SSP");
   const [loading, setLoading] = useState(true);
@@ -58,19 +56,23 @@ export default function TopCategoriesBarChart(
           .from("category_spending_current_month")
           .select("*");
 
-        if (error) throw error;
+        if (error) {
+          console.error("Error loading top categories:", error);
+          setRawData([]);
+          return;
+        }
 
         setRawData(rows ?? []);
       } catch (error) {
-        console.error("Error loading top categories:", error);
-        showToast("Failed to load top spending categories.", "error");
+        console.error("Unexpected error loading top categories:", error);
+        setRawData([]);
       } finally {
         setLoading(false);
       }
     }
 
     load();
-  }, [showToast]);
+  }, []);
 
   const chartData = useMemo<ChartDatum[]>(() => {
     if (!rawData.length) return [];
