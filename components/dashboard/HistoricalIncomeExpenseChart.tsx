@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import {
   LineChart,
   Line,
@@ -12,9 +13,11 @@ import {
 } from "recharts";
 
 type HistoricalPoint = {
-  month: string;   // e.g. "2025-01"
-  income: number;  // major units
+  month: string; // e.g. "2025-01"
+  income: number; // major units
   expense: number; // major units
+  // Optional currency code to enable per-currency toggles.
+  currencyCode?: string;
 };
 
 type HistoricalIncomeExpenseChartProps = {
@@ -24,81 +27,142 @@ type HistoricalIncomeExpenseChartProps = {
 export default function HistoricalIncomeExpenseChart({
   data,
 }: HistoricalIncomeExpenseChartProps) {
-  const hasData = data && data.length > 0;
+  const hasRawData = data && data.length > 0;
 
-  if (!hasData) {
-    return (
-      <div className="h-72 flex items-center justify-center text-xs text-gray-500">
-        No historical data to display yet.
-      </div>
+  const currencies = useMemo(() => {
+    const set = new Set<string>();
+    for (const row of data) {
+      if (row.currencyCode) {
+        set.add(row.currencyCode);
+      }
+    }
+    return Array.from(set).sort();
+  }, [data]);
+
+  const [activeCurrency, setActiveCurrency] = useState<string | null>(
+    currencies.length > 0 ? currencies[0] : null
+  );
+
+  const hasCurrencyInfo = currencies.length > 0;
+
+  const chartData = useMemo(() => {
+    if (!hasRawData) return [];
+
+    if (!hasCurrencyInfo || !activeCurrency) {
+      return data;
+    }
+
+    const filtered = data.filter(
+      (row) => row.currencyCode === activeCurrency
     );
-  }
+    return filtered;
+  }, [data, hasRawData, hasCurrencyInfo, activeCurrency]);
+
+  const hasData = chartData.length > 0;
 
   return (
-    <div className="h-72">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#222222" />
-          <XAxis
-            dataKey="month"
-            tick={{ fontSize: 10, fill: "#9ca3af" }}
-            axisLine={{ stroke: "#374151" }}
-            tickLine={{ stroke: "#374151" }}
-          />
-          <YAxis
-            tick={{ fontSize: 10, fill: "#9ca3af" }}
-            axisLine={{ stroke: "#374151" }}
-            tickLine={{ stroke: "#374151" }}
-          />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: "rgba(0,0,0,0.9)",
-              border: "1px solid #374151",
-              borderRadius: "0.5rem",
-              fontSize: 11,
-            }}
-            formatter={(value: number | string) => {
-              if (typeof value === "number") {
-                return value.toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                });
-              }
-              const parsed = Number(value);
-              if (!Number.isNaN(parsed)) {
-                return parsed.toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                });
-              }
-              return value;
-            }}
-            labelFormatter={(label) => `Month: ${label}`}
-          />
-          <Legend
-            wrapperStyle={{
-              fontSize: 11,
-              color: "#d1d5db",
-            }}
-          />
-          <Line
-            type="monotone"
-            dataKey="income"
-            name="Income"
-            stroke="#22c55e" // green (Rasta)
-            strokeWidth={1.8}
-            dot={false}
-          />
-          <Line
-            type="monotone"
-            dataKey="expense"
-            name="Expenses"
-            stroke="#ef4444" // red (Rasta)
-            strokeWidth={1.8}
-            dot={false}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
+    <section>
+      <div className="flex items-center justify-between mb-1">
+        <div>
+          <h2 className="text-sm font-semibold">
+            Historical Income vs Expenses (12 months)
+          </h2>
+          <p className="text-[11px] text-gray-400">
+            If currency information is present, this shows one currency at a
+            time across the last 12 months.
+          </p>
+        </div>
+        {hasCurrencyInfo && (
+          <div className="inline-flex rounded-full border border-gray-800 bg-black/60 p-0.5 text-[11px]">
+            {currencies.map((code) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => setActiveCurrency(code)}
+                className={`px-2 py-0.5 rounded-full ${
+                  activeCurrency === code
+                    ? "bg-white text-black"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                {code}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {!hasData ? (
+        <div className="h-72 flex items-center justify-center text-xs text-gray-500">
+          No historical data to display yet.
+        </div>
+      ) : (
+        <div className="h-72">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#222222" />
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 10, fill: "#9ca3af" }}
+                axisLine={{ stroke: "#374151" }}
+                tickLine={{ stroke: "#374151" }}
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: "#9ca3af" }}
+                axisLine={{ stroke: "#374151" }}
+                tickLine={{ stroke: "#374151" }}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "rgba(0,0,0,0.9)",
+                  border: "1px solid #374151",
+                  borderRadius: "0.5rem",
+                  fontSize: 11,
+                }}
+                formatter={(value: number | string) => {
+                  if (typeof value === "number") {
+                    return value.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    });
+                  }
+                  const parsed = Number(value);
+                  if (!Number.isNaN(parsed)) {
+                    return parsed.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    });
+                  }
+                  return value;
+                }}
+                labelFormatter={(label) => `Month: ${label}`}
+              />
+              <Legend
+                wrapperStyle={{
+                  fontSize: 11,
+                  color: "#d1d5db",
+                }}
+              />
+              <Line
+                type="monotone"
+                dataKey="income"
+                name="Income"
+                stroke="#22c55e" // green (Rasta)
+                strokeWidth={1.8}
+                dot={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="expense"
+                name="Expenses"
+                stroke="#ef4444" // red (Rasta)
+                strokeWidth={1.8}
+                dot={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </section>
   );
 }

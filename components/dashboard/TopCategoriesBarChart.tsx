@@ -25,17 +25,13 @@ type ChartDatum = {
   totalAmount: number;
 };
 
-type Currency = "USD" | "SSP" | "KES";
-
-// Optional prop so the dashboard can pass `data` if needed later.
-// Currently we ignore it and still fetch directly from Supabase.
 type TopCategoriesBarChartProps = {
   data?: { name: string; value: number }[];
 };
 
-const BAR_COLORS: Record<Currency, string> = {
-  USD: "#22C55E", // green
+const BAR_COLORS: Record<string, string> = {
   SSP: "#F97373", // soft red
+  USD: "#22C55E", // green
   KES: "#FACC15", // gold/yellow
 };
 
@@ -43,7 +39,7 @@ export default function TopCategoriesBarChart(
   _props: TopCategoriesBarChartProps
 ) {
   const [rawData, setRawData] = useState<RawRow[]>([]);
-  const [activeCurrency, setActiveCurrency] = useState<Currency>("SSP");
+  const [activeCurrency, setActiveCurrency] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -74,8 +70,24 @@ export default function TopCategoriesBarChart(
     load();
   }, []);
 
+  const currencies = useMemo(() => {
+    const set = new Set<string>();
+    for (const row of rawData) {
+      if (row.wallet_currency_code) {
+        set.add(row.wallet_currency_code);
+      }
+    }
+    return Array.from(set).sort();
+  }, [rawData]);
+
+  useEffect(() => {
+    if (!activeCurrency && currencies.length > 0) {
+      setActiveCurrency(currencies[0]);
+    }
+  }, [currencies, activeCurrency]);
+
   const chartData = useMemo<ChartDatum[]>(() => {
-    if (!rawData.length) return [];
+    if (!activeCurrency) return [];
 
     return rawData
       .filter((row) => row.wallet_currency_code === activeCurrency)
@@ -90,7 +102,8 @@ export default function TopCategoriesBarChart(
   }, [rawData, activeCurrency]);
 
   const hasData = chartData.length > 0;
-  const barColor = BAR_COLORS[activeCurrency] ?? "#22C55E";
+  const barColor =
+    (activeCurrency && BAR_COLORS[activeCurrency]) || "#22C55E";
 
   return (
     <section className="border border-gray-900 rounded-lg bg-black/50 px-4 py-4 sm:px-6 sm:py-5">
@@ -104,25 +117,34 @@ export default function TopCategoriesBarChart(
             currency).
           </p>
         </div>
-        <div className="inline-flex rounded-full border border-gray-800 bg-black/60 p-0.5 text-[11px]">
-          {(["SSP", "USD", "KES"] as Currency[]).map((code) => (
-            <button
-              key={code}
-              type="button"
-              onClick={() => setActiveCurrency(code)}
-              className={`px-2 py-0.5 rounded-full ${
-                activeCurrency === code
-                  ? "bg-white text-black"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              {code}
-            </button>
-          ))}
-        </div>
+
+        {currencies.length > 0 && (
+          <div className="inline-flex rounded-full border border-gray-800 bg-black/60 p-0.5 text-[11px]">
+            {currencies.map((code) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => setActiveCurrency(code)}
+                className={`px-2 py-0.5 rounded-full ${
+                  activeCurrency === code
+                    ? "bg-white text-black"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                {code}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {!hasData ? (
+      {loading ? (
+        <p className="text-xs text-gray-500">Loading chart data…</p>
+      ) : currencies.length === 0 ? (
+        <p className="text-xs text-gray-500">
+          No expenses recorded this month yet.
+        </p>
+      ) : !hasData ? (
         <p className="text-xs text-gray-500">
           No expenses recorded yet for{" "}
           <span className="font-mono">{activeCurrency}</span> this month. Record
@@ -175,10 +197,6 @@ export default function TopCategoriesBarChart(
             </BarChart>
           </ResponsiveContainer>
         </div>
-      )}
-
-      {loading && (
-        <p className="mt-2 text-[11px] text-gray-500">Loading chart data…</p>
       )}
     </section>
   );

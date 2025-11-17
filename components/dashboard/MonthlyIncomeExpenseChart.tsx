@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import {
   LineChart,
   Line,
@@ -12,9 +13,11 @@ import {
 } from "recharts";
 
 type MonthlyPoint = {
-  month: string;   // e.g. "2025-01"
-  income: number;  // in major units
-  expense: number; // in major units
+  month: string; // e.g. "2025-01"
+  income: number; // major units
+  expense: number; // major units
+  // Optional currency code to enable per-currency toggles.
+  currencyCode?: string;
 };
 
 type MonthlyIncomeExpenseChartProps = {
@@ -24,17 +27,70 @@ type MonthlyIncomeExpenseChartProps = {
 export default function MonthlyIncomeExpenseChart({
   data,
 }: MonthlyIncomeExpenseChartProps) {
-  const hasData = data && data.length > 0;
+  const hasRawData = data && data.length > 0;
+
+  const currencies = useMemo(() => {
+    const set = new Set<string>();
+    for (const row of data) {
+      if (row.currencyCode) {
+        set.add(row.currencyCode);
+      }
+    }
+    return Array.from(set).sort();
+  }, [data]);
+
+  const [activeCurrency, setActiveCurrency] = useState<string | null>(
+    currencies.length > 0 ? currencies[0] : null
+  );
+
+  const hasCurrencyInfo = currencies.length > 0;
+
+  const chartData = useMemo(() => {
+    if (!hasRawData) return [];
+
+    // If no currency info is present, fall back to original combined behavior.
+    if (!hasCurrencyInfo || !activeCurrency) {
+      return data;
+    }
+
+    const filtered = data.filter(
+      (row) => row.currencyCode === activeCurrency
+    );
+    return filtered;
+  }, [data, hasRawData, hasCurrencyInfo, activeCurrency]);
+
+  const hasData = chartData.length > 0;
 
   return (
     <section className="mt-2">
-      <h2 className="text-lg font-semibold mb-1">
-        Monthly Income vs Expenses
-      </h2>
-      <p className="text-xs text-gray-400 mb-4">
-        Totals per month across all currencies (no FX conversion). Internal
-        transfers excluded.
-      </p>
+      <div className="flex items-center justify-between mb-1">
+        <div>
+          <h2 className="text-lg font-semibold">Monthly Income vs Expenses</h2>
+          <p className="text-xs text-gray-400">
+            Totals per month. If currency information is available, you&apos;ll
+            see one currency at a time. Internal transfers are excluded in the
+            aggregate passed in.
+          </p>
+        </div>
+        {hasCurrencyInfo && (
+          <div className="inline-flex rounded-full border border-gray-800 bg-black/60 p-0.5 text-[11px]">
+            {currencies.map((code) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => setActiveCurrency(code)}
+                className={`px-2 py-0.5 rounded-full ${
+                  activeCurrency === code
+                    ? "bg-white text-black"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                {code}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {!hasData ? (
         <p className="text-xs text-gray-500">
@@ -43,7 +99,7 @@ export default function MonthlyIncomeExpenseChart({
       ) : (
         <div className="border border-gray-800 rounded-lg bg-black/40 p-4 h-72">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data}>
+            <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#222222" />
               <XAxis
                 dataKey="month"
