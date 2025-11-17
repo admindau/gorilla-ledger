@@ -48,6 +48,17 @@ function formatMinorToAmount(minor: number): string {
   return (minor / 100).toFixed(2);
 }
 
+/**
+ * Treat any category whose name starts with "transfer"
+ * as an internal transfer that should NOT affect
+ * income / expense analytics.
+ */
+function isInternalTransferCategory(category?: Category | null): boolean {
+  if (!category) return false;
+  const n = category.name.toLowerCase().trim();
+  return n.startsWith("transfer");
+}
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -184,7 +195,12 @@ export default function DashboardPage() {
 
   // ----- Derived data -----
 
-  // Per-wallet balance
+  const walletMap = Object.fromEntries(wallets.map((w) => [w.id, w] as const));
+  const categoryMap = Object.fromEntries(
+    categories.map((c) => [c.id, c] as const)
+  );
+
+  // Per-wallet balance (transfers DO affect balances, so we include them)
   const walletBalances = wallets.map((w) => {
     const walletTxs = transactions.filter((tx) => tx.wallet_id === w.id);
     const delta = walletTxs.reduce((sum, tx) => {
@@ -223,6 +239,9 @@ export default function DashboardPage() {
   for (const tx of transactions) {
     if (!isSelectedMonth(tx.occurred_at)) continue;
 
+    const category = tx.category_id ? categoryMap[tx.category_id] : null;
+    if (isInternalTransferCategory(category)) continue;
+
     if (tx.type === "income") {
       if (!monthIncomeByCurrency[tx.currency_code]) {
         monthIncomeByCurrency[tx.currency_code] = 0;
@@ -240,11 +259,6 @@ export default function DashboardPage() {
   const monthExpenseEntries = Object.entries(monthExpenseByCurrency);
 
   // Budget vs Actual for selected month
-  const walletMap = Object.fromEntries(wallets.map((w) => [w.id, w] as const));
-  const categoryMap = Object.fromEntries(
-    categories.map((c) => [c.id, c] as const)
-  );
-
   const budgetsThisMonth = budgets.filter(
     (b) => b.year === selectedYear && b.month === selectedMonth + 1
   );
@@ -257,6 +271,12 @@ export default function DashboardPage() {
       if (!isSelectedMonth(tx.occurred_at)) return false;
       if (tx.category_id !== b.category_id) return false;
       if (b.wallet_id && tx.wallet_id !== b.wallet_id) return false;
+
+      const txCategory = tx.category_id
+        ? categoryMap[tx.category_id]
+        : null;
+      if (isInternalTransferCategory(txCategory)) return false;
+
       return true;
     });
 
@@ -306,6 +326,9 @@ export default function DashboardPage() {
     if (tx.type !== "expense") continue;
     if (!tx.category_id) continue;
 
+    const category = categoryMap[tx.category_id];
+    if (isInternalTransferCategory(category)) continue;
+
     if (!expenseByCategory[tx.category_id]) {
       expenseByCategory[tx.category_id] = 0;
     }
@@ -324,13 +347,16 @@ export default function DashboardPage() {
     .sort((a, b) => b.value - a.value)
     .slice(0, 5);
 
-  // -------- Monthly income vs expense (across all time, still "mixed") --------
+  // -------- Monthly income vs expense (across all time, mixed currencies) --------
   const incomeExpenseByMonth: Record<
     string,
     { incomeMinor: number; expenseMinor: number }
   > = {};
 
   for (const tx of transactions) {
+    const category = tx.category_id ? categoryMap[tx.category_id] : null;
+    if (isInternalTransferCategory(category)) continue;
+
     const d = new Date(tx.occurred_at);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
       2,
@@ -398,7 +424,7 @@ export default function DashboardPage() {
           )}
           <button
             onClick={handleLogout}
-            className="px-3 py-1 rounded border border-gray-600 hover:bg-white hover:text-black transition"
+            className="px-3 py-1 rounded border border-gray-600 hover:bg:white hover:text-black transition"
           >
             Logout
           </button>
@@ -465,7 +491,8 @@ export default function DashboardPage() {
               )}
             </div>
             <div className="text-xs text-gray-500 mt-1">
-              Totals per currency. No FX conversion applied.
+              Totals per currency. Internal transfers excluded. No FX
+              conversion applied.
             </div>
           </div>
 
@@ -485,7 +512,8 @@ export default function DashboardPage() {
               )}
             </div>
             <div className="text-xs text-gray-500 mt-1">
-              Totals per currency. No FX conversion applied.
+              Totals per currency. Internal transfers excluded. No FX
+              conversion applied.
             </div>
           </div>
         </section>
