@@ -120,7 +120,7 @@ export default function MonthlyIncomeExpenseChart({
                   border: "1px solid #e5e7eb",
                   borderRadius: "0.5rem",
                   fontSize: 12,
-                  color: "white",
+                  color: "black",
                 }}
                 labelStyle={{
                   color: "black",
