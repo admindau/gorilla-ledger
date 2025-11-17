@@ -53,7 +53,6 @@ export default function TransactionsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
-  // form state
   const [walletId, setWalletId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [type, setType] = useState<TransactionType>("expense");
@@ -77,7 +76,6 @@ export default function TransactionsPage() {
         return;
       }
 
-      // Load wallets
       const { data: walletData, error: walletError } =
         await supabaseBrowserClient
           .from("wallets")
@@ -93,7 +91,6 @@ export default function TransactionsPage() {
 
       setWallets(walletData as Wallet[]);
 
-      // Load categories
       const { data: categoryData, error: categoryError } =
         await supabaseBrowserClient
           .from("categories")
@@ -111,7 +108,6 @@ export default function TransactionsPage() {
 
       setCategories(categoryData as Category[]);
 
-      // Load recent transactions (e.g. last 50)
       const { data: txData, error: txError } = await supabaseBrowserClient
         .from("transactions")
         .select("*")
@@ -127,7 +123,6 @@ export default function TransactionsPage() {
 
       setTransactions(txData as Transaction[]);
 
-      // sensible defaults
       if (walletData && walletData.length > 0 && !walletId) {
         setWalletId(walletData[0].id);
       }
@@ -135,16 +130,13 @@ export default function TransactionsPage() {
         setCategoryId(categoryData[0].id);
       }
       if (!date) {
-        setDate(new Date().toISOString().slice(0, 10)); // YYYY-MM-DD
+        setDate(new Date().toISOString().slice(0, 10));
       }
 
       setLoading(false);
     }
 
     loadData();
-    // Include walletId, categoryId, and date so the lint rule is happy.
-    // This will run again when those change, but defaults are only set when empty,
-    // so it won't loop infinitely.
   }, [walletId, categoryId, date]);
 
   async function handleCreateTransaction(e: React.FormEvent) {
@@ -183,8 +175,6 @@ export default function TransactionsPage() {
     }
 
     const amount_minor = parseAmountToMinor(amount);
-
-    // occurred_at from date input
     const occurred_at = new Date(date + "T00:00:00Z").toISOString();
 
     const { data, error } = await supabaseBrowserClient
@@ -215,16 +205,13 @@ export default function TransactionsPage() {
     setSaving(false);
   }
 
-  const walletMap = Object.fromEntries(
-    wallets.map((w) => [w.id, w] as const)
-  );
+  const walletMap = Object.fromEntries(wallets.map((w) => [w.id, w] as const));
   const categoryMap = Object.fromEntries(
     categories.map((c) => [c.id, c] as const)
   );
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      {/* Top bar */}
       <header className="w-full flex items-center justify-between px-6 py-4 border-b border-gray-800">
         <div className="font-semibold">Gorilla Ledger™ – Transactions</div>
         <div className="flex gap-4 text-sm">
@@ -247,20 +234,15 @@ export default function TransactionsPage() {
           <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>
         )}
 
-        {/* Form */}
         <section className="mb-8 border border-gray-800 rounded p-4">
           <h2 className="text-lg font-semibold mb-3">Add Transaction</h2>
 
           {wallets.length === 0 || categories.length === 0 ? (
             <p className="text-sm text-yellow-300">
-              You need at least one wallet and one category to create a
-              transaction.
+              You need at least one wallet and one category to create a transaction.
             </p>
           ) : (
-            <form
-              onSubmit={handleCreateTransaction}
-              className="grid gap-4 md:grid-cols-3"
-            >
+            <form onSubmit={handleCreateTransaction} className="grid gap-4 md:grid-cols-3">
               <div>
                 <label className="block text-sm mb-1">Wallet</label>
                 <select
@@ -296,9 +278,7 @@ export default function TransactionsPage() {
                 <select
                   className="w-full p-2 rounded bg-gray-900 border border-gray-700"
                   value={type}
-                  onChange={(e) =>
-                    setType(e.target.value as TransactionType)
-                  }
+                  onChange={(e) => setType(e.target.value as TransactionType)}
                 >
                   <option value="expense">Expense</option>
                   <option value="income">Income</option>
@@ -340,7 +320,7 @@ export default function TransactionsPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-2 rounded bg:white text-black font-semibold"
+                  className="px-4 py-2 rounded bg-white text-black font-semibold hover:bg-gray-200 transition"
                 >
                   {saving ? "Saving..." : "Save Transaction"}
                 </button>
@@ -349,41 +329,30 @@ export default function TransactionsPage() {
           )}
         </section>
 
-        {/* Transactions list */}
         <section>
           <h2 className="text-lg font-semibold mb-3">Recent Transactions</h2>
 
           {loading ? (
             <p className="text-gray-400 text-sm">Loading...</p>
           ) : transactions.length === 0 ? (
-            <p className="text-gray-500 text-sm">
-              You have no transactions yet.
-            </p>
+            <p className="text-gray-500 text-sm">You have no transactions yet.</p>
           ) : (
             <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
               {transactions.map((tx) => {
                 const wallet = walletMap[tx.wallet_id];
-                const category =
-                  tx.category_id ? categoryMap[tx.category_id] : null;
-                const dateStr = tx.occurred_at.slice(0, 10); // YYYY-MM-DD
+                const category = tx.category_id ? categoryMap[tx.category_id] : null;
+                const dateStr = tx.occurred_at.slice(0, 10);
 
                 return (
-                  <div
-                    key={tx.id}
-                    className="flex items-center justify-between px-4 py-2"
-                  >
+                  <div key={tx.id} className="flex items-center justify-between px-4 py-2">
                     <div>
                       <div className="font-medium">
                         {category ? category.name : "Uncategorized"}{" "}
-                        <span className="text-xs text-gray-400">
-                          ({tx.type})
-                        </span>
+                        <span className="text-xs text-gray-400">({tx.type})</span>
                       </div>
                       <div className="text-xs text-gray-400">
                         {wallet ? wallet.name : "Unknown wallet"} • {dateStr}
-                        {tx.description
-                          ? ` • ${tx.description}`
-                          : null}
+                        {tx.description ? ` • ${tx.description}` : null}
                       </div>
                     </div>
                     <div
@@ -394,8 +363,7 @@ export default function TransactionsPage() {
                       }
                     >
                       {tx.type === "income" ? "+" : "-"}
-                      {formatMinorToAmount(tx.amount_minor)}{" "}
-                      {tx.currency_code}
+                      {formatMinorToAmount(tx.amount_minor)} {tx.currency_code}
                     </div>
                   </div>
                 );
