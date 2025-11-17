@@ -12,8 +12,11 @@ import {
   Legend,
 } from "recharts";
 
-type MonthlyPoint = {
-  month: string; // e.g. "2025-01"
+type TimeSeriesPoint = {
+  // we support multiple possible keys so the component is flexible
+  month?: string; // legacy: "2025-11"
+  day?: string; // new: "2025-11-01"
+  date?: string; // alternative: "2025-11-01"
   income: number; // major units
   expense: number; // major units
   currencyCode?: string;
@@ -21,11 +24,32 @@ type MonthlyPoint = {
 };
 
 type MonthlyIncomeExpenseChartProps = {
-  data: MonthlyPoint[];
+  data: TimeSeriesPoint[];
 };
 
-function getCurrency(row: MonthlyPoint): string {
+function getCurrency(row: TimeSeriesPoint): string {
   return row.currencyCode ?? row.currency ?? "";
+}
+
+function getDateLabel(row: TimeSeriesPoint): string {
+  return row.day ?? row.date ?? row.month ?? "";
+}
+
+function formatDateLabel(label: string): string {
+  // Expecting YYYY-MM-DD for daily; fallback is raw label
+  if (!label) return "";
+  const parts = label.split("-");
+  if (parts.length === 3) {
+    const [year, month, day] = parts;
+    const date = new Date(Number(year), Number(month) - 1, Number(day));
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleDateString(undefined, {
+        day: "2-digit",
+        month: "short",
+      });
+    }
+  }
+  return label;
 }
 
 export default function MonthlyIncomeExpenseChart({
@@ -51,13 +75,24 @@ export default function MonthlyIncomeExpenseChart({
   const chartData = useMemo(() => {
     if (!hasRawData) return [];
 
-    if (!hasCurrencyInfo || !activeCurrency) {
-      // no currency metadata – show combined data
-      return data;
+    let filtered = data;
+
+    if (hasCurrencyInfo && activeCurrency) {
+      // show ONE currency at a time
+      filtered = data.filter((row) => getCurrency(row) === activeCurrency);
     }
 
-    // Option A behaviour: show ONE currency at a time
-    return data.filter((row) => getCurrency(row) === activeCurrency);
+    const withLabels = filtered
+      .map((row) => ({
+        ...row,
+        label: getDateLabel(row),
+      }))
+      .filter((row) => row.label);
+
+    // sort by label (YYYY-MM-DD sorts correctly lexicographically)
+    withLabels.sort((a, b) => (a.label as string).localeCompare(b.label as string));
+
+    return withLabels;
   }, [data, hasRawData, hasCurrencyInfo, activeCurrency]);
 
   const hasData = chartData.length > 0;
@@ -68,7 +103,7 @@ export default function MonthlyIncomeExpenseChart({
         <div>
           <h2 className="text-lg font-semibold">Monthly Income vs Expenses</h2>
           <p className="text-xs text-gray-400">
-            Totals per month across your transactions. When currency metadata is
+            Daily totals across your transactions. When currency metadata is
             available, use the toggle to focus on one currency at a time.
             Internal transfers should already be excluded by the upstream
             aggregation.
@@ -104,7 +139,8 @@ export default function MonthlyIncomeExpenseChart({
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#222222" />
               <XAxis
-                dataKey="month"
+                dataKey="label"
+                tickFormatter={formatDateLabel}
                 tick={{ fontSize: 10, fill: "#9ca3af" }}
                 axisLine={{ stroke: "#374151" }}
                 tickLine={{ stroke: "#374151" }}
@@ -138,7 +174,7 @@ export default function MonthlyIncomeExpenseChart({
                   }
                   return value;
                 }}
-                labelFormatter={(label) => `Month: ${label}`}
+                labelFormatter={(label) => `Date: ${label}`}
               />
               <Legend
                 wrapperStyle={{

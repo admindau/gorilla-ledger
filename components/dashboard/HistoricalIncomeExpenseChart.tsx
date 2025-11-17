@@ -13,7 +13,9 @@ import {
 } from "recharts";
 
 type HistoricalPoint = {
-  month: string; // e.g. "2025-01"
+  month?: string; // legacy
+  day?: string; // preferred: "2025-11-01"
+  date?: string; // alternative
   income: number;
   expense: number;
   currencyCode?: string;
@@ -26,6 +28,26 @@ type HistoricalIncomeExpenseChartProps = {
 
 function getCurrency(row: HistoricalPoint): string {
   return row.currencyCode ?? row.currency ?? "";
+}
+
+function getDateLabel(row: HistoricalPoint): string {
+  return row.day ?? row.date ?? row.month ?? "";
+}
+
+function formatDateLabel(label: string): string {
+  if (!label) return "";
+  const parts = label.split("-");
+  if (parts.length === 3) {
+    const [year, month, day] = parts;
+    const date = new Date(Number(year), Number(month) - 1, Number(day));
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleDateString(undefined, {
+        day: "2-digit",
+        month: "short",
+      });
+    }
+  }
+  return label;
 }
 
 export default function HistoricalIncomeExpenseChart({
@@ -53,12 +75,23 @@ export default function HistoricalIncomeExpenseChart({
   const chartData = useMemo(() => {
     if (!hasRawData) return [];
 
-    if (!hasCurrencyInfo || !activeCurrency) {
-      return data;
+    let filtered = data;
+
+    if (hasCurrencyInfo && activeCurrency) {
+      // filter to ONE currency at a time
+      filtered = data.filter((row) => getCurrency(row) === activeCurrency);
     }
 
-    // Option A behaviour: filter to ONE currency at a time
-    return data.filter((row) => getCurrency(row) === activeCurrency);
+    const withLabels = filtered
+      .map((row) => ({
+        ...row,
+        label: getDateLabel(row),
+      }))
+      .filter((row) => row.label);
+
+    withLabels.sort((a, b) => (a.label as string).localeCompare(b.label as string));
+
+    return withLabels;
   }, [data, hasRawData, hasCurrencyInfo, activeCurrency]);
 
   const hasData = chartData.length > 0;
@@ -71,8 +104,8 @@ export default function HistoricalIncomeExpenseChart({
             Historical Income vs Expenses – Last 12 Months
           </h2>
           <p className="text-xs text-gray-400">
-            Rolling 12-month view. When currency metadata is present, you can
-            focus on one currency at a time using the toggle.
+            Daily totals across the last 12 months. When currency metadata is
+            present, you can focus on one currency at a time using the toggle.
           </p>
         </div>
         {hasCurrencyInfo && (
@@ -105,7 +138,8 @@ export default function HistoricalIncomeExpenseChart({
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#222222" />
               <XAxis
-                dataKey="month"
+                dataKey="label"
+                tickFormatter={formatDateLabel}
                 tick={{ fontSize: 10, fill: "#9ca3af" }}
                 axisLine={{ stroke: "#374151" }}
                 tickLine={{ stroke: "#374151" }}
@@ -121,6 +155,13 @@ export default function HistoricalIncomeExpenseChart({
                   border: "1px solid #374151",
                   borderRadius: "0.5rem",
                   fontSize: 11,
+                  color: "#f9fafb",
+                }}
+                labelStyle={{
+                  color: "#e5e7eb",
+                }}
+                itemStyle={{
+                  color: "#f9fafb",
                 }}
                 formatter={(value: number | string) => {
                   if (typeof value === "number") {
@@ -138,7 +179,7 @@ export default function HistoricalIncomeExpenseChart({
                   }
                   return value;
                 }}
-                labelFormatter={(label) => `Month: ${label}`}
+                labelFormatter={(label) => `Date: ${label}`}
               />
               <Legend
                 wrapperStyle={{

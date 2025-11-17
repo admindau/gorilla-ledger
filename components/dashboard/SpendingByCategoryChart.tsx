@@ -188,7 +188,7 @@ export default function SpendingByCategoryChart(
             <p className="text-[11px] uppercase tracking-wide text-gray-400">
               Total {activeCurrency}
             </p>
-            <p className="text-lg font-semibold">
+            <p className="text-2xl font-semibold">
               {totalForCurrency.toLocaleString(undefined, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
@@ -204,9 +204,11 @@ export default function SpendingByCategoryChart(
                 nameKey="name"
                 cx="50%"
                 cy="50%"
-                innerRadius={60}
-                outerRadius={90}
-                paddingAngle={3}
+                innerRadius={70}
+                outerRadius={110}
+                paddingAngle={4}
+                stroke="#020617"
+                strokeWidth={1}
               >
                 {chartData.map((_, index) => (
                   <Cell
@@ -237,6 +239,13 @@ export default function SpendingByCategoryChart(
                   borderColor: "#1f2937",
                   borderRadius: 8,
                   fontSize: 11,
+                  color: "#f9fafb",
+                }}
+                labelStyle={{
+                  color: "#e5e7eb",
+                }}
+                itemStyle={{
+                  color: "#f9fafb",
                 }}
               />
               <Legend
