@@ -16,25 +16,28 @@ type MonthlyPoint = {
   month: string; // e.g. "2025-01"
   income: number; // major units
   expense: number; // major units
-  currencyCode?: string; // e.g. "SSP", "USD"
+  currencyCode?: string;
+  currency?: string;
 };
 
 type MonthlyIncomeExpenseChartProps = {
   data: MonthlyPoint[];
 };
 
+function getCurrency(row: MonthlyPoint): string {
+  return row.currencyCode ?? row.currency ?? "";
+}
+
 export default function MonthlyIncomeExpenseChart({
   data,
 }: MonthlyIncomeExpenseChartProps) {
   const hasRawData = data && data.length > 0;
 
-  // Collect distinct currencies present in the data (if any)
   const currencies = useMemo(() => {
     const set = new Set<string>();
     for (const row of data) {
-      if (row.currencyCode) {
-        set.add(row.currencyCode);
-      }
+      const code = getCurrency(row);
+      if (code) set.add(code);
     }
     return Array.from(set).sort();
   }, [data]);
@@ -48,12 +51,12 @@ export default function MonthlyIncomeExpenseChart({
   const chartData = useMemo(() => {
     if (!hasRawData) return [];
 
-    // If we don't have per-currency info, fall back to combined data.
     if (!hasCurrencyInfo || !activeCurrency) {
+      // no currency metadata – show combined data
       return data;
     }
 
-    return data.filter((row) => row.currencyCode === activeCurrency);
+    return data.filter((row) => getCurrency(row) === activeCurrency);
   }, [data, hasRawData, hasCurrencyInfo, activeCurrency]);
 
   const hasData = chartData.length > 0;
@@ -64,9 +67,10 @@ export default function MonthlyIncomeExpenseChart({
         <div>
           <h2 className="text-lg font-semibold">Monthly Income vs Expenses</h2>
           <p className="text-xs text-gray-400">
-            Totals per month across your transactions. If currency information
-            is available, you&apos;ll see one currency at a time. Internal
-            transfers should already be excluded in the data passed in.
+            Totals per month across your transactions. When currency metadata is
+            available, use the toggle to focus on one currency at a time.
+            Internal transfers should already be excluded by the upstream
+            aggregation.
           </p>
         </div>
         {hasCurrencyInfo && (
@@ -144,7 +148,7 @@ export default function MonthlyIncomeExpenseChart({
                 type="monotone"
                 dataKey="income"
                 name="Income"
-                stroke="#22c55e" // green
+                stroke="#22c55e"
                 strokeWidth={1.8}
                 dot={false}
               />
@@ -152,7 +156,7 @@ export default function MonthlyIncomeExpenseChart({
                 type="monotone"
                 dataKey="expense"
                 name="Expenses"
-                stroke="#ef4444" // red
+                stroke="#ef4444"
                 strokeWidth={1.8}
                 dot={false}
               />

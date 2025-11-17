@@ -40,7 +40,7 @@ export default function SpendingByCategoryChart(
   const [loading, setLoading] = useState(true);
   const [activeCurrency, setActiveCurrency] = useState<string | null>(null);
 
-  // Fallback rows from props.data (in case Supabase is empty or not available)
+  // Fallback rows from props.data (in case Supabase is empty or fails)
   const initialRowsFromProps = useMemo<RawRow[]>(
     () =>
       (props.data ?? []).map((d) => ({
@@ -64,7 +64,6 @@ export default function SpendingByCategoryChart(
 
         if (error) {
           console.error("Error loading category spending:", error);
-          // fall back to any data passed via props
           setRows(initialRowsFromProps);
           return;
         }
@@ -100,15 +99,40 @@ export default function SpendingByCategoryChart(
     }
   }, [currencies, activeCurrency]);
 
-  const chartData: PieDatum[] = useMemo(() => {
-    if (!activeCurrency) return [];
-    return rows
-      .filter((r) => r.currency === activeCurrency)
-      .map((r) => ({
-        name: r.category_name ?? "Uncategorized",
-        value: r.total_spent,
-      }))
-      .filter((d) => d.value !== 0);
+  const { chartData, totalForCurrency } = useMemo(() => {
+    if (!activeCurrency) {
+      return { chartData: [] as PieDatum[], totalForCurrency: 0 };
+    }
+
+    const filtered = rows.filter((r) => r.currency === activeCurrency);
+
+    if (filtered.length === 0) {
+      return { chartData: [] as PieDatum[], totalForCurrency: 0 };
+    }
+
+    // Convert to chart-friendly data
+    const base = filtered.map((r) => ({
+      name: r.category_name ?? "Uncategorized",
+      value: r.total_spent,
+    }));
+
+    // Sum total for selected currency
+    const total = base.reduce((sum, item) => sum + item.value, 0);
+
+    // Sort top to bottom and keep top N, group the rest as "Other"
+    const sorted = [...base].sort((a, b) => b.value - a.value);
+    const TOP_N = 6;
+    const top = sorted.slice(0, TOP_N);
+    const rest = sorted.slice(TOP_N);
+
+    const restTotal = rest.reduce((sum, item) => sum + item.value, 0);
+
+    const finalData =
+      restTotal > 0
+        ? [...top, { name: "Other", value: restTotal }]
+        : top;
+
+    return { chartData: finalData, totalForCurrency: total };
   }, [rows, activeCurrency]);
 
   const hasData = chartData.length > 0;
@@ -121,8 +145,8 @@ export default function SpendingByCategoryChart(
             This Month&apos;s Spending by Category
           </h2>
           <p className="text-[11px] text-gray-400">
-            Shows total expenses by category for the current month, grouped by
-            currency. Internal transfers are excluded by the view.
+            Total expenses by category for the current month. Internal transfers
+            are excluded. Use the toggle to switch between currencies.
           </p>
         </div>
 
@@ -158,7 +182,20 @@ export default function SpendingByCategoryChart(
           <span className="font-mono">{activeCurrency}</span> this month.
         </p>
       ) : (
-        <div className="h-[260px] sm:h-[280px]">
+        <div className="relative h-[260px] sm:h-[280px]">
+          {/* Center label with total */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <p className="text-[11px] uppercase tracking-wide text-gray-400">
+              Total {activeCurrency}
+            </p>
+            <p className="text-lg font-semibold">
+              {totalForCurrency.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </p>
+          </div>
+
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -179,14 +216,22 @@ export default function SpendingByCategoryChart(
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value: number | string) =>
-                  typeof value === "number"
-                    ? value.toLocaleString(undefined, {
+                formatter={(value: number | string, _name, payload) => {
+                  if (typeof value === "number") {
+                    const percentage =
+                      totalForCurrency > 0
+                        ? (value / totalForCurrency) * 100
+                        : 0;
+                    return [
+                      value.toLocaleString(undefined, {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
-                      })
-                    : value
-                }
+                      }),
+                      `${payload?.payload?.name} (${percentage.toFixed(1)}%)`,
+                    ];
+                  }
+                  return value;
+                }}
                 contentStyle={{
                   backgroundColor: "#020617",
                   borderColor: "#1f2937",

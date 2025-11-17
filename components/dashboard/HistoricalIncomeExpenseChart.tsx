@@ -17,11 +17,16 @@ type HistoricalPoint = {
   income: number;
   expense: number;
   currencyCode?: string;
+  currency?: string;
 };
 
 type HistoricalIncomeExpenseChartProps = {
   data: HistoricalPoint[];
 };
+
+function getCurrency(row: HistoricalPoint): string {
+  return row.currencyCode ?? row.currency ?? "";
+}
 
 export default function HistoricalIncomeExpenseChart({
   data,
@@ -31,8 +36,9 @@ export default function HistoricalIncomeExpenseChart({
   const currencies = useMemo(() => {
     const set = new Set<string>();
     for (const row of data) {
-      if (row.currencyCode) {
-        set.add(row.currencyCode);
+      const code = getCurrency(row);
+      if (code) {
+        set.add(code);
       }
     }
     return Array.from(set).sort();
@@ -51,7 +57,7 @@ export default function HistoricalIncomeExpenseChart({
       return data;
     }
 
-    return data.filter((row) => row.currencyCode === activeCurrency);
+    return data.filter((row) => getCurrency(row) === activeCurrency);
   }, [data, hasRawData, hasCurrencyInfo, activeCurrency]);
 
   const hasData = chartData.length > 0;
@@ -64,8 +70,8 @@ export default function HistoricalIncomeExpenseChart({
             Historical Income vs Expenses – Last 12 Months
           </h2>
           <p className="text-xs text-gray-400">
-            Rolling 12-month view. If currency information is available, use the
-            toggle to see one currency at a time.
+            Rolling 12-month view. When currency metadata is present, you can
+            focus on one currency at a time using the toggle.
           </p>
         </div>
         {hasCurrencyInfo && (
