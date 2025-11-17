@@ -44,6 +44,13 @@ type Budget = {
   amount_minor: number;
 };
 
+type DailyIncomeExpense = {
+  day: string;
+  income: number;
+  expense: number;
+  currency_code: string | null;
+};
+
 function formatMinorToAmount(minor: number): string {
   return (minor / 100).toFixed(2);
 }
@@ -70,6 +77,9 @@ export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [dailyIncomeExpense, setDailyIncomeExpense] = useState<
+    DailyIncomeExpense[]
+  >([]);
   const [errorMsg, setErrorMsg] = useState("");
 
   // --- Month selector state (0–11) ---
@@ -115,34 +125,39 @@ export default function DashboardPage() {
       setEmail(session.user.email ?? null);
       setCheckingSession(false);
 
-      // 2) Load wallets, categories, transactions, budgets
+      // 2) Load wallets, categories, transactions, budgets + daily income/expense
       setLoadingData(true);
 
-      const [walletRes, categoryRes, txRes, budgetRes] = await Promise.all([
-        supabaseBrowserClient
-          .from("wallets")
-          .select("id, name, currency_code, starting_balance_minor")
-          .order("created_at", { ascending: true }),
-        supabaseBrowserClient
-          .from("categories")
-          .select("id, name, type")
-          .eq("is_active", true)
-          .order("type", { ascending: true })
-          .order("name", { ascending: true }),
-        supabaseBrowserClient
-          .from("transactions")
-          .select(
-            "id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at"
-          )
-          .order("occurred_at", { ascending: false })
-          .limit(500),
-        supabaseBrowserClient
-          .from("budgets")
-          .select("id, wallet_id, category_id, year, month, amount_minor")
-          .order("year", { ascending: false })
-          .order("month", { ascending: false })
-          .limit(200),
-      ]);
+      const [walletRes, categoryRes, txRes, budgetRes, dailyRes] =
+        await Promise.all([
+          supabaseBrowserClient
+            .from("wallets")
+            .select("id, name, currency_code, starting_balance_minor")
+            .order("created_at", { ascending: true }),
+          supabaseBrowserClient
+            .from("categories")
+            .select("id, name, type")
+            .eq("is_active", true)
+            .order("type", { ascending: true })
+            .order("name", { ascending: true }),
+          supabaseBrowserClient
+            .from("transactions")
+            .select(
+              "id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at"
+            )
+            .order("occurred_at", { ascending: false })
+            .limit(500),
+          supabaseBrowserClient
+            .from("budgets")
+            .select("id, wallet_id, category_id, year, month, amount_minor")
+            .order("year", { ascending: false })
+            .order("month", { ascending: false })
+            .limit(200),
+          supabaseBrowserClient
+            .from("daily_income_expense")
+            .select("day, income, expense, currency_code")
+            .order("day", { ascending: true }),
+        ]);
 
       if (walletRes.error) {
         console.error(walletRes.error);
@@ -167,6 +182,13 @@ export default function DashboardPage() {
         setErrorMsg(budgetRes.error.message);
         setLoadingData(false);
         return;
+      }
+
+      if (dailyRes.error) {
+        // Not fatal – we can fall back to monthly derivation
+        console.error("Error loading daily_income_expense view:", dailyRes.error);
+      } else {
+        setDailyIncomeExpense(dailyRes.data as DailyIncomeExpense[]);
       }
 
       setWallets(walletRes.data as Wallet[]);
@@ -343,7 +365,7 @@ export default function DashboardPage() {
     .sort((a, b) => b.value - a.value)
     .slice(0, 5);
 
-  // -------- Monthly income vs expense (across all time, PER CURRENCY) --------
+  // -------- Income vs expense trend for charts --------
   type IncomeExpenseBucket = {
     month: string;
     currency: string;
@@ -351,58 +373,95 @@ export default function DashboardPage() {
     expenseMinor: number;
   };
 
-  const incomeExpenseByMonthCurrency: Record<string, IncomeExpenseBucket> = {};
+  const hasDailySeries = dailyIncomeExpense.length > 0;
 
-  for (const tx of transactions) {
-    const category = tx.category_id ? categoryMap[tx.category_id] : null;
-    if (isInternalTransferCategory(category)) continue;
+  let incomeExpenseTrendData: {
+    day?: string;
+    month?: string;
+    income: number;
+    expense: number;
+    currencyCode?: string;
+  }[] = [];
 
-    const d = new Date(tx.occurred_at);
-    const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
-      2,
-      "0"
-    )}`;
-    const currency = tx.currency_code;
-    const key = `${monthKey}|${currency}`;
+  let incomeExpenseTrendLast12: typeof incomeExpenseTrendData = [];
 
-    if (!incomeExpenseByMonthCurrency[key]) {
-      incomeExpenseByMonthCurrency[key] = {
-        month: monthKey,
-        currency,
-        incomeMinor: 0,
-        expenseMinor: 0,
-      };
-    }
-
-    if (tx.type === "income") {
-      incomeExpenseByMonthCurrency[key].incomeMinor += tx.amount_minor;
-    } else if (tx.type === "expense") {
-      incomeExpenseByMonthCurrency[key].expenseMinor += tx.amount_minor;
-    }
-  }
-
-  const incomeExpenseTrendData = Object.values(incomeExpenseByMonthCurrency)
-    .sort((a, b) => {
-      if (a.month === b.month) {
-        return a.currency.localeCompare(b.currency);
-      }
-      return a.month.localeCompare(b.month);
-    })
-    .map((bucket) => ({
-      month: bucket.month,
-      income: bucket.incomeMinor / 100,
-      expense: bucket.expenseMinor / 100,
-      currencyCode: bucket.currency,
+  if (hasDailySeries) {
+    const mapped = dailyIncomeExpense.map((row) => ({
+      day: row.day,
+      income: row.income ?? 0,
+      expense: row.expense ?? 0,
+      currencyCode: row.currency_code ?? undefined,
     }));
 
-  // Last 12 calendar months (per currency) for the historical chart
-  const uniqueMonths = Array.from(
-    new Set(incomeExpenseTrendData.map((row) => row.month))
-  ).sort();
-  const last12MonthKeys = new Set(uniqueMonths.slice(-12));
-  const incomeExpenseTrendLast12 = incomeExpenseTrendData.filter((row) =>
-    last12MonthKeys.has(row.month)
-  );
+    mapped.sort((a, b) => (a.day ?? "").localeCompare(b.day ?? ""));
+    incomeExpenseTrendData = mapped;
+
+    const today = new Date();
+    const cutoff = new Date(
+      today.getFullYear() - 1,
+      today.getMonth(),
+      today.getDate()
+    );
+
+    incomeExpenseTrendLast12 = mapped.filter((row) => {
+      if (!row.day) return false;
+      const d = new Date(row.day);
+      return d >= cutoff;
+    });
+  } else {
+    // Fallback: derive monthly buckets from transactions (old behaviour)
+    const incomeExpenseByMonthCurrency: Record<string, IncomeExpenseBucket> =
+      {};
+
+    for (const tx of transactions) {
+      const category = tx.category_id ? categoryMap[tx.category_id] : null;
+      if (isInternalTransferCategory(category)) continue;
+
+      const d = new Date(tx.occurred_at);
+      const monthKey = `${d.getFullYear()}-${String(
+        d.getMonth() + 1
+      ).padStart(2, "0")}`;
+      const currency = tx.currency_code;
+      const key = `${monthKey}|${currency}`;
+
+      if (!incomeExpenseByMonthCurrency[key]) {
+        incomeExpenseByMonthCurrency[key] = {
+          month: monthKey,
+          currency,
+          incomeMinor: 0,
+          expenseMinor: 0,
+        };
+      }
+
+      if (tx.type === "income") {
+        incomeExpenseByMonthCurrency[key].incomeMinor += tx.amount_minor;
+      } else if (tx.type === "expense") {
+        incomeExpenseByMonthCurrency[key].expenseMinor += tx.amount_minor;
+      }
+    }
+
+    incomeExpenseTrendData = Object.values(incomeExpenseByMonthCurrency)
+      .sort((a, b) => {
+        if (a.month === b.month) {
+          return a.currency.localeCompare(b.currency);
+        }
+        return a.month.localeCompare(b.month);
+      })
+      .map((bucket) => ({
+        month: bucket.month,
+        income: bucket.incomeMinor / 100,
+        expense: bucket.expenseMinor / 100,
+        currencyCode: bucket.currency,
+      }));
+
+    const uniqueMonths = Array.from(
+      new Set(incomeExpenseTrendData.map((row) => row.month ?? ""))
+    ).sort();
+    const last12MonthKeys = new Set(uniqueMonths.slice(-12));
+    incomeExpenseTrendLast12 = incomeExpenseTrendData.filter((row) =>
+      last12MonthKeys.has(row.month ?? "")
+    );
+  }
 
   const selectedDate = new Date(selectedYear, selectedMonth, 1);
   const monthLabel = selectedDate.toLocaleString("en", {
@@ -438,7 +497,7 @@ export default function DashboardPage() {
           )}
           <button
             onClick={handleLogout}
-            className="px-3 py-1 rounded border border-gray-600 hover:bg-white hover:text-black transition"
+            className="px-3 py-1 rounded border border-gray-600 hover:bg:white hover:text-black transition"
           >
             Logout
           </button>
@@ -607,13 +666,12 @@ export default function DashboardPage() {
             </p>
           ) : (
             <div className="border border-gray-800 rounded p-4 bg-black/40">
-              {/* FIX: chart doesn’t take props, so call with no data prop */}
               <SpendingByCategoryChart />
             </div>
           )}
         </section>
 
-        {/* Monthly income vs expenses (per currency, all time) */}
+        {/* Monthly income vs expenses (per currency, using daily series when available) */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-2">
             Monthly Income vs Expenses
