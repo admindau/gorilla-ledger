@@ -116,7 +116,7 @@ export default function MonthlyIncomeExpenseChart({
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "rgba(0,0,0,0.9)",
+                  backgroundColor: "rgba(255, 255, 255, 0.9)",
                   border: "1px solid #374151",
                   borderRadius: "0.5rem",
                   fontSize: 11,
