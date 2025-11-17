@@ -116,21 +116,22 @@ export default function MonthlyIncomeExpenseChart({
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "rgba(255, 255, 255, 0.9)",
-                  border: "1px solid #374151",
+                  backgroundColor: "white",
+                  border: "1px solid #e5e7eb",
                   borderRadius: "0.5rem",
-                  fontSize: 11,
+                  fontSize: 12,
+                  color: "black",
+                }}
+                labelStyle={{
+                  color: "black",
+                }}
+                itemStyle={{
+                  color: "black",
                 }}
                 formatter={(value: number | string) => {
-                  if (typeof value === "number") {
-                    return value.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    });
-                  }
-                  const parsed = Number(value);
-                  if (!Number.isNaN(parsed)) {
-                    return parsed.toLocaleString(undefined, {
+                  const num = typeof value === "number" ? value : Number(value);
+                  if (!Number.isNaN(num)) {
+                    return num.toLocaleString(undefined, {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     });
