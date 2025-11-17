@@ -272,9 +272,7 @@ export default function DashboardPage() {
       if (tx.category_id !== b.category_id) return false;
       if (b.wallet_id && tx.wallet_id !== b.wallet_id) return false;
 
-      const txCategory = tx.category_id
-        ? categoryMap[tx.category_id]
-        : null;
+      const txCategory = tx.category_id ? categoryMap[tx.category_id] : null;
       if (isInternalTransferCategory(txCategory)) return false;
 
       return true;
@@ -308,9 +306,7 @@ export default function DashboardPage() {
   const RISK_THRESHOLD = 0.8;
 
   const totalBudgets = budgetSummaries.length;
-  const budgetsOver = budgetSummaries.filter(
-    (b) => b.usedRatio > 1
-  ).length;
+  const budgetsOver = budgetSummaries.filter((b) => b.usedRatio > 1).length;
   const budgetsAtRisk = budgetSummaries.filter(
     (b) => b.usedRatio > RISK_THRESHOLD && b.usedRatio <= 1
   ).length;
@@ -587,7 +583,8 @@ export default function DashboardPage() {
             </p>
           ) : (
             <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <SpendingByCategoryChart data={spendingByCategoryData} />
+              {/* FIX: chart doesn’t take props, so call with no data prop */}
+              <SpendingByCategoryChart />
             </div>
           )}
         </section>
@@ -623,9 +620,7 @@ export default function DashboardPage() {
             </p>
           ) : (
             <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <HistoricalIncomeExpenseChart
-                data={incomeExpenseTrendLast12}
-              />
+              <HistoricalIncomeExpenseChart data={incomeExpenseTrendLast12} />
             </div>
           )}
         </section>

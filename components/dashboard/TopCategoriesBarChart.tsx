@@ -28,13 +28,21 @@ type ChartDatum = {
 
 type Currency = "USD" | "SSP" | "KES";
 
+// We accept an optional data prop now, but we don't use it yet.
+// This keeps the external API happy (dashboard) without changing behavior.
+type TopCategoriesBarChartProps = {
+  data?: { name: string; value: number }[];
+};
+
 const BAR_COLORS: Record<Currency, string> = {
   USD: "#22C55E",
   SSP: "#F97373",
   KES: "#FACC15",
 };
 
-export default function TopCategoriesBarChart() {
+export default function TopCategoriesBarChart(
+  _props: TopCategoriesBarChartProps
+) {
   const { showToast } = useToast();
   const [rawData, setRawData] = useState<RawRow[]>([]);
   const [activeCurrency, setActiveCurrency] = useState<Currency>("SSP");
@@ -121,7 +129,10 @@ export default function TopCategoriesBarChart() {
       ) : (
         <div className="h-[260px] sm:h-[280px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 40 }}>
+            <BarChart
+              data={chartData}
+              margin={{ top: 10, right: 10, left: 0, bottom: 40 }}
+            >
               <XAxis
                 dataKey="categoryName"
                 tickLine={false}
@@ -154,7 +165,11 @@ export default function TopCategoriesBarChart() {
                 }}
                 labelFormatter={(label) => `${label}`}
               />
-              <Bar dataKey="totalAmount" radius={[4, 4, 0, 0]} fill={barColor} />
+              <Bar
+                dataKey="totalAmount"
+                radius={[4, 4, 0, 0]}
+                fill={barColor}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
