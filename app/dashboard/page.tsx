@@ -9,6 +9,8 @@ import SpendingByCategoryChart from "@/components/dashboard/SpendingByCategoryCh
 import MonthlyIncomeExpenseChart from "@/components/dashboard/MonthlyIncomeExpenseChart";
 import TopCategoriesBarChart from "@/components/dashboard/TopCategoriesBarChart";
 import HistoricalIncomeExpenseChart from "@/components/dashboard/HistoricalIncomeExpenseChart";
+import FullHistoryIncomeExpenseChart from "@/components/dashboard/FullHistoryIncomeExpenseChart";
+import CumulativeNetBalanceChart from "@/components/dashboard/CumulativeNetBalanceChart";
 
 type Wallet = {
   id: string;
@@ -703,6 +705,42 @@ export default function DashboardPage() {
           ) : (
             <div className="border border-gray-800 rounded p-4 bg-black/40">
               <HistoricalIncomeExpenseChart data={incomeExpenseTrendLast12} />
+            </div>
+          )}
+        </section>
+
+        {/* 🔥 NEW: All-Time Income vs Expenses */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">
+            All-Time Income vs Expenses
+          </h2>
+          {loadingData ? (
+            <p className="text-gray-400 text-sm">Loading...</p>
+          ) : incomeExpenseTrendData.length === 0 ? (
+            <p className="text-gray-500 text-sm">
+              No transactions yet to build an all-time trend.
+            </p>
+          ) : (
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              <FullHistoryIncomeExpenseChart data={incomeExpenseTrendData} />
+            </div>
+          )}
+        </section>
+
+        {/* 🔥 NEW: Cumulative Net Balance – All Time */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">
+            Cumulative Net Balance – All Time
+          </h2>
+          {loadingData ? (
+            <p className="text-gray-400 text-sm">Loading...</p>
+          ) : incomeExpenseTrendData.length === 0 ? (
+            <p className="text-gray-500 text-sm">
+              No transactions yet to build a cumulative balance.
+            </p>
+          ) : (
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              <CumulativeNetBalanceChart data={incomeExpenseTrendData} />
             </div>
           )}
         </section>
