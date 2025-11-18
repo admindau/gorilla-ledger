@@ -61,7 +61,8 @@ export default function TopCategoriesBarChart(
 
         const [{ data: userData }, { data, error }] = await Promise.all([
           supabase.auth.getUser(),
-          supabase.from("category_spending_current_month").select("*"),
+          // 🔁 NOTE: now using the *YEAR* view
+          supabase.from("category_spending_current_year").select("*"),
         ]);
 
         if (error) {
@@ -73,7 +74,7 @@ export default function TopCategoriesBarChart(
         const user = userData?.user ?? null;
         const typed = (data ?? []) as RawRow[];
 
-        // IMPORTANT: restrict to the logged-in user
+        // Restrict to the logged-in user
         const scoped =
           user && user.id
             ? typed.filter((row) => row.user_id === user.id)
@@ -117,7 +118,7 @@ export default function TopCategoriesBarChart(
     // Filter to the active currency
     const filtered = rawData.filter((row) => row.currency === activeCurrency);
 
-    // Re-aggregate per categoryName so there are NO duplicates
+    // Aggregate per categoryName (no duplicates)
     const totals = new Map<string, number>();
 
     for (const row of filtered) {
@@ -148,13 +149,13 @@ export default function TopCategoriesBarChart(
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
         <div>
           <h2 className="text-sm font-semibold">
-            Top Spending Categories – This Month
+            Top Spending Categories – This Year
           </h2>
           <p className="text-[11px] text-gray-400">
-            Highest expense categories for the current month (top five per
+            Highest expense categories for the current year (top five per
             currency), powered by the{" "}
             <span className="font-mono text-gray-300">
-              category_spending_current_month
+              category_spending_current_year
             </span>{" "}
             view.
           </p>
@@ -184,13 +185,13 @@ export default function TopCategoriesBarChart(
         <p className="text-xs text-gray-500">Loading chart data…</p>
       ) : currencies.length === 0 ? (
         <p className="text-xs text-gray-500">
-          No expenses recorded this month yet.
+          No expenses recorded this year yet.
         </p>
       ) : !hasData ? (
         <p className="text-xs text-gray-500">
           No expenses recorded yet for{" "}
-          <span className="font-mono">{activeCurrency}</span> this month. Record
-          some transactions to see top categories.
+          <span className="font-mono">{activeCurrency}</span> this year.
+          Record some transactions to see your annual top categories.
         </p>
       ) : (
         <div className="h-[260px] sm:h-[280px]">
