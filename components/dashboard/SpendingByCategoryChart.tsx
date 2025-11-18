@@ -2,258 +2,232 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  ResponsiveContainer,
   PieChart,
   Pie,
   Cell,
   Tooltip,
-  ResponsiveContainer,
   Legend,
 } from "recharts";
-import { supabaseBrowserClient } from "@/lib/supabase/client";
 
-type RawRow = {
-  user_id: string;
-  currency: string;
-  category_name: string | null;
-  total_spent: number;
+type TransactionType = "income" | "expense";
+
+type Transaction = {
+  id: string;
+  wallet_id: string;
+  category_id: string | null;
+  type: TransactionType;
+  amount_minor: number;
+  currency_code: string;
+  occurred_at: string;
 };
 
-type SpendingByCategoryChartProps = {
-  data?: {
-    name: string;
-    value: number;
-    currency?: string;
-  }[];
-};
-
-type PieDatum = {
+type Category = {
+  id: string;
   name: string;
-  value: number;
+  type: "income" | "expense";
 };
 
-const RASTA_COLORS = ["#EF4444", "#FACC15", "#22C55E", "#F97316", "#A855F7"];
+type Props = {
+  transactions: Transaction[];
+  categories: Category[];
+  selectedYear: number;
+  selectedMonth: number; // 0-based
+  walletFilter: string; // "all" or wallet id
+  categoryFilter: string; // "all" or category id
+};
 
-export default function SpendingByCategoryChart(
-  props: SpendingByCategoryChartProps
-) {
-  const [rows, setRows] = useState<RawRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeCurrency, setActiveCurrency] = useState<string | null>(null);
+function isInternalTransferCategory(category?: Category | null): boolean {
+  if (!category) return false;
+  const n = category.name.toLowerCase().trim();
+  return n.startsWith("transfer");
+}
 
-  // Fallback rows from props.data (in case Supabase is empty or fails)
-  const initialRowsFromProps = useMemo<RawRow[]>(
-    () =>
-      (props.data ?? []).map((d) => ({
-        user_id: "",
-        currency: d.currency ?? "",
-        category_name: d.name,
-        total_spent: d.value,
-      })),
-    [props.data]
+const COLORS = [
+  "#facc15",
+  "#f97373",
+  "#38bdf8",
+  "#4ade80",
+  "#e879f9",
+  "#fb923c",
+  "#22c55e",
+];
+
+export default function SpendingByCategoryChart({
+  transactions,
+  categories,
+  selectedYear,
+  selectedMonth,
+  walletFilter,
+  categoryFilter,
+}: Props) {
+  const categoryMap = useMemo(
+    () => Object.fromEntries(categories.map((c) => [c.id, c] as const)),
+    [categories]
   );
 
-  useEffect(() => {
-    async function load() {
-      try {
-        setLoading(true);
-        const supabase = supabaseBrowserClient;
+  // Group expenses by currency -> category
+  const expensesByCurrency = useMemo(() => {
+    const result: Record<string, Record<string, number>> = {};
 
-        const [{ data: userData }, { data, error }] = await Promise.all([
-          supabase.auth.getUser(),
-          supabase.from("category_spending_current_month").select("*"),
-        ]);
+    for (const tx of transactions) {
+      const d = new Date(tx.occurred_at);
+      if (Number.isNaN(d.getTime())) continue;
 
-        if (error) {
-          console.error("Error loading category spending:", error);
-          setRows(initialRowsFromProps);
-          return;
-        }
-
-        const user = userData?.user ?? null;
-
-        const typed = (data ?? []) as RawRow[];
-
-        // SAFETY: only show rows for this logged-in user
-        const scoped =
-          user && user.id
-            ? typed.filter((row) => row.user_id === user.id)
-            : typed;
-
-        if (scoped.length === 0 && initialRowsFromProps.length > 0) {
-          setRows(initialRowsFromProps);
-        } else {
-          setRows(scoped);
-        }
-      } catch (err) {
-        console.error("Unexpected error loading category spending:", err);
-        setRows(initialRowsFromProps);
-      } finally {
-        setLoading(false);
+      if (d.getFullYear() !== selectedYear || d.getMonth() !== selectedMonth) {
+        continue;
       }
+
+      if (tx.type !== "expense") continue;
+      if (!tx.category_id) continue;
+
+      if (walletFilter !== "all" && tx.wallet_id !== walletFilter) continue;
+      if (categoryFilter !== "all" && tx.category_id !== categoryFilter) {
+        continue;
+      }
+
+      const category = tx.category_id ? categoryMap[tx.category_id] : null;
+      if (isInternalTransferCategory(category)) continue;
+
+      if (!result[tx.currency_code]) {
+        result[tx.currency_code] = {};
+      }
+      const inner = result[tx.currency_code];
+      inner[tx.category_id] = (inner[tx.category_id] ?? 0) + tx.amount_minor;
     }
 
-    load();
-  }, [initialRowsFromProps]);
+    return result;
+  }, [
+    transactions,
+    selectedYear,
+    selectedMonth,
+    walletFilter,
+    categoryFilter,
+    categoryMap,
+  ]);
 
-  const currencies = useMemo(() => {
-    const set = new Set<string>();
-    for (const row of rows) {
-      if (row.currency) set.add(row.currency);
-    }
-    return Array.from(set).sort();
-  }, [rows]);
+  const currencyCodes = useMemo(
+    () => Object.keys(expensesByCurrency).sort(),
+    [expensesByCurrency]
+  );
 
+  const [activeCurrency, setActiveCurrency] = useState<string | null>(null);
+
+  // Keep active currency in sync with available data
   useEffect(() => {
-    if (!activeCurrency && currencies.length > 0) {
-      setActiveCurrency(currencies[0]);
+    if (currencyCodes.length === 0) {
+      setActiveCurrency(null);
+      return;
     }
-  }, [currencies, activeCurrency]);
-
-  const { chartData, totalForCurrency } = useMemo(() => {
-    if (!activeCurrency) {
-      return { chartData: [] as PieDatum[], totalForCurrency: 0 };
+    if (!activeCurrency || !currencyCodes.includes(activeCurrency)) {
+      setActiveCurrency(currencyCodes[0]);
     }
+  }, [currencyCodes, activeCurrency]);
 
-    const filtered = rows.filter((r) => r.currency === activeCurrency);
+  const pieData = useMemo(() => {
+    if (!activeCurrency) return [];
+    const byCategory = expensesByCurrency[activeCurrency];
+    if (!byCategory) return [];
 
-    if (filtered.length === 0) {
-      return { chartData: [] as PieDatum[], totalForCurrency: 0 };
-    }
-
-    // Convert to chart-friendly data
-    const base = filtered.map((r) => ({
-      name: r.category_name ?? "Uncategorized",
-      value: r.total_spent,
+    return Object.entries(byCategory).map(([categoryId, totalMinor]) => ({
+      name: categoryMap[categoryId]?.name ?? "Uncategorized",
+      value: totalMinor / 100,
     }));
+  }, [activeCurrency, expensesByCurrency, categoryMap]);
 
-    // Sum total for selected currency
-    const total = base.reduce((sum, item) => sum + item.value, 0);
+  const total = pieData.reduce((sum, d) => sum + d.value, 0);
 
-    // Sort and group "Other"
-    const sorted = [...base].sort((a, b) => b.value - a.value);
-    const TOP_N = 6;
-    const top = sorted.slice(0, TOP_N);
-    const rest = sorted.slice(TOP_N);
-    const restTotal = rest.reduce((sum, item) => sum + item.value, 0);
+  const centerLabel =
+    activeCurrency && total > 0 ? (
+      <text
+        x="50%"
+        y="50%"
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fill="#ffffff"
+      >
+        <tspan fontSize="10">{`TOTAL ${activeCurrency}`}</tspan>
+        <tspan x="50%" dy="1.4em" fontSize="18" fontWeight="bold">
+          {total.toFixed(2)}
+        </tspan>
+      </text>
+    ) : null;
 
-    const finalData =
-      restTotal > 0 ? [...top, { name: "Other", value: restTotal }] : top;
-
-    return { chartData: finalData, totalForCurrency: total };
-  }, [rows, activeCurrency]);
-
-  const hasData = chartData.length > 0;
+  const hasData = pieData.length > 0;
 
   return (
-    <section className="border border-gray-900 rounded-lg bg-black/50 px-4 py-4 sm:px-6 sm:py-5">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold">
+          <h3 className="text-sm font-semibold">
             This Month&apos;s Spending by Category
-          </h2>
+          </h3>
           <p className="text-[11px] text-gray-400">
             Total expenses by category for the current month. Internal transfers
             are excluded. Use the toggle to switch between currencies.
           </p>
         </div>
 
-        {currencies.length > 0 && (
-          <div className="inline-flex rounded-full border border-gray-800 bg-black/60 p-0.5 text-[11px]">
-            {currencies.map((code) => (
-              <button
-                key={code}
-                type="button"
-                onClick={() => setActiveCurrency(code)}
-                className={`px-2 py-0.5 rounded-full ${
-                  activeCurrency === code
-                    ? "bg-white text-black"
-                    : "text-gray-400 hover:text-white"
-                }`}
-              >
-                {code}
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-gray-400">Currency:</span>
+          {currencyCodes.length === 0 ? (
+            <span className="text-gray-500">No data</span>
+          ) : (
+            <div className="inline-flex rounded-full border border-gray-700 bg-black/60 p-1">
+              {currencyCodes.map((code) => {
+                const active = code === activeCurrency;
+                return (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => setActiveCurrency(code)}
+                    className={`px-3 py-0.5 rounded-full text-[11px] ${
+                      active
+                        ? "bg-white text-black"
+                        : "text-gray-300 hover:bg-gray-900"
+                    }`}
+                  >
+                    {code}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
-      {loading ? (
-        <p className="text-xs text-gray-500">Loading spending data…</p>
-      ) : currencies.length === 0 ? (
-        <p className="text-xs text-gray-500">
-          No expenses recorded this month yet.
-        </p>
-      ) : !hasData ? (
-        <p className="text-xs text-gray-500">
-          No expenses recorded yet for{" "}
-          <span className="font-mono">{activeCurrency}</span> this month.
-        </p>
-      ) : (
-        <div className="relative h-[260px] sm:h-[280px]">
-          {/* Center label with total */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <p className="text-[11px] uppercase tracking-wide text-gray-400">
-              Total {activeCurrency}
-            </p>
-            <p className="text-lg font-semibold">
-              {totalForCurrency.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </p>
+      <div className="h-72 w-full">
+        {!hasData ? (
+          <div className="flex h-full items-center justify-center text-xs text-gray-500">
+            No expense data for this month with the current filters.
           </div>
-
+        ) : (
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
+              {centerLabel}
               <Pie
-                data={chartData}
+                data={pieData}
                 dataKey="value"
                 nameKey="name"
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={90}
-                paddingAngle={3}
+                innerRadius="60%"
+                outerRadius="80%"
+                paddingAngle={2}
               >
-                {chartData.map((_, index) => (
+                {pieData.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
-                    fill={RASTA_COLORS[index % RASTA_COLORS.length]}
+                    fill={COLORS[index % COLORS.length]}
                   />
                 ))}
               </Pie>
               <Tooltip
-                contentStyle={{
-                  backgroundColor: "rgba(0,0,0,0.9)",
-                  border: "1px solid #374151",
-                  borderRadius: "0.5rem",
-                  fontSize: 11,
-                  color: "#f9fafb",
-                }}
-                labelStyle={{
-                  color: "#e5e7eb",
-                }}
-                itemStyle={{
-                  color: "#f9fafb",
-                }}
-                formatter={(value: number | string, _name, payload) => {
-                  if (typeof value === "number") {
-                    const percentage =
-                      totalForCurrency > 0
-                        ? (value / totalForCurrency) * 100
-                        : 0;
-                    return [
-                      value.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      }),
-                      `${payload?.payload?.name} (${percentage.toFixed(1)}%)`,
-                    ];
-                  }
-                  return value;
-                }}
+                formatter={(value: any) =>
+                  (value as number).toFixed(2)
+                }
               />
               <Legend
+                verticalAlign="bottom"
+                align="center"
                 wrapperStyle={{
                   fontSize: 11,
                   color: "#d1d5db",
@@ -261,8 +235,8 @@ export default function SpendingByCategoryChart(
               />
             </PieChart>
           </ResponsiveContainer>
-        </div>
-      )}
-    </section>
+        )}
+      </div>
+    </div>
   );
 }

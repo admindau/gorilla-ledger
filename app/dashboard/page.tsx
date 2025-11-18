@@ -344,15 +344,15 @@ export default function DashboardPage() {
       ? totalBudgets - budgetsAtRisk - budgetsOver
       : 0;
 
-  // -------- Spending by category (selected month, respecting filters) --------
+  // -------- Spending by category (selected month, respects filters) --------
   const expenseByCategory: Record<string, number> = {};
   for (const tx of transactions) {
-    // Month/year are controlled by the month selector
+    // Restrict to the month currently selected at the top of the dashboard
     if (!isSelectedMonth(tx.occurred_at)) continue;
     if (tx.type !== "expense") continue;
     if (!tx.category_id) continue;
 
-    // Apply wallet + category filters from the chart filters bar
+    // Apply wallet + category filters from the Chart Filters bar
     if (walletFilter !== "all" && tx.wallet_id !== walletFilter) continue;
     if (categoryFilter !== "all" && tx.category_id !== categoryFilter) continue;
 
@@ -372,7 +372,7 @@ export default function DashboardPage() {
     })
   );
 
-  // Top categories (take top 5 of above)
+  // Top categories (take top 5 of above, already filtered)
   const topCategoriesData = [...spendingByCategoryData]
     .sort((a, b) => b.value - a.value)
     .slice(0, 5);
@@ -597,6 +597,36 @@ export default function DashboardPage() {
           </div>
         </section>
 
+        {/* Total Balance by currency */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">
+            Total Balance by Currency
+          </h2>
+          {loadingData ? (
+            <p className="text-gray-400 text-sm">Loading...</p>
+          ) : Object.keys(totalsByCurrency).length === 0 ? (
+            <p className="text-gray-500 text-sm">
+              No balances yet – add a wallet and some transactions.
+            </p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {Object.entries(totalsByCurrency).map(([currency, minor]) => (
+                <div
+                  key={currency}
+                  className="border border-gray-800 rounded px-4 py-2"
+                >
+                  <div className="text-xs text-gray-400 uppercase">
+                    {currency}
+                  </div>
+                  <div className="text-lg font-semibold">
+                    {formatMinorToAmount(minor)} {currency}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
         {/* Chart filters */}
         <section className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -664,13 +694,16 @@ export default function DashboardPage() {
           </h2>
           {loadingData ? (
             <p className="text-gray-400 text-sm">Loading...</p>
-          ) : spendingByCategoryData.length === 0 ? (
-            <p className="text-gray-500 text-sm">
-              No expense transactions for this month yet.
-            </p>
           ) : (
             <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <SpendingByCategoryChart />
+              <SpendingByCategoryChart
+                transactions={transactions}
+                categories={categories}
+                selectedYear={selectedYear}
+                selectedMonth={selectedMonth}
+                walletFilter={walletFilter}
+                categoryFilter={categoryFilter}
+              />
             </div>
           )}
         </section>
