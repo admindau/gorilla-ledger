@@ -14,7 +14,7 @@ import { supabaseBrowserClient } from "@/lib/supabase/client";
 type RawRow = {
   user_id: string;
   currency: string;
-  category_name: string;
+  category_name: string | null;
   total_spent: number;
 };
 
@@ -58,9 +58,10 @@ export default function SpendingByCategoryChart(
         setLoading(true);
         const supabase = supabaseBrowserClient;
 
-        const { data, error } = await supabase
-          .from("category_spending_current_month")
-          .select("*");
+        const [{ data: userData }, { data, error }] = await Promise.all([
+          supabase.auth.getUser(),
+          supabase.from("category_spending_current_month").select("*"),
+        ]);
 
         if (error) {
           console.error("Error loading category spending:", error);
@@ -68,11 +69,20 @@ export default function SpendingByCategoryChart(
           return;
         }
 
+        const user = userData?.user ?? null;
+
         const typed = (data ?? []) as RawRow[];
-        if (typed.length === 0 && initialRowsFromProps.length > 0) {
+
+        // SAFETY: only show rows for this logged-in user
+        const scoped =
+          user && user.id
+            ? typed.filter((row) => row.user_id === user.id)
+            : typed;
+
+        if (scoped.length === 0 && initialRowsFromProps.length > 0) {
           setRows(initialRowsFromProps);
         } else {
-          setRows(typed);
+          setRows(scoped);
         }
       } catch (err) {
         console.error("Unexpected error loading category spending:", err);
@@ -119,18 +129,15 @@ export default function SpendingByCategoryChart(
     // Sum total for selected currency
     const total = base.reduce((sum, item) => sum + item.value, 0);
 
-    // Sort top to bottom and keep top N, group the rest as "Other"
+    // Sort and group "Other"
     const sorted = [...base].sort((a, b) => b.value - a.value);
     const TOP_N = 6;
     const top = sorted.slice(0, TOP_N);
     const rest = sorted.slice(TOP_N);
-
     const restTotal = rest.reduce((sum, item) => sum + item.value, 0);
 
     const finalData =
-      restTotal > 0
-        ? [...top, { name: "Other", value: restTotal }]
-        : top;
+      restTotal > 0 ? [...top, { name: "Other", value: restTotal }] : top;
 
     return { chartData: finalData, totalForCurrency: total };
   }, [rows, activeCurrency]);
@@ -188,7 +195,7 @@ export default function SpendingByCategoryChart(
             <p className="text-[11px] uppercase tracking-wide text-gray-400">
               Total {activeCurrency}
             </p>
-            <p className="text-2xl font-semibold">
+            <p className="text-lg font-semibold">
               {totalForCurrency.toLocaleString(undefined, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
@@ -204,11 +211,9 @@ export default function SpendingByCategoryChart(
                 nameKey="name"
                 cx="50%"
                 cy="50%"
-                innerRadius={70}
-                outerRadius={110}
-                paddingAngle={4}
-                stroke="#020617"
-                strokeWidth={1}
+                innerRadius={60}
+                outerRadius={90}
+                paddingAngle={3}
               >
                 {chartData.map((_, index) => (
                   <Cell
@@ -218,6 +223,19 @@ export default function SpendingByCategoryChart(
                 ))}
               </Pie>
               <Tooltip
+                contentStyle={{
+                  backgroundColor: "rgba(0,0,0,0.9)",
+                  border: "1px solid #374151",
+                  borderRadius: "0.5rem",
+                  fontSize: 11,
+                  color: "#f9fafb",
+                }}
+                labelStyle={{
+                  color: "#e5e7eb",
+                }}
+                itemStyle={{
+                  color: "#f9fafb",
+                }}
                 formatter={(value: number | string, _name, payload) => {
                   if (typeof value === "number") {
                     const percentage =
@@ -234,24 +252,12 @@ export default function SpendingByCategoryChart(
                   }
                   return value;
                 }}
-                contentStyle={{
-                  backgroundColor: "#020617",
-                  borderColor: "#1f2937",
-                  borderRadius: 8,
-                  fontSize: 11,
-                  color: "#f9fafb",
-                }}
-                labelStyle={{
-                  color: "#e5e7eb",
-                }}
-                itemStyle={{
-                  color: "#f9fafb",
-                }}
               />
               <Legend
-                verticalAlign="bottom"
-                height={32}
-                wrapperStyle={{ fontSize: 11, color: "#d1d5db" }}
+                wrapperStyle={{
+                  fontSize: 11,
+                  color: "#d1d5db",
+                }}
               />
             </PieChart>
           </ResponsiveContainer>
