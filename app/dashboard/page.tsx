@@ -11,6 +11,7 @@ import TopCategoriesBarChart from "@/components/dashboard/TopCategoriesBarChart"
 import HistoricalIncomeExpenseChart from "@/components/dashboard/HistoricalIncomeExpenseChart";
 import FullHistoryIncomeExpenseChart from "@/components/dashboard/FullHistoryIncomeExpenseChart";
 import CumulativeNetBalanceChart from "@/components/dashboard/CumulativeNetBalanceChart";
+import SmartInsightsPanel from "@/components/dashboard/SmartInsightsPanel";
 
 type Wallet = {
   id: string;
@@ -509,6 +510,18 @@ export default function DashboardPage() {
 
         {errorMsg && (
           <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>
+        )}
+
+        {/* Smart Insights */}
+        {!loadingData && (
+          <SmartInsightsPanel
+            transactions={transactions}
+            categories={categories}
+            selectedYear={selectedYear}
+            selectedMonth={selectedMonth}
+            walletFilter={walletFilter}
+            categoryFilter={categoryFilter}
+          />
         )}
 
         {/* Summary cards */}
