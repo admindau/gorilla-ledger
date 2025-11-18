@@ -710,7 +710,7 @@ export default function DashboardPage() {
         {/* Top categories bar chart */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-2">
-            Top Spending Categories – This Month
+            Top Spending Categories – This Year
           </h2>
           {loadingData ? (
             <p className="text-gray-400 text-sm">Loading...</p>
