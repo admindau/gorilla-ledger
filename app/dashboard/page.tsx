@@ -89,7 +89,7 @@ export default function DashboardPage() {
   const [selectedYear, setSelectedYear] = useState(today.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth()); // 0-based
 
-  // 🔥 NEW: Filters for trend charts (per wallet, per category, per year)
+  // 🔥 Filters for charts (per wallet, per category, per year)
   const [walletFilter, setWalletFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [yearFilter, setYearFilter] = useState<string>("all");
@@ -344,12 +344,17 @@ export default function DashboardPage() {
       ? totalBudgets - budgetsAtRisk - budgetsOver
       : 0;
 
-  // -------- Spending by category (selected month) --------
+  // -------- Spending by category (selected month, respecting filters) --------
   const expenseByCategory: Record<string, number> = {};
   for (const tx of transactions) {
+    // Month/year are controlled by the month selector
     if (!isSelectedMonth(tx.occurred_at)) continue;
     if (tx.type !== "expense") continue;
     if (!tx.category_id) continue;
+
+    // Apply wallet + category filters from the chart filters bar
+    if (walletFilter !== "all" && tx.wallet_id !== walletFilter) continue;
+    if (categoryFilter !== "all" && tx.category_id !== categoryFilter) continue;
 
     const category = categoryMap[tx.category_id];
     if (isInternalTransferCategory(category)) continue;
@@ -592,43 +597,14 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Total Balance by currency */}
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-2">
-            Total Balance by Currency
-          </h2>
-          {loadingData ? (
-            <p className="text-gray-400 text-sm">Loading...</p>
-          ) : Object.keys(totalsByCurrency).length === 0 ? (
-            <p className="text-gray-500 text-sm">
-              No wallets found yet. Create one to start tracking.
-            </p>
-          ) : (
-            <div className="flex flex-wrap gap-4 text-sm">
-              {Object.entries(totalsByCurrency).map(([currency, minor]) => (
-                <div
-                  key={currency}
-                  className="border border-gray-800 rounded px-4 py-2"
-                >
-                  <div className="text-xs text-gray-400 uppercase">
-                    {currency}
-                  </div>
-                  <div className="text-lg font-semibold">
-                    {formatMinorToAmount(minor)} {currency}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Trend chart filters */}
+        {/* Chart filters */}
         <section className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h2 className="text-sm font-semibold">Trend Chart Filters</h2>
+              <h2 className="text-sm font-semibold">Chart Filters</h2>
               <p className="text-[11px] text-gray-400">
-                Apply filters to the income/expense and history charts below.
+                Apply filters to the charts below, including spending and
+                income/expense trends.
               </p>
             </div>
             <div className="flex flex-wrap gap-2 text-xs">
