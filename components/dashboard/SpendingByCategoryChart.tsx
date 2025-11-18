@@ -66,7 +66,6 @@ export default function SpendingByCategoryChart({
     [categories]
   );
 
-  // Group expenses by currency -> category
   const expensesByCurrency = useMemo(() => {
     const result: Record<string, Record<string, number>> = {};
 
@@ -113,7 +112,6 @@ export default function SpendingByCategoryChart({
 
   const [activeCurrency, setActiveCurrency] = useState<string | null>(null);
 
-  // Keep active currency in sync with available data
   useEffect(() => {
     if (currencyCodes.length === 0) {
       setActiveCurrency(null);
@@ -220,11 +218,33 @@ export default function SpendingByCategoryChart({
                   />
                 ))}
               </Pie>
+
+              {/* --- UPDATED TOOLTIP ONLY --- */}
               <Tooltip
-                formatter={(value: any) =>
-                  (value as number).toFixed(2)
-                }
+                contentStyle={{
+                  backgroundColor: "rgba(0,0,0,0.9)",
+                  border: "1px solid #374151",
+                  borderRadius: "0.5rem",
+                  color: "#fff",
+                  fontSize: 12,
+                  padding: "6px 10px",
+                }}
+                itemStyle={{
+                  color: "#fff",
+                }}
+                labelStyle={{
+                  color: "#e5e7eb",
+                }}
+                formatter={(value: any, name: any) => [
+                  Number(value).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  }),
+                  name,
+                ]}
               />
+              {/* --- END TOOLTIP --- */}
+
               <Legend
                 verticalAlign="bottom"
                 align="center"
