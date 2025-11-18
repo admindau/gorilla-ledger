@@ -71,11 +71,17 @@ export default function TopCategoriesBarChart({ data }: Props) {
                   fontSize: 11,
                   color: "#e5e7eb",
                 }}
-                formatter={(value: any) =>
-                  [(value as number).toFixed(2), "total"]
-                }
+                formatter={(value: any) => [
+                  (value as number).toFixed(2),
+                  "total",
+                ]}
               />
-              <Bar dataKey="value" radius={[8, 8, 0, 0]} />
+              {/* 🔥 Explicit bright bar colour so it pops on black */}
+              <Bar
+                dataKey="value"
+                radius={[8, 8, 0, 0]}
+                fill="#22c55e" // bright green
+              />
             </BarChart>
           </ResponsiveContainer>
         )}
