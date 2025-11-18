@@ -14,7 +14,7 @@ import { supabaseBrowserClient } from "@/lib/supabase/client";
 type RawRow = {
   user_id: string;
   currency: string;
-  category_name: string;
+  category_name: string | null;
   total_spent: number;
 };
 
@@ -41,6 +41,7 @@ export default function TopCategoriesBarChart(
   const [activeCurrency, setActiveCurrency] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Fallback data from props (if Supabase is empty or errors)
   const initialRowsFromProps = useMemo<RawRow[]>(
     () =>
       (props.data ?? []).map((d) => ({
@@ -58,9 +59,10 @@ export default function TopCategoriesBarChart(
         setLoading(true);
         const supabase = supabaseBrowserClient;
 
-        const { data, error } = await supabase
-          .from("category_spending_current_month")
-          .select("*");
+        const [{ data: userData }, { data, error }] = await Promise.all([
+          supabase.auth.getUser(),
+          supabase.from("category_spending_current_month").select("*"),
+        ]);
 
         if (error) {
           console.error("Error loading top categories:", error);
@@ -68,11 +70,19 @@ export default function TopCategoriesBarChart(
           return;
         }
 
+        const user = userData?.user ?? null;
         const typed = (data ?? []) as RawRow[];
-        if (typed.length === 0 && initialRowsFromProps.length > 0) {
+
+        // IMPORTANT: restrict to the logged-in user
+        const scoped =
+          user && user.id
+            ? typed.filter((row) => row.user_id === user.id)
+            : typed;
+
+        if (scoped.length === 0 && initialRowsFromProps.length > 0) {
           setRawData(initialRowsFromProps);
         } else {
-          setRawData(typed);
+          setRawData(scoped);
         }
       } catch (error) {
         console.error("Unexpected error loading top categories:", error);
@@ -104,13 +114,27 @@ export default function TopCategoriesBarChart(
   const chartData = useMemo<ChartDatum[]>(() => {
     if (!activeCurrency) return [];
 
-    return rawData
-      .filter((row) => row.currency === activeCurrency)
-      .map((row) => ({
-        categoryName: row.category_name ?? "Uncategorized",
-        currencyCode: row.currency,
-        totalAmount: row.total_spent,
-      }))
+    // Filter to the active currency
+    const filtered = rawData.filter((row) => row.currency === activeCurrency);
+
+    // Re-aggregate per categoryName so there are NO duplicates
+    const totals = new Map<string, number>();
+
+    for (const row of filtered) {
+      const name = row.category_name ?? "Uncategorized";
+      const prev = totals.get(name) ?? 0;
+      totals.set(name, prev + row.total_spent);
+    }
+
+    const aggregated: ChartDatum[] = Array.from(totals.entries()).map(
+      ([name, total]) => ({
+        categoryName: name,
+        currencyCode: activeCurrency,
+        totalAmount: total,
+      })
+    );
+
+    return aggregated
       .sort((a, b) => b.totalAmount - a.totalAmount)
       .slice(0, 5);
   }, [rawData, activeCurrency]);
