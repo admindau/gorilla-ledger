@@ -344,39 +344,6 @@ export default function DashboardPage() {
       ? totalBudgets - budgetsAtRisk - budgetsOver
       : 0;
 
-  // -------- Spending by category (selected month, respects filters) --------
-  const expenseByCategory: Record<string, number> = {};
-  for (const tx of transactions) {
-    // Restrict to the month currently selected at the top of the dashboard
-    if (!isSelectedMonth(tx.occurred_at)) continue;
-    if (tx.type !== "expense") continue;
-    if (!tx.category_id) continue;
-
-    // Apply wallet + category filters from the Chart Filters bar
-    if (walletFilter !== "all" && tx.wallet_id !== walletFilter) continue;
-    if (categoryFilter !== "all" && tx.category_id !== categoryFilter) continue;
-
-    const category = categoryMap[tx.category_id];
-    if (isInternalTransferCategory(category)) continue;
-
-    if (!expenseByCategory[tx.category_id]) {
-      expenseByCategory[tx.category_id] = 0;
-    }
-    expenseByCategory[tx.category_id] += tx.amount_minor;
-  }
-
-  const spendingByCategoryData = Object.entries(expenseByCategory).map(
-    ([categoryId, totalMinor]) => ({
-      name: categoryMap[categoryId]?.name ?? "Uncategorized",
-      value: totalMinor / 100, // major units for charts
-    })
-  );
-
-  // Top categories (take top 5 of above, already filtered)
-  const topCategoriesData = [...spendingByCategoryData]
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 5);
-
   // -------- Income vs expense trend for charts (with filters) --------
 
   type IncomeExpenseDailyPoint = {
@@ -787,13 +754,15 @@ export default function DashboardPage() {
           </h2>
           {loadingData ? (
             <p className="text-gray-400 text-sm">Loading...</p>
-          ) : topCategoriesData.length === 0 ? (
-            <p className="text-gray-500 text-sm">
-              No expense transactions for this month yet.
-            </p>
           ) : (
             <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <TopCategoriesBarChart data={topCategoriesData} />
+              <TopCategoriesBarChart
+                transactions={transactions}
+                categories={categories}
+                walletFilter={walletFilter}
+                categoryFilter={categoryFilter}
+                yearFilter={yearFilter}
+              />
             </div>
           )}
         </section>
