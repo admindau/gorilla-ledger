@@ -66,6 +66,7 @@ export default function SpendingByCategoryChart({
     [categories]
   );
 
+  // Group expenses by currency -> category
   const expensesByCurrency = useMemo(() => {
     const result: Record<string, Record<string, number>> = {};
 
@@ -112,6 +113,7 @@ export default function SpendingByCategoryChart({
 
   const [activeCurrency, setActiveCurrency] = useState<string | null>(null);
 
+  // Keep active currency in sync with available data
   useEffect(() => {
     if (currencyCodes.length === 0) {
       setActiveCurrency(null);
@@ -219,7 +221,7 @@ export default function SpendingByCategoryChart({
                 ))}
               </Pie>
 
-              {/* --- UPDATED TOOLTIP ONLY --- */}
+              {/* --- TOOLTIP SHOWING VALUE + PERCENTAGE --- */}
               <Tooltip
                 contentStyle={{
                   backgroundColor: "rgba(0,0,0,0.9)",
@@ -235,13 +237,18 @@ export default function SpendingByCategoryChart({
                 labelStyle={{
                   color: "#e5e7eb",
                 }}
-                formatter={(value: any, name: any) => [
-                  Number(value).toLocaleString(undefined, {
+                formatter={(value: any, name: any) => {
+                  const numeric = Number(value);
+                  const pct = total > 0 ? (numeric / total) * 100 : 0;
+                  const formattedValue = numeric.toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
-                  }),
-                  name,
-                ]}
+                  });
+                  const formattedPct = pct.toFixed(1);
+
+                  // Shows like: "12,345.67 (23.4%)"
+                  return [`${formattedValue} (${formattedPct}%)`, name];
+                }}
               />
               {/* --- END TOOLTIP --- */}
 
