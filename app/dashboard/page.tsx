@@ -367,89 +367,37 @@ export default function DashboardPage() {
     .sort((a, b) => b.value - a.value)
     .slice(0, 5);
 
-  // -------- Income vs expense trend for charts (with filters) --------
+  // -------- Income vs expense trend for charts --------
+  type IncomeExpenseBucket = {
+    month: string;
+    currency: string;
+    incomeMinor: number;
+    expenseMinor: number;
+  };
 
-  // Filters for trend charts (per wallet, per category, per year)
-  const [walletFilter, setWalletFilter] = useState<string>("all");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [yearFilter, setYearFilter] = useState<string>("all");
+  const hasDailySeries = dailyIncomeExpense.length > 0;
 
-  const chartYearOptions = Array.from(
-    new Set(
-      transactions.map((tx) => {
-        const d = new Date(tx.occurred_at);
-        return Number.isNaN(d.getTime()) ? null : String(d.getFullYear());
-      })
-    )
-  )
-    .filter((y): y is string => !!y)
-    .sort();
-
-  // Transactions used for trend charts (filters + no internal transfers)
-  const filteredTrendTransactions = transactions.filter((tx) => {
-    if (walletFilter !== "all" && tx.wallet_id !== walletFilter) return false;
-
-    const category = tx.category_id ? categoryMap[tx.category_id] : null;
-    if (isInternalTransferCategory(category)) return false;
-
-    if (categoryFilter !== "all" && tx.category_id !== categoryFilter)
-      return false;
-
-    if (yearFilter !== "all") {
-      const d = new Date(tx.occurred_at);
-      if (Number.isNaN(d.getTime())) return false;
-      const y = String(d.getFullYear());
-      if (y !== yearFilter) return false;
-    }
-
-    return true;
-  });
-
-  type IncomeExpenseDailyPoint = {
-    day: string;
+  let incomeExpenseTrendData: {
+    day?: string;
+    month?: string;
     income: number;
     expense: number;
     currencyCode?: string;
-  };
+  }[] = [];
 
-  // Build daily series from filtered transactions (per currency)
-  const incomeExpenseTrendData: IncomeExpenseDailyPoint[] = (() => {
-    const map = new Map<
-      string,
-      { day: string; income: number; expense: number; currencyCode: string }
-    >();
+  let incomeExpenseTrendLast12: typeof incomeExpenseTrendData = [];
 
-    for (const tx of filteredTrendTransactions) {
-      const d = new Date(tx.occurred_at);
-      if (Number.isNaN(d.getTime())) continue;
-      const day = d.toISOString().slice(0, 10); // YYYY-MM-DD
-      const key = `${day}|${tx.currency_code}`;
+  if (hasDailySeries) {
+    const mapped = dailyIncomeExpense.map((row) => ({
+      day: row.day,
+      income: row.income ?? 0,
+      expense: row.expense ?? 0,
+      currencyCode: row.currency_code ?? undefined,
+    }));
 
-      const existing =
-        map.get(key) ?? {
-          day,
-          income: 0,
-          expense: 0,
-          currencyCode: tx.currency_code,
-        };
+    mapped.sort((a, b) => (a.day ?? "").localeCompare(b.day ?? ""));
+    incomeExpenseTrendData = mapped;
 
-      if (tx.type === "income") {
-        existing.income += tx.amount_minor / 100;
-      } else if (tx.type === "expense") {
-        existing.expense += tx.amount_minor / 100;
-      }
-
-      map.set(key, existing);
-    }
-
-    const points = Array.from(map.values());
-    points.sort((a, b) => a.day.localeCompare(b.day));
-    return points;
-  })();
-
-  // Last 12 months slice for the historical chart
-  const incomeExpenseTrendLast12: IncomeExpenseDailyPoint[] = (() => {
-    if (incomeExpenseTrendData.length === 0) return [];
     const today = new Date();
     const cutoff = new Date(
       today.getFullYear() - 1,
@@ -457,11 +405,65 @@ export default function DashboardPage() {
       today.getDate()
     );
 
-    return incomeExpenseTrendData.filter((row) => {
+    incomeExpenseTrendLast12 = mapped.filter((row) => {
+      if (!row.day) return false;
       const d = new Date(row.day);
       return d >= cutoff;
     });
-  })();
+  } else {
+    // Fallback: derive monthly buckets from transactions (old behaviour)
+    const incomeExpenseByMonthCurrency: Record<string, IncomeExpenseBucket> =
+      {};
+
+    for (const tx of transactions) {
+      const category = tx.category_id ? categoryMap[tx.category_id] : null;
+      if (isInternalTransferCategory(category)) continue;
+
+      const d = new Date(tx.occurred_at);
+      const monthKey = `${d.getFullYear()}-${String(
+        d.getMonth() + 1
+      ).padStart(2, "0")}`;
+      const currency = tx.currency_code;
+      const key = `${monthKey}|${currency}`;
+
+      if (!incomeExpenseByMonthCurrency[key]) {
+        incomeExpenseByMonthCurrency[key] = {
+          month: monthKey,
+          currency,
+          incomeMinor: 0,
+          expenseMinor: 0,
+        };
+      }
+
+      if (tx.type === "income") {
+        incomeExpenseByMonthCurrency[key].incomeMinor += tx.amount_minor;
+      } else if (tx.type === "expense") {
+        incomeExpenseByMonthCurrency[key].expenseMinor += tx.amount_minor;
+      }
+    }
+
+    incomeExpenseTrendData = Object.values(incomeExpenseByMonthCurrency)
+      .sort((a, b) => {
+        if (a.month === b.month) {
+          return a.currency.localeCompare(b.currency);
+        }
+        return a.month.localeCompare(b.month);
+      })
+      .map((bucket) => ({
+        month: bucket.month,
+        income: bucket.incomeMinor / 100,
+        expense: bucket.expenseMinor / 100,
+        currencyCode: bucket.currency,
+      }));
+
+    const uniqueMonths = Array.from(
+      new Set(incomeExpenseTrendData.map((row) => row.month ?? ""))
+    ).sort();
+    const last12MonthKeys = new Set(uniqueMonths.slice(-12));
+    incomeExpenseTrendLast12 = incomeExpenseTrendData.filter((row) =>
+      last12MonthKeys.has(row.month ?? "")
+    );
+  }
 
   const selectedDate = new Date(selectedYear, selectedMonth, 1);
   const monthLabel = selectedDate.toLocaleString("en", {
@@ -621,63 +623,36 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Trend chart filters */}
-        <section className="mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold">Trend Chart Filters</h2>
-              <p className="text-[11px] text-gray-400">
-                Apply filters to the income/expense and history charts below.
-              </p>
+        {/* Wallet Balances */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">Wallet Balances</h2>
+          {loadingData ? (
+            <p className="text-gray-400 text-sm">Loading...</p>
+          ) : walletBalances.length === 0 ? (
+            <p className="text-gray-500 text-sm">
+              You don&apos;t have any wallets yet. Create one from the Wallets
+              page.
+            </p>
+          ) : (
+            <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
+              {walletBalances.map((w) => (
+                <div
+                  key={w.id}
+                  className="flex items-center justify-between px-4 py-2"
+                >
+                  <div>
+                    <div className="font-medium">{w.name}</div>
+                    <div className="text-xs text-gray-400">
+                      {w.currency_code}
+                    </div>
+                  </div>
+                  <div className="font-semibold">
+                    {formatMinorToAmount(w.balanceMinor)} {w.currency_code}
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="flex flex-wrap gap-2 text-xs">
-              <div className="flex items-center gap-1">
-                <span className="text-gray-400">Wallet:</span>
-                <select
-                  value={walletFilter}
-                  onChange={(e) => setWalletFilter(e.target.value)}
-                  className="bg-black border border-gray-700 rounded px-2 py-1 text-xs"
-                >
-                  <option value="all">All wallets</option>
-                  {wallets.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name} ({w.currency_code})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-gray-400">Category:</span>
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="bg-black border border-gray-700 rounded px-2 py-1 text-xs"
-                >
-                  <option value="all">All categories</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-gray-400">Year:</span>
-                <select
-                  value={yearFilter}
-                  onChange={(e) => setYearFilter(e.target.value)}
-                  className="bg-black border border-gray-700 rounded px-2 py-1 text-xs"
-                >
-                  <option value="all">All years</option>
-                  {chartYearOptions.map((y) => (
-                    <option key={y} value={y}>
-                      {y}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
+          )}
         </section>
 
         {/* Spending by Category (donut) */}
@@ -734,7 +709,7 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* All-Time Income vs Expenses */}
+        {/* 🔥 NEW: All-Time Income vs Expenses */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-2">
             All-Time Income vs Expenses
@@ -752,7 +727,7 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Cumulative Net Balance – All Time */}
+        {/* 🔥 NEW: Cumulative Net Balance – All Time */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-2">
             Cumulative Net Balance – All Time
