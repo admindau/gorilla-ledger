@@ -12,6 +12,7 @@ import HistoricalIncomeExpenseChart from "@/components/dashboard/HistoricalIncom
 import FullHistoryIncomeExpenseChart from "@/components/dashboard/FullHistoryIncomeExpenseChart";
 import CumulativeNetBalanceChart from "@/components/dashboard/CumulativeNetBalanceChart";
 import SmartInsightsPanel from "@/components/dashboard/SmartInsightsPanel";
+import BudgetInsightsPanel from "@/components/dashboard/BudgetInsightsPanel";
 
 type Wallet = {
   id: string;
@@ -779,6 +780,15 @@ export default function DashboardPage() {
             </div>
           )}
         </section>
+
+        {/* Budget insights (above the table) */}
+        {!loadingData && totalBudgets > 0 && (
+          <BudgetInsightsPanel
+            summaries={budgetSummaries as any}
+            riskThreshold={RISK_THRESHOLD}
+            monthLabel={monthLabel}
+          />
+        )}
 
         {/* Budgets vs Actual */}
         <section className="mb-8">
