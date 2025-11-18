@@ -75,6 +75,10 @@ export default function SmartInsightsPanel({
   const currentSpending: Record<string, number> = {};
   const previousSpending: Record<string, number> = {};
 
+  // Totals per currency for current and previous month
+  const currentTotals: Record<string, number> = {};
+  const previousTotals: Record<string, number> = {};
+
   for (const tx of transactions) {
     if (tx.type !== "expense") continue;
     if (!tx.category_id) continue;
@@ -87,23 +91,39 @@ export default function SmartInsightsPanel({
     const category = categoryMap[tx.category_id];
     if (isInternalTransferCategory(category)) continue;
 
+    const inCurrent = isSameMonth(
+      tx.occurred_at,
+      selectedYear,
+      selectedMonth
+    );
+    const inPrevious = isSameMonth(tx.occurred_at, prevYear, prevMonth);
+
+    if (!inCurrent && !inPrevious) continue;
+
     const key = `${tx.category_id}|${tx.currency_code}`;
 
-    if (isSameMonth(tx.occurred_at, selectedYear, selectedMonth)) {
+    if (inCurrent) {
       currentSpending[key] = (currentSpending[key] ?? 0) + tx.amount_minor;
-    } else if (isSameMonth(tx.occurred_at, prevYear, prevMonth)) {
+      currentTotals[tx.currency_code] =
+        (currentTotals[tx.currency_code] ?? 0) + tx.amount_minor;
+    }
+
+    if (inPrevious) {
       previousSpending[key] = (previousSpending[key] ?? 0) + tx.amount_minor;
+      previousTotals[tx.currency_code] =
+        (previousTotals[tx.currency_code] ?? 0) + tx.amount_minor;
     }
   }
 
-  const allKeys = new Set([
+  const allCatKeys = new Set([
     ...Object.keys(currentSpending),
     ...Object.keys(previousSpending),
   ]);
 
   const insights: Insight[] = [];
 
-  for (const key of allKeys) {
+  // --- Category-level insights ---
+  for (const key of allCatKeys) {
     const [categoryId, currency] = key.split("|");
     const category = categoryMap[categoryId];
 
@@ -121,15 +141,15 @@ export default function SmartInsightsPanel({
       continue;
     }
 
-    // No spending this month
+    // No spending this month (100% down)
     if (prevMinor > 0 && currMinor === 0) {
       const prevMajor = formatMinorToMajor(prevMinor);
-      const text = `No spending in ${name} this month; last month you spent ${prevMajor} ${currency}.`;
+      const text = `No spending in ${name} this month; it is down 100% vs last month (${prevMajor} ${currency} → 0.00 ${currency}).`;
       insights.push({ sortValue: prevMinor, text });
       continue;
     }
 
-    // Both months have spending – compare
+    // Both months have spending – compare with % change
     if (prevMinor > 0 && currMinor > 0) {
       const diff = currMinor - prevMinor;
       const pctChange = (diff / prevMinor) * 100;
@@ -148,9 +168,55 @@ export default function SmartInsightsPanel({
     }
   }
 
+  // --- Overall totals per currency ---
+  const allCurrencyCodes = new Set([
+    ...Object.keys(currentTotals),
+    ...Object.keys(previousTotals),
+  ]);
+
+  for (const currency of allCurrencyCodes) {
+    const currMinor = currentTotals[currency] ?? 0;
+    const prevMinor = previousTotals[currency] ?? 0;
+
+    if (currMinor === 0 && prevMinor === 0) continue;
+
+    // New total spending this month
+    if (prevMinor === 0 && currMinor > 0) {
+      const currMajor = formatMinorToMajor(currMinor);
+      const text = `Overall expenses in ${currency} are new this month: ${currMajor} ${currency} (0.00 last month).`;
+      insights.push({ sortValue: currMinor * 2, text });
+      continue;
+    }
+
+    // No expenses this month
+    if (prevMinor > 0 && currMinor === 0) {
+      const prevMajor = formatMinorToMajor(prevMinor);
+      const text = `Overall expenses in ${currency} dropped to 0.00 from ${prevMajor} ${currency} (-100% vs last month).`;
+      insights.push({ sortValue: prevMinor * 2, text });
+      continue;
+    }
+
+    if (prevMinor > 0 && currMinor > 0) {
+      const diff = currMinor - prevMinor;
+      const pctChange = (diff / prevMinor) * 100;
+
+      if (Math.abs(pctChange) < 5) continue; // more sensitive for totals
+
+      const direction = diff > 0 ? "up" : "down";
+      const pctRounded = Math.round(Math.abs(pctChange));
+      const currMajor = formatMinorToMajor(currMinor);
+      const prevMajor = formatMinorToMajor(prevMinor);
+
+      const text = `Overall expenses in ${currency} are ${direction} ${pctRounded}% vs last month (${currMajor} ${currency} vs ${prevMajor} ${currency}).`;
+
+      // Multiply sortValue so totals tend to appear higher in the list
+      insights.push({ sortValue: Math.abs(diff) * 2, text });
+    }
+  }
+
   // Sort biggest changes first, limit how many we show
   insights.sort((a, b) => b.sortValue - a.sortValue);
-  const topInsights = insights.slice(0, 5);
+  const topInsights = insights.slice(0, 6);
 
   const currentLabel = new Date(
     selectedYear,
