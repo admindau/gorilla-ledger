@@ -62,8 +62,8 @@ export async function POST(_req: NextRequest) {
   const supabase = supabaseAdminClient;
 
   const now = new Date();
-  const nowIso = now.toISOString();          // for next_run_at (timestamptz)
-  const todayStr = nowIso.slice(0, 10);      // "YYYY-MM-DD" for occurred_on
+  const nowIso = now.toISOString();
+  const todayStr = nowIso.slice(0, 10); // "YYYY-MM-DD" (for logging / potential future use)
 
   // 1️⃣ Load all due, active rules
   const { data: rules, error: rulesError } = await supabase
@@ -104,6 +104,7 @@ export async function POST(_req: NextRequest) {
 
   for (const rule of activeWindowRules) {
     // 2️⃣ Insert a concrete transaction for this rule
+    // NOTE: no `occurred_on` here because that column does not exist
     const { error: insertError } = await supabase.from("transactions").insert({
       user_id: rule.user_id,
       wallet_id: rule.wallet_id,
@@ -111,7 +112,6 @@ export async function POST(_req: NextRequest) {
       amount_minor: rule.amount_minor,
       currency_code: rule.currency_code,
       type: rule.type,
-      occurred_on: todayStr,           // your transaction date
       description: rule.description,
     });
 
@@ -120,9 +120,13 @@ export async function POST(_req: NextRequest) {
         `[cron/recurring] Failed to create transaction for rule ${rule.id}:`,
         insertError
       );
-      // Skip advancing next_run_at so we can retry next run
+      // Skip advancing next_run_at so we can retry on next cron
       continue;
     }
+
+    console.log(
+      `[cron/recurring] Created transaction instance for rule ${rule.id} on ${todayStr}`
+    );
 
     createdCount += 1;
 
