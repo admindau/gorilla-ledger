@@ -2,7 +2,6 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabaseBrowserClient } from "@/lib/supabase/client";
 
 export default function ResetPasswordRequestPage() {
   const router = useRouter();
@@ -18,21 +17,22 @@ export default function ResetPasswordRequestPage() {
     setLoading(true);
 
     try {
-      const origin =
-        typeof window !== "undefined"
-          ? window.location.origin
-          : "https://gl.savvyrilla.tech";
+      const res = await fetch("/api/auth/send-reset", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
 
-      const { error } =
-        await supabaseBrowserClient.auth.resetPasswordForEmail(email, {
-          redirectTo: `${origin}/auth/update-password`,
-        });
+      const body = await res.json().catch(() => ({}));
 
-      if (error) {
-        setErrorMsg(error.message);
+      if (!res.ok && body?.error) {
+        setErrorMsg(body.error || "Something went wrong.");
       } else {
         setSuccessMsg(
-          "If this email exists in our system, a reset link has been sent."
+          body?.message ??
+            "If this email exists in our system, a reset link has been sent."
         );
       }
     } catch (err: unknown) {
@@ -74,9 +74,7 @@ export default function ResetPasswordRequestPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4 text-sm">
           <div>
-            <label className="block mb-1 text-xs text-gray-400">
-              Email
-            </label>
+            <label className="block mb-1 text-xs text-gray-400">Email</label>
             <input
               type="email"
               required
