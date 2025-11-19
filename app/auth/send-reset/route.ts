@@ -63,13 +63,14 @@ export async function POST(request: Request) {
     const resetLink = data.properties.action_link;
     console.log("[send-reset] got resetLink");
 
-    const reactElement = React.createElement(ResetPasswordEmail, { resetLink });
+const emailHtml = React.createElement(ResetPasswordEmail, { resetLink });
 
-    const result = await sendEmail({
-      to: email,
-      subject: "Reset Your Gorilla Ledger™ Password",
-      react: reactElement,
-    });
+const result = await sendEmail({
+  to: email,
+  subject: "Reset Your Gorilla Ledger™ Password",
+  react: emailHtml,
+});
+
 
     console.log("[send-reset] sendEmail result:", result);
 

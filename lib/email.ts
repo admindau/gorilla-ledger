@@ -1,15 +1,17 @@
-import * as React from "react";
+import React from "react";
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY ?? "");
+const resend = new Resend(process.env.RESEND_API_KEY || "");
 
-type SendEmailArgs = {
+export async function sendEmail({
+  to,
+  subject,
+  react,
+}: {
   to: string;
   subject: string;
   react: React.ReactElement;
-};
-
-export async function sendEmail({ to, subject, react }: SendEmailArgs) {
+}) {
   try {
     const { data, error } = await resend.emails.send({
       from: "Gorilla Ledger <no-reply@savvyrilla.tech>",
