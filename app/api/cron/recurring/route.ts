@@ -3,30 +3,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
 
-// If you only support "monthly" for now, that's fine – just keep "monthly".
-type Frequency = "daily" | "weekly" | "monthly";
-
+// Match your recurring_rules schema
 type RecurringRule = {
   id: string;
   user_id: string;
   wallet_id: string;
   category_id: string | null;
-  amount_minor: number; // adjust to "amount" if your column is named that
+  amount_minor: number;
+  currency_code: string;
+  type: string; // "income" | "expense" | etc.
   description: string | null;
-  frequency: Frequency;
-  interval: number | null; // e.g. every 1 month, every 2 weeks, etc.
-  next_run_date: string; // ISO date string "YYYY-MM-DD"
-  is_paused: boolean;
+
+  frequency: "daily" | "weekly" | "monthly";
+  interval: number | null;
+  day_of_month: number | null;
+  day_of_week: number | null;
+
+  start_date: string | null; // date (YYYY-MM-DD)
+  end_date: string | null;   // date (YYYY-MM-DD)
+
+  next_run_at: string;       // timestamptz
+  is_active: boolean;
+
+  created_at: string;
+  updated_at: string;
 };
 
-// Utility: add interval to a date string (YYYY-MM-DD) according to frequency
-function advanceDate(
-  dateStr: string,
+type Frequency = RecurringRule["frequency"];
+
+export const dynamic = "force-dynamic";
+
+// Move next_run_at forward based on frequency + interval
+function advanceNextRunAt(
+  currentIso: string,
   frequency: Frequency,
   interval: number | null
 ): string {
   const step = interval && interval > 0 ? interval : 1;
-  const d = new Date(`${dateStr}T00:00:00.000Z`);
+  const d = new Date(currentIso); // current next_run_at
 
   switch (frequency) {
     case "daily":
@@ -41,26 +55,23 @@ function advanceDate(
       break;
   }
 
-  // Return back as "YYYY-MM-DD"
-  return d.toISOString().slice(0, 10);
+  return d.toISOString(); // timestamptz
 }
-
-// Make sure this route is always executed dynamically (no static caching)
-export const dynamic = "force-dynamic";
 
 export async function POST(_req: NextRequest) {
   const supabase = supabaseAdminClient;
 
-  // Use "today" in UTC so Vercel cron + DB comparisons are consistent
-  const today = new Date();
-  const todayStr = today.toISOString().slice(0, 10); // "YYYY-MM-DD"
+  const now = new Date();
+  const nowIso = now.toISOString();          // for next_run_at (timestamptz)
+  const todayStr = nowIso.slice(0, 10);      // "YYYY-MM-DD" for occurred_on
 
-  // 1️⃣ Load all due rules (not paused, next_run_date <= today)
+  // 1️⃣ Load all due, active rules
   const { data: rules, error: rulesError } = await supabase
     .from("recurring_rules")
     .select("*")
-    .eq("is_paused", false)
-    .lte("next_run_date", todayStr);
+    .eq("is_active", true)
+    .lte("next_run_at", nowIso)
+    .order("next_run_at", { ascending: true });
 
   if (rulesError) {
     console.error("[cron/recurring] Failed to load rules:", rulesError);
@@ -72,31 +83,36 @@ export async function POST(_req: NextRequest) {
 
   if (!rules || rules.length === 0) {
     return NextResponse.json({
+      date: todayStr,
       processed: 0,
       created: 0,
       updated: 0,
-      message: "No recurring rules due today",
-      date: todayStr,
+      message: "No recurring rules due at this time",
     });
   }
+
+  // Optional: respect start_date / end_date windows
+  const activeWindowRules = (rules as RecurringRule[]).filter((r) => {
+    const today = todayStr;
+    if (r.start_date && today < r.start_date) return false;
+    if (r.end_date && today > r.end_date) return false;
+    return true;
+  });
 
   let createdCount = 0;
   let updatedCount = 0;
 
-  for (const rule of rules as RecurringRule[]) {
-    // 2️⃣ Insert a transaction instance for this rule
-    // NOTE: adjust column names if your "transactions" table is different
+  for (const rule of activeWindowRules) {
+    // 2️⃣ Insert a concrete transaction for this rule
     const { error: insertError } = await supabase.from("transactions").insert({
       user_id: rule.user_id,
       wallet_id: rule.wallet_id,
       category_id: rule.category_id,
-      amount_minor: rule.amount_minor, // change to "amount" if needed
-      // If your table needs a date column, this is typically "occurred_on"
-      occurred_on: todayStr,
+      amount_minor: rule.amount_minor,
+      currency_code: rule.currency_code,
+      type: rule.type,
+      occurred_on: todayStr,           // your transaction date
       description: rule.description,
-      // Optional columns – uncomment / adjust only if they exist:
-      // is_recurring_instance: true,
-      // recurring_rule_id: rule.id,
     });
 
     if (insertError) {
@@ -104,15 +120,15 @@ export async function POST(_req: NextRequest) {
         `[cron/recurring] Failed to create transaction for rule ${rule.id}:`,
         insertError
       );
-      // Skip updating next_run_date for this rule so we can retry next run
+      // Skip advancing next_run_at so we can retry next run
       continue;
     }
 
     createdCount += 1;
 
-    // 3️⃣ Advance the next_run_date for the rule
-    const nextRunDate = advanceDate(
-      rule.next_run_date,
+    // 3️⃣ Advance the rule's next_run_at
+    const nextRunAt = advanceNextRunAt(
+      rule.next_run_at,
       rule.frequency,
       rule.interval
     );
@@ -120,15 +136,14 @@ export async function POST(_req: NextRequest) {
     const { error: updateError } = await supabase
       .from("recurring_rules")
       .update({
-        next_run_date: nextRunDate,
-        // Optional: if your table has this column:
-        // last_run_date: todayStr,
+        next_run_at: nextRunAt,
+        // If you later add a last_run_at column, you can also set: last_run_at: nowIso
       })
       .eq("id", rule.id);
 
     if (updateError) {
       console.error(
-        `[cron/recurring] Failed to update next_run_date for rule ${rule.id}:`,
+        `[cron/recurring] Failed to update next_run_at for rule ${rule.id}:`,
         updateError
       );
       continue;
@@ -139,13 +154,13 @@ export async function POST(_req: NextRequest) {
 
   return NextResponse.json({
     date: todayStr,
-    processed: rules.length,
+    processed: activeWindowRules.length,
     created: createdCount,
     updated: updatedCount,
   });
 }
 
-// Optional: GET for manual testing from the browser or curl
+// Allow GET for manual testing from browser
 export async function GET(req: NextRequest) {
   return POST(req);
 }
