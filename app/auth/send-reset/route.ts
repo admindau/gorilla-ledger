@@ -1,3 +1,4 @@
+import * as React from "react";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import ResetPasswordEmail from "@/emails/ResetPasswordEmail";
@@ -62,10 +63,12 @@ export async function POST(request: Request) {
     const resetLink = data.properties.action_link;
     console.log("[send-reset] got resetLink");
 
+    const reactElement = React.createElement(ResetPasswordEmail, { resetLink });
+
     const result = await sendEmail({
       to: email,
       subject: "Reset Your Gorilla Ledger™ Password",
-      react: ResetPasswordEmail({ resetLink }),
+      react: reactElement,
     });
 
     console.log("[send-reset] sendEmail result:", result);
