@@ -61,36 +61,56 @@ export async function POST(request: Request) {
     const resetLink = data.properties.action_link;
     console.log("[send-reset] got resetLink");
 
-    // 🔥 Build plain HTML email
     const html = `
       <html>
-        <body style="font-family: Arial, sans-serif; background-color: #ffffff; color: #000000; padding: 24px;">
-          <div style="max-width: 480px; margin: 0 auto; border: 1px solid #e5e5e5; border-radius: 12px; padding: 24px;">
-            <h2 style="margin-bottom: 12px; font-size: 20px;">
-              Reset your Gorilla Ledger™ password
-            </h2>
-            <p style="font-size: 14px; margin-bottom: 16px; line-height: 1.5;">
-              You requested to reset the password for your Gorilla Ledger™ account.
-              Click the button below to choose a new password.
-            </p>
-            <p style="text-align: center; margin-bottom: 24px;">
-              <a href="${resetLink}"
-                 style="display: inline-block; padding: 10px 20px; border-radius: 6px;
-                        background-color: #000000; color: #ffffff; text-decoration: none;
-                        font-weight: bold; font-size: 14px;">
-                Reset Password
-              </a>
-            </p>
-            <p style="font-size: 12px; color: #555555; line-height: 1.5; word-break: break-all;">
-              If the button doesn't work, copy and paste this link into your browser:
-              <br />
-              ${resetLink}
-            </p>
-            <hr style="margin: 24px 0 12px; border: none; border-top: 1px solid #eeeeee;" />
-            <p style="font-size: 11px; color: #999999;">
-              Gorilla Ledger™ • savvyrilla.tech
-            </p>
-          </div>
+        <body style="margin:0; padding:24px; background-color:#000000; font-family: Arial, sans-serif; color:#000000;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px; margin:0 auto;">
+            <tr>
+              <td align="center" style="padding-bottom:16px;">
+                <div style="display:inline-block; padding:8px 14px; border-radius:999px; border:1px solid #333333; background:#000000; color:#ffffff; font-size:11px; letter-spacing:0.08em; text-transform:uppercase;">
+                  Gorilla Ledger™
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="background:#ffffff; border-radius:16px; padding:24px; border:1px solid #222222;">
+                <h2 style="margin:0 0 12px; font-size:22px; color:#000000;">
+                  Reset your Gorilla Ledger™ password
+                </h2>
+
+                <p style="margin:0 0 12px; font-size:14px; line-height:1.6; color:#111111;">
+                  You requested to reset the password for your Gorilla Ledger™ account.
+                  Click the button below to choose a new password.
+                </p>
+
+                <p style="margin:0 0 20px; text-align:center;">
+                  <a href="${resetLink}"
+                     style="display:inline-block; padding:10px 22px; border-radius:999px;
+                            background:#000000; color:#ffffff; text-decoration:none;
+                            font-size:14px; font-weight:bold;">
+                    Reset Password
+                  </a>
+                </p>
+
+                <p style="margin:0 0 16px; font-size:12px; line-height:1.6; color:#555555; word-break:break-all;">
+                  If the button doesn&apos;t work, copy and paste this link into your browser:
+                  <br />
+                  ${resetLink}
+                </p>
+
+                <p style="margin:0 0 16px; font-size:12px; line-height:1.6; color:#555555;">
+                  If you did not request this, you can safely ignore this email. Your password will stay the same.
+                </p>
+
+                <hr style="border:none; border-top:1px solid #eeeeee; margin:0 0 12px;" />
+
+                <p style="margin:0; font-size:11px; color:#888888;">
+                  Gorilla Ledger™ • Built by Savvy Rilla / Savvy Gorilla Technologies • savvyrilla.tech
+                </p>
+              </td>
+            </tr>
+          </table>
         </body>
       </html>
     `;

@@ -22,12 +22,22 @@ export default function RegisterPage() {
       password,
     });
 
-    setLoading(false);
-
     if (error) {
+      setLoading(false);
       setErrorMsg(error.message);
       return;
     }
+
+    // ✅ Fire-and-forget welcome email (don’t block the UX)
+    fetch("/auth/send-welcome", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    }).catch((err) => {
+      console.error("send-welcome failed", err);
+    });
+
+    setLoading(false);
 
     // On success, redirect to login
     router.push("/auth/login");
@@ -57,9 +67,7 @@ export default function RegisterPage() {
             required
           />
 
-          {errorMsg && (
-            <p className="text-red-400 text-sm">{errorMsg}</p>
-          )}
+          {errorMsg && <p className="text-red-400 text-sm">{errorMsg}</p>}
 
           <button
             type="submit"
