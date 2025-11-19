@@ -5,7 +5,7 @@ import { sendEmail } from "@/lib/email";
 
 export async function POST(request: Request) {
   try {
-    console.log("[send-reset] route hit");
+    console.log("[send-reset] route hit"); // debug
 
     const { email } = await request.json();
 

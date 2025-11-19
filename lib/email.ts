@@ -12,7 +12,7 @@ type SendEmailArgs = {
 export async function sendEmail({ to, subject, react }: SendEmailArgs) {
   try {
     const { data, error } = await resend.emails.send({
-      from: "Gorilla Ledger <no-reply@savvyrilla.tech>",
+      from: "Gorilla Ledger™ <no-reply@savvyrilla.tech>",
       to,
       subject,
       react,
