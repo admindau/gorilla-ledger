@@ -44,15 +44,22 @@ function formatMinorToAmount(minor: number): string {
   return (minor / 100).toFixed(2);
 }
 
+type PendingDelete = {
+  tx: Transaction;
+  timeoutId: ReturnType<typeof setTimeout>;
+};
+
 export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
+  // Add transaction form
   const [walletId, setWalletId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [type, setType] = useState<TransactionType>("expense");
@@ -60,12 +67,25 @@ export default function TransactionsPage() {
   const [date, setDate] = useState("");
   const [description, setDescription] = useState("");
 
-  // Edit mode
+  // Inline editing state
   const [editingTxId, setEditingTxId] = useState<string | null>(null);
+  const [editWalletId, setEditWalletId] = useState("");
+  const [editCategoryId, setEditCategoryId] = useState("");
+  const [editType, setEditType] = useState<TransactionType>("expense");
+  const [editAmount, setEditAmount] = useState("0");
+  const [editDate, setEditDate] = useState("");
+  const [editDescription, setEditDescription] = useState("");
 
-  // Search state for recent transactions
+  // Search & date filters for recent transactions
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
+  // Undo delete
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(
+    null
+  );
 
   useEffect(() => {
     async function loadData() {
@@ -146,7 +166,7 @@ export default function TransactionsPage() {
     loadData();
   }, [walletId, categoryId, date]);
 
-  async function handleSaveTransaction(e: React.FormEvent) {
+  async function handleCreateTransaction(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setErrorMsg("");
@@ -184,44 +204,6 @@ export default function TransactionsPage() {
     const amount_minor = parseAmountToMinor(amount);
     const occurred_at = new Date(date + "T00:00:00Z").toISOString();
 
-    // UPDATE existing transaction
-    if (editingTxId) {
-      const { data, error } = await supabaseBrowserClient
-        .from("transactions")
-        .update({
-          wallet_id: walletId,
-          category_id: categoryId,
-          type,
-          amount_minor,
-          currency_code: selectedWallet.currency_code,
-          occurred_at,
-          description: description || null,
-        })
-        .eq("id", editingTxId)
-        .select()
-        .single();
-
-      if (error) {
-        console.error(error);
-        setErrorMsg(error.message);
-        setSaving(false);
-        return;
-      }
-
-      setTransactions((prev) =>
-        prev.map((tx) =>
-          tx.id === editingTxId ? (data as Transaction) : tx
-        )
-      );
-
-      setEditingTxId(null);
-      setAmount("0");
-      setDescription("");
-      setSaving(false);
-      return;
-    }
-
-    // INSERT new transaction
     const { data, error } = await supabaseBrowserClient
       .from("transactions")
       .insert({
@@ -250,36 +232,88 @@ export default function TransactionsPage() {
     setSaving(false);
   }
 
-  function handleStartEdit(tx: Transaction) {
+  // Inline editing handlers
+  function handleStartInlineEdit(tx: Transaction) {
     setEditingTxId(tx.id);
-    setWalletId(tx.wallet_id);
+    setEditWalletId(tx.wallet_id);
     if (tx.category_id) {
-      setCategoryId(tx.category_id);
+      setEditCategoryId(tx.category_id);
+    } else if (categories.length > 0) {
+      setEditCategoryId(categories[0].id);
     }
-    setType(tx.type);
-    setAmount(formatMinorToAmount(tx.amount_minor));
-    setDate(tx.occurred_at.slice(0, 10));
-    setDescription(tx.description ?? "");
-    // Scroll to top so the form is visible
-    if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
+    setEditType(tx.type);
+    setEditAmount(formatMinorToAmount(tx.amount_minor));
+    setEditDate(tx.occurred_at.slice(0, 10));
+    setEditDescription(tx.description ?? "");
   }
 
-  function handleCancelEdit() {
+  function handleCancelInlineEdit() {
     setEditingTxId(null);
-    setAmount("0");
-    setDescription("");
-    setDate(new Date().toISOString().slice(0, 10));
+    setEditWalletId("");
+    setEditCategoryId("");
+    setEditAmount("0");
+    setEditDescription("");
   }
 
-  async function handleDeleteTransaction(id: string) {
-    const confirmed = window.confirm(
-      "Delete this transaction? This cannot be undone."
-    );
-    if (!confirmed) return;
-
+  async function handleSaveInlineEdit() {
+    if (!editingTxId) return;
+    setSavingEdit(true);
     setErrorMsg("");
+
+    if (!editWalletId) {
+      setErrorMsg("Please select a wallet for this transaction.");
+      setSavingEdit(false);
+      return;
+    }
+
+    if (!editCategoryId) {
+      setErrorMsg("Please select a category for this transaction.");
+      setSavingEdit(false);
+      return;
+    }
+
+    const selectedWallet = wallets.find((w) => w.id === editWalletId);
+    if (!selectedWallet) {
+      setErrorMsg("Selected wallet not found.");
+      setSavingEdit(false);
+      return;
+    }
+
+    const amount_minor = parseAmountToMinor(editAmount);
+    const occurred_at = new Date(editDate + "T00:00:00Z").toISOString();
+
+    const { data, error } = await supabaseBrowserClient
+      .from("transactions")
+      .update({
+        wallet_id: editWalletId,
+        category_id: editCategoryId,
+        type: editType,
+        amount_minor,
+        currency_code: selectedWallet.currency_code,
+        occurred_at,
+        description: editDescription || null,
+      })
+      .eq("id", editingTxId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(error);
+      setErrorMsg(error.message);
+      setSavingEdit(false);
+      return;
+    }
+
+    setTransactions((prev) =>
+      prev.map((tx) => (tx.id === editingTxId ? (data as Transaction) : tx))
+    );
+
+    setSavingEdit(false);
+    handleCancelInlineEdit();
+  }
+
+  // Undo delete: schedule delete in DB, allow undo in UI
+  async function actuallyDeleteFromDatabase(id: string) {
     const { error } = await supabaseBrowserClient
       .from("transactions")
       .delete()
@@ -288,16 +322,46 @@ export default function TransactionsPage() {
     if (error) {
       console.error(error);
       setErrorMsg(error.message);
-      return;
+    }
+  }
+
+  function handleDeleteTransaction(tx: Transaction) {
+    setErrorMsg("");
+
+    // Clear any previous pending delete
+    if (pendingDelete) {
+      clearTimeout(pendingDelete.timeoutId);
+      setPendingDelete(null);
     }
 
-    setTransactions((prev) => prev.filter((tx) => tx.id !== id));
-
-    if (editingTxId === id) {
-      setEditingTxId(null);
-      setAmount("0");
-      setDescription("");
+    // Remove from UI immediately
+    setTransactions((prev) => prev.filter((t) => t.id !== tx.id));
+    if (editingTxId === tx.id) {
+      handleCancelInlineEdit();
     }
+
+    const timeoutId = setTimeout(() => {
+      actuallyDeleteFromDatabase(tx.id);
+      setPendingDelete(null);
+    }, 10000); // 10 seconds to undo
+
+    setPendingDelete({ tx, timeoutId });
+  }
+
+  function handleUndoDelete() {
+    if (!pendingDelete) return;
+
+    clearTimeout(pendingDelete.timeoutId);
+
+    setTransactions((prev) => {
+      const next = [pendingDelete.tx, ...prev];
+      // Keep list sorted by occurred_at desc
+      return next.sort((a, b) =>
+        b.occurred_at.localeCompare(a.occurred_at)
+      );
+    });
+
+    setPendingDelete(null);
   }
 
   const walletMap = Object.fromEntries(wallets.map((w) => [w.id, w] as const));
@@ -305,12 +369,20 @@ export default function TransactionsPage() {
     categories.map((c) => [c.id, c] as const)
   );
 
-  // Apply search filter to recent transactions
+  // First apply date range filter
+  const dateFilteredTransactions = transactions.filter((tx) => {
+    const dateStr = tx.occurred_at.slice(0, 10);
+    if (fromDate && dateStr < fromDate) return false;
+    if (toDate && dateStr > toDate) return false;
+    return true;
+  });
+
+  // Then apply search filter
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredTransactions =
     !normalizedQuery
-      ? transactions
-      : transactions.filter((tx) => {
+      ? dateFilteredTransactions
+      : dateFilteredTransactions.filter((tx) => {
           const wallet = walletMap[tx.wallet_id];
           const category = tx.category_id ? categoryMap[tx.category_id] : null;
           const dateStr = tx.occurred_at.slice(0, 10);
@@ -343,6 +415,11 @@ export default function TransactionsPage() {
     setSearchQuery("");
   }
 
+  function handleClearDates() {
+    setFromDate("");
+    setToDate("");
+  }
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
       <header className="w-full flex items-center justify-between px-6 py-4 border-b border-gray-800">
@@ -367,10 +444,9 @@ export default function TransactionsPage() {
           <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>
         )}
 
+        {/* Add transaction */}
         <section className="mb-8 border border-gray-800 rounded p-4">
-          <h2 className="text-lg font-semibold mb-3">
-            {editingTxId ? "Edit Transaction" : "Add Transaction"}
-          </h2>
+          <h2 className="text-lg font-semibold mb-3">Add Transaction</h2>
 
           {wallets.length === 0 || categories.length === 0 ? (
             <p className="text-sm text-yellow-300">
@@ -378,7 +454,7 @@ export default function TransactionsPage() {
             </p>
           ) : (
             <form
-              onSubmit={handleSaveTransaction}
+              onSubmit={handleCreateTransaction}
               className="grid gap-4 md:grid-cols-3"
             >
               <div>
@@ -454,36 +530,53 @@ export default function TransactionsPage() {
                 />
               </div>
 
-              <div className="md:col-span-3 flex items-center gap-2">
+              <div className="md:col-span-3">
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-2 rounded bg.white bg-white text-black font-semibold hover:bg-gray-200 transition"
+                  className="px-4 py-2 rounded bg-white text-black font-semibold hover:bg-gray-200 transition"
                 >
-                  {saving
-                    ? editingTxId
-                      ? "Updating..."
-                      : "Saving..."
-                    : editingTxId
-                    ? "Update Transaction"
-                    : "Save Transaction"}
+                  {saving ? "Saving..." : "Save Transaction"}
                 </button>
-                {editingTxId && (
-                  <button
-                    type="button"
-                    onClick={handleCancelEdit}
-                    className="px-4 py-2 rounded bg-gray-900 border border-gray-700 text-sm text-gray-200 hover:bg-gray-800 transition"
-                  >
-                    Cancel
-                  </button>
-                )}
               </div>
             </form>
           )}
         </section>
 
+        {/* Recent transactions */}
         <section>
           <h2 className="text-lg font-semibold mb-3">Recent Transactions</h2>
+
+          {/* Date range filters */}
+          <div className="mb-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+            <p className="text-xs text-gray-400">
+              Filter by date range (optional).
+            </p>
+            <div className="flex gap-2 w-full md:w-auto">
+              <input
+                type="date"
+                className="p-2 rounded bg-gray-900 border border-gray-700 text-sm"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+              />
+              <span className="self-center text-xs text-gray-500">to</span>
+              <input
+                type="date"
+                className="p-2 rounded bg-gray-900 border border-gray-700 text-sm"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+              />
+              {(fromDate || toDate) && (
+                <button
+                  type="button"
+                  onClick={handleClearDates}
+                  className="px-3 py-2 rounded bg-gray-900 border border-gray-700 text-xs text-gray-200 hover:bg-gray-800 transition"
+                >
+                  Clear dates
+                </button>
+              )}
+            </div>
+          </div>
 
           {/* Search for recent transactions */}
           <form
@@ -527,7 +620,7 @@ export default function TransactionsPage() {
             </p>
           ) : filteredTransactions.length === 0 ? (
             <p className="text-gray-500 text-sm">
-              No transactions match your search.
+              No transactions match your filters.
             </p>
           ) : (
             <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
@@ -537,6 +630,144 @@ export default function TransactionsPage() {
                   ? categoryMap[tx.category_id]
                   : null;
                 const dateStr = tx.occurred_at.slice(0, 10);
+                const isEditing = editingTxId === tx.id;
+
+                if (isEditing) {
+                  return (
+                    <div
+                      key={tx.id}
+                      className="px-4 py-3 space-y-2 bg-black/60"
+                    >
+                      <div className="text-xs text-gray-400 mb-1">
+                        Editing transaction
+                      </div>
+                      <div className="grid gap-2 md:grid-cols-4">
+                        <div>
+                          <label className="block text-[11px] mb-1">
+                            Wallet
+                          </label>
+                          <select
+                            className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                            value={editWalletId}
+                            onChange={(e) =>
+                              setEditWalletId(e.target.value)
+                            }
+                          >
+                            {wallets.map((w) => (
+                              <option key={w.id} value={w.id}>
+                                {w.name} ({w.currency_code})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[11px] mb-1">
+                            Category
+                          </label>
+                          <select
+                            className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                            value={editCategoryId}
+                            onChange={(e) =>
+                              setEditCategoryId(e.target.value)
+                            }
+                          >
+                            {categories.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.name} ({c.type})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[11px] mb-1">
+                            Type
+                          </label>
+                          <select
+                            className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                            value={editType}
+                            onChange={(e) =>
+                              setEditType(
+                                e.target.value as TransactionType
+                              )
+                            }
+                          >
+                            <option value="expense">Expense</option>
+                            <option value="income">Income</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[11px] mb-1">
+                            Date
+                          </label>
+                          <input
+                            type="date"
+                            className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                            value={editDate}
+                            onChange={(e) =>
+                              setEditDate(e.target.value)
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid gap-2 md:grid-cols-3">
+                        <div>
+                          <label className="block text-[11px] mb-1">
+                            Amount
+                          </label>
+                          <input
+                            type="text"
+                            className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                            value={editAmount}
+                            onChange={(e) =>
+                              setEditAmount(e.target.value)
+                            }
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-[11px] mb-1">
+                            Description
+                          </label>
+                          <input
+                            type="text"
+                            className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                            value={editDescription}
+                            onChange={(e) =>
+                              setEditDescription(e.target.value)
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleCancelInlineEdit}
+                          className="px-3 py-1 rounded border border-gray-700 text-[11px] text-gray-200 bg-gray-900 hover:bg-gray-800 transition"
+                          disabled={savingEdit}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSaveInlineEdit}
+                          className="px-3 py-1 rounded border border-gray-700 text-[11px] bg-white text-black font-semibold hover:bg-gray-200 transition"
+                          disabled={savingEdit}
+                        >
+                          {savingEdit ? "Saving..." : "Save"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTransaction(tx)}
+                          className="px-3 py-1 rounded border border-red-500 text-[11px] text-red-300 bg-gray-900 hover:bg-gray-900/70 transition"
+                          disabled={savingEdit}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
 
                 return (
                   <div
@@ -551,7 +782,8 @@ export default function TransactionsPage() {
                         </span>
                       </div>
                       <div className="text-xs text-gray-400">
-                        {wallet ? wallet.name : "Unknown wallet"} • {dateStr}
+                        {wallet ? wallet.name : "Unknown wallet"} •{" "}
+                        {dateStr}
                         {tx.description ? ` • ${tx.description}` : null}
                       </div>
                     </div>
@@ -570,14 +802,14 @@ export default function TransactionsPage() {
                       <div className="flex gap-2 text-[11px]">
                         <button
                           type="button"
-                          onClick={() => handleStartEdit(tx)}
+                          onClick={() => handleStartInlineEdit(tx)}
                           className="px-2 py-1 rounded border border-gray-700 bg-gray-900 hover:bg-gray-800 transition"
                         >
                           Edit
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDeleteTransaction(tx.id)}
+                          onClick={() => handleDeleteTransaction(tx)}
                           className="px-2 py-1 rounded border border-red-500 text-red-300 bg-gray-900 hover:bg-gray-900/70 transition"
                         >
                           Delete
@@ -590,6 +822,27 @@ export default function TransactionsPage() {
             </div>
           )}
         </section>
+
+        {/* Undo delete toast */}
+        {pendingDelete && (
+          <div className="fixed bottom-4 inset-x-0 flex justify-center px-4">
+            <div className="max-w-md w-full bg-gray-900 border border-gray-700 rounded px-4 py-3 text-xs text-gray-100 flex items-center justify-between gap-3 shadow-lg">
+              <span>
+                Transaction deleted.{" "}
+                <span className="text-gray-400">
+                  You can undo this for a few seconds.
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={handleUndoDelete}
+                className="px-3 py-1 rounded bg-white text-black font-semibold hover:bg-gray-200 transition"
+              >
+                Undo
+              </button>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
