@@ -60,6 +60,9 @@ export default function TransactionsPage() {
   const [date, setDate] = useState("");
   const [description, setDescription] = useState("");
 
+  // Edit mode
+  const [editingTxId, setEditingTxId] = useState<string | null>(null);
+
   // Search state for recent transactions
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -143,7 +146,7 @@ export default function TransactionsPage() {
     loadData();
   }, [walletId, categoryId, date]);
 
-  async function handleCreateTransaction(e: React.FormEvent) {
+  async function handleSaveTransaction(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setErrorMsg("");
@@ -181,6 +184,44 @@ export default function TransactionsPage() {
     const amount_minor = parseAmountToMinor(amount);
     const occurred_at = new Date(date + "T00:00:00Z").toISOString();
 
+    // UPDATE existing transaction
+    if (editingTxId) {
+      const { data, error } = await supabaseBrowserClient
+        .from("transactions")
+        .update({
+          wallet_id: walletId,
+          category_id: categoryId,
+          type,
+          amount_minor,
+          currency_code: selectedWallet.currency_code,
+          occurred_at,
+          description: description || null,
+        })
+        .eq("id", editingTxId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error(error);
+        setErrorMsg(error.message);
+        setSaving(false);
+        return;
+      }
+
+      setTransactions((prev) =>
+        prev.map((tx) =>
+          tx.id === editingTxId ? (data as Transaction) : tx
+        )
+      );
+
+      setEditingTxId(null);
+      setAmount("0");
+      setDescription("");
+      setSaving(false);
+      return;
+    }
+
+    // INSERT new transaction
     const { data, error } = await supabaseBrowserClient
       .from("transactions")
       .insert({
@@ -207,6 +248,56 @@ export default function TransactionsPage() {
     setAmount("0");
     setDescription("");
     setSaving(false);
+  }
+
+  function handleStartEdit(tx: Transaction) {
+    setEditingTxId(tx.id);
+    setWalletId(tx.wallet_id);
+    if (tx.category_id) {
+      setCategoryId(tx.category_id);
+    }
+    setType(tx.type);
+    setAmount(formatMinorToAmount(tx.amount_minor));
+    setDate(tx.occurred_at.slice(0, 10));
+    setDescription(tx.description ?? "");
+    // Scroll to top so the form is visible
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }
+
+  function handleCancelEdit() {
+    setEditingTxId(null);
+    setAmount("0");
+    setDescription("");
+    setDate(new Date().toISOString().slice(0, 10));
+  }
+
+  async function handleDeleteTransaction(id: string) {
+    const confirmed = window.confirm(
+      "Delete this transaction? This cannot be undone."
+    );
+    if (!confirmed) return;
+
+    setErrorMsg("");
+    const { error } = await supabaseBrowserClient
+      .from("transactions")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error(error);
+      setErrorMsg(error.message);
+      return;
+    }
+
+    setTransactions((prev) => prev.filter((tx) => tx.id !== id));
+
+    if (editingTxId === id) {
+      setEditingTxId(null);
+      setAmount("0");
+      setDescription("");
+    }
   }
 
   const walletMap = Object.fromEntries(wallets.map((w) => [w.id, w] as const));
@@ -277,7 +368,9 @@ export default function TransactionsPage() {
         )}
 
         <section className="mb-8 border border-gray-800 rounded p-4">
-          <h2 className="text-lg font-semibold mb-3">Add Transaction</h2>
+          <h2 className="text-lg font-semibold mb-3">
+            {editingTxId ? "Edit Transaction" : "Add Transaction"}
+          </h2>
 
           {wallets.length === 0 || categories.length === 0 ? (
             <p className="text-sm text-yellow-300">
@@ -285,7 +378,7 @@ export default function TransactionsPage() {
             </p>
           ) : (
             <form
-              onSubmit={handleCreateTransaction}
+              onSubmit={handleSaveTransaction}
               className="grid gap-4 md:grid-cols-3"
             >
               <div>
@@ -361,14 +454,29 @@ export default function TransactionsPage() {
                 />
               </div>
 
-              <div className="md:col-span-3">
+              <div className="md:col-span-3 flex items-center gap-2">
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-2 rounded bg-white text-black font-semibold hover:bg-gray-200 transition"
+                  className="px-4 py-2 rounded bg.white bg-white text-black font-semibold hover:bg-gray-200 transition"
                 >
-                  {saving ? "Saving..." : "Save Transaction"}
+                  {saving
+                    ? editingTxId
+                      ? "Updating..."
+                      : "Saving..."
+                    : editingTxId
+                    ? "Update Transaction"
+                    : "Save Transaction"}
                 </button>
+                {editingTxId && (
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="px-4 py-2 rounded bg-gray-900 border border-gray-700 text-sm text-gray-200 hover:bg-gray-800 transition"
+                  >
+                    Cancel
+                  </button>
+                )}
               </div>
             </form>
           )}
@@ -414,7 +522,9 @@ export default function TransactionsPage() {
           {loading ? (
             <p className="text-gray-400 text-sm">Loading...</p>
           ) : transactions.length === 0 ? (
-            <p className="text-gray-500 text-sm">You have no transactions yet.</p>
+            <p className="text-gray-500 text-sm">
+              You have no transactions yet.
+            </p>
           ) : filteredTransactions.length === 0 ? (
             <p className="text-gray-500 text-sm">
               No transactions match your search.
@@ -423,7 +533,9 @@ export default function TransactionsPage() {
             <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
               {filteredTransactions.map((tx) => {
                 const wallet = walletMap[tx.wallet_id];
-                const category = tx.category_id ? categoryMap[tx.category_id] : null;
+                const category = tx.category_id
+                  ? categoryMap[tx.category_id]
+                  : null;
                 const dateStr = tx.occurred_at.slice(0, 10);
 
                 return (
@@ -434,20 +546,43 @@ export default function TransactionsPage() {
                     <div>
                       <div className="font-medium">
                         {category ? category.name : "Uncategorized"}{" "}
-                        <span className="text-xs text-gray-400">({tx.type})</span>
+                        <span className="text-xs text-gray-400">
+                          ({tx.type})
+                        </span>
                       </div>
                       <div className="text-xs text-gray-400">
                         {wallet ? wallet.name : "Unknown wallet"} • {dateStr}
                         {tx.description ? ` • ${tx.description}` : null}
                       </div>
                     </div>
-                    <div
-                      className={
-                        tx.type === "income" ? "text-green-400" : "text-red-400"
-                      }
-                    >
-                      {tx.type === "income" ? "+" : "-"}
-                      {formatMinorToAmount(tx.amount_minor)} {tx.currency_code}
+                    <div className="flex flex-col items-end gap-1">
+                      <div
+                        className={
+                          tx.type === "income"
+                            ? "text-green-400"
+                            : "text-red-400"
+                        }
+                      >
+                        {tx.type === "income" ? "+" : "-"}
+                        {formatMinorToAmount(tx.amount_minor)}{" "}
+                        {tx.currency_code}
+                      </div>
+                      <div className="flex gap-2 text-[11px]">
+                        <button
+                          type="button"
+                          onClick={() => handleStartEdit(tx)}
+                          className="px-2 py-1 rounded border border-gray-700 bg-gray-900 hover:bg-gray-800 transition"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTransaction(tx.id)}
+                          className="px-2 py-1 rounded border border-red-500 text-red-300 bg-gray-900 hover:bg-gray-900/70 transition"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
