@@ -45,15 +45,29 @@ function formatMinorToMajor(amountMinor: number): string {
   return (amountMinor / 100).toFixed(2);
 }
 
+type InsightKind =
+  | "increase"
+  | "decrease"
+  | "new"
+  | "stopped"
+  | "total_new"
+  | "total_zero"
+  | "total_increase"
+  | "total_decrease";
+
 type Insight = {
   sortValue: number;
   text: string;
+  kind: InsightKind;
+  currency?: string | null;
+  categoryName?: string | null;
 };
 
 type ChangeStat = {
   pctChange: number;
   diffMinor: number;
   label: string;
+  currency?: string | null;
 };
 
 export default function SmartInsightsPanel({
@@ -64,6 +78,8 @@ export default function SmartInsightsPanel({
   walletFilter,
   categoryFilter,
 }: SmartInsightsPanelProps) {
+  const [showAll, setShowAll] = React.useState(false);
+
   const categoryMap: Record<string, Category> = React.useMemo(
     () => Object.fromEntries(categories.map((c) => [c.id, c] as const)),
     [categories]
@@ -148,7 +164,13 @@ export default function SmartInsightsPanel({
     if (prevMinor === 0 && currMinor > 0) {
       const currMajor = formatMinorToMajor(currMinor);
       const text = `New spending in ${name} this month: ${currMajor} ${currency} (was 0.00 last month).`;
-      insights.push({ sortValue: currMinor, text });
+      insights.push({
+        sortValue: currMinor,
+        text,
+        kind: "new",
+        currency,
+        categoryName: name,
+      });
       newCategoryCount += 1;
       continue;
     }
@@ -157,7 +179,13 @@ export default function SmartInsightsPanel({
     if (prevMinor > 0 && currMinor === 0) {
       const prevMajor = formatMinorToMajor(prevMinor);
       const text = `No spending in ${name} this month; it is down 100% vs last month (${prevMajor} ${currency} → 0.00 ${currency}).`;
-      insights.push({ sortValue: prevMinor, text });
+      insights.push({
+        sortValue: prevMinor,
+        text,
+        kind: "stopped",
+        currency,
+        categoryName: name,
+      });
       stoppedCategoryCount += 1;
       continue;
     }
@@ -177,12 +205,19 @@ export default function SmartInsightsPanel({
 
       const text = `${name} spending is ${direction} ${pctRounded}% vs last month (${currMajor} ${currency} vs ${prevMajor} ${currency}).`;
 
-      insights.push({ sortValue: Math.abs(diff), text });
+      insights.push({
+        sortValue: Math.abs(diff),
+        text,
+        kind: direction === "up" ? "increase" : "decrease",
+        currency,
+        categoryName: name,
+      });
 
       const stat: ChangeStat = {
         pctChange,
         diffMinor: Math.abs(diff),
         label: `${name} in ${currency}`,
+        currency,
       };
 
       if (pctChange > 0) {
@@ -219,7 +254,12 @@ export default function SmartInsightsPanel({
     if (prevMinor === 0 && currMinor > 0) {
       const currMajor = formatMinorToMajor(currMinor);
       const text = `Overall expenses in ${currency} are new this month: ${currMajor} ${currency} (0.00 last month).`;
-      insights.push({ sortValue: currMinor * 2, text });
+      insights.push({
+        sortValue: currMinor * 2,
+        text,
+        kind: "total_new",
+        currency,
+      });
       continue;
     }
 
@@ -227,12 +267,18 @@ export default function SmartInsightsPanel({
     if (prevMinor > 0 && currMinor === 0) {
       const prevMajor = formatMinorToMajor(prevMinor);
       const text = `Overall expenses in ${currency} dropped to 0.00 from ${prevMajor} ${currency} (-100% vs last month).`;
-      insights.push({ sortValue: prevMinor * 2, text });
+      insights.push({
+        sortValue: prevMinor * 2,
+        text,
+        kind: "total_zero",
+        currency,
+      });
 
       const stat: ChangeStat = {
         pctChange: -100,
         diffMinor: prevMinor,
         label: `overall expenses in ${currency}`,
+        currency,
       };
 
       if (
@@ -258,13 +304,18 @@ export default function SmartInsightsPanel({
 
       const text = `Overall expenses in ${currency} are ${direction} ${pctRounded}% vs last month (${currMajor} ${currency} vs ${prevMajor} ${currency}).`;
 
-      // Multiply sortValue so totals tend to appear higher in the list
-      insights.push({ sortValue: Math.abs(diff) * 2, text });
+      insights.push({
+        sortValue: Math.abs(diff) * 2,
+        text,
+        kind: direction === "up" ? "total_increase" : "total_decrease",
+        currency,
+      });
 
       const stat: ChangeStat = {
         pctChange,
         diffMinor: Math.abs(diff),
         label: `overall expenses in ${currency}`,
+        currency,
       };
 
       if (pctChange > 0) {
@@ -285,7 +336,7 @@ export default function SmartInsightsPanel({
     }
   }
 
-  // Sort biggest changes first (no limit – show full list)
+  // Sort biggest changes first (no limit – full list)
   insights.sort((a, b) => b.sortValue - a.sortValue);
 
   const currentLabel = new Date(selectedYear, selectedMonth, 1).toLocaleString(
@@ -301,58 +352,176 @@ export default function SmartInsightsPanel({
     year: "numeric",
   });
 
-  // Build a compact summary sentence for the top of the panel
+  // --- Monthly summary (AI-style one liner) ---
   let summaryParts: string[] = [];
-
-  if (biggestTotalIncrease && biggestTotalIncrease.pctChange > 0) {
-    const pct = Math.round(Math.abs(biggestTotalIncrease.pctChange));
-    summaryParts.push(
-      `${biggestTotalIncrease.label} is up ${pct}% vs last month.`
-    );
-  }
 
   if (biggestTotalDecrease && biggestTotalDecrease.pctChange < 0) {
     const pct = Math.round(Math.abs(biggestTotalDecrease.pctChange));
     summaryParts.push(
-      `${biggestTotalDecrease.label} is down ${pct}% vs last month.`
+      `${biggestTotalDecrease.label} is down ${pct}% vs last month`
+    );
+  }
+
+  if (biggestTotalIncrease && biggestTotalIncrease.pctChange > 0) {
+    const pct = Math.round(Math.abs(biggestTotalIncrease.pctChange));
+    summaryParts.push(
+      `${biggestTotalIncrease.label} is up ${pct}% vs last month`
     );
   }
 
   if (!biggestTotalIncrease && biggestCategoryIncrease) {
     const pct = Math.round(Math.abs(biggestCategoryIncrease.pctChange));
     summaryParts.push(
-      `${biggestCategoryIncrease.label} is up ${pct}% vs last month.`
+      `${biggestCategoryIncrease.label} is up ${pct}% vs last month`
     );
   }
 
   if (!biggestTotalDecrease && biggestCategoryDecrease) {
     const pct = Math.round(Math.abs(biggestCategoryDecrease.pctChange));
     summaryParts.push(
-      `${biggestCategoryDecrease.label} is down ${pct}% vs last month.`
+      `${biggestCategoryDecrease.label} is down ${pct}% vs last month`
     );
   }
 
-  if (newCategoryCount > 0 || stoppedCategoryCount > 0) {
-    const bits: string[] = [];
-    if (newCategoryCount > 0) {
-      bits.push(
-        `new spending appeared in ${newCategoryCount} categor${
-          newCategoryCount === 1 ? "y" : "ies"
-        }`
-      );
-    }
-    if (stoppedCategoryCount > 0) {
-      bits.push(
-        `spending dropped to zero in ${stoppedCategoryCount} categor${
-          stoppedCategoryCount === 1 ? "y" : "ies"
-        }`
-      );
-    }
-    summaryParts.push(bits.join("; ") + ".");
+  if (stoppedCategoryCount > 0) {
+    summaryParts.push(
+      `spending dropped to zero in ${stoppedCategoryCount} categor${
+        stoppedCategoryCount === 1 ? "y" : "ies"
+      }`
+    );
+  }
+
+  if (newCategoryCount > 0) {
+    summaryParts.push(
+      `new spending appeared in ${newCategoryCount} categor${
+        newCategoryCount === 1 ? "y" : "ies"
+      }`
+    );
   }
 
   const summaryText =
-    summaryParts.length > 0 ? summaryParts.join(" ") : null;
+    summaryParts.length > 0
+      ? summaryParts.join(". ") + "."
+      : null;
+
+  // --- "What to pay attention to" box ---
+  const attentionItems: string[] = [];
+
+  if (biggestTotalIncrease && biggestTotalIncrease.pctChange > 0) {
+    const pct = Math.round(Math.abs(biggestTotalIncrease.pctChange));
+    attentionItems.push(
+      `Biggest spike: ${biggestTotalIncrease.label} (up ${pct}%).`
+    );
+  } else if (biggestCategoryIncrease && biggestCategoryIncrease.pctChange > 0) {
+    const pct = Math.round(Math.abs(biggestCategoryIncrease.pctChange));
+    attentionItems.push(
+      `Biggest spike: ${biggestCategoryIncrease.label} (up ${pct}%).`
+    );
+  }
+
+  if (biggestTotalDecrease && biggestTotalDecrease.pctChange < 0) {
+    const pct = Math.round(Math.abs(biggestTotalDecrease.pctChange));
+    attentionItems.push(
+      `Biggest drop: ${biggestTotalDecrease.label} (down ${pct}%).`
+    );
+  } else if (
+    biggestCategoryDecrease &&
+    biggestCategoryDecrease.pctChange < 0
+  ) {
+    const pct = Math.round(Math.abs(biggestCategoryDecrease.pctChange));
+    attentionItems.push(
+      `Biggest drop: ${biggestCategoryDecrease.label} (down ${pct}%).`
+    );
+  }
+
+  if (stoppedCategoryCount > 0) {
+    attentionItems.push(
+      `Frozen categories: spending dropped to zero in ${stoppedCategoryCount} categor${
+        stoppedCategoryCount === 1 ? "y" : "ies"
+      }.`
+    );
+  }
+
+  // --- Suggested "next steps" based on patterns ---
+  const suggestions: string[] = [];
+
+  if (
+    biggestTotalIncrease &&
+    Math.abs(biggestTotalIncrease.pctChange) >= 30
+  ) {
+    suggestions.push(
+      `Consider setting or tightening a budget for ${biggestTotalIncrease.label} next month.`
+    );
+  } else if (
+    biggestCategoryIncrease &&
+    Math.abs(biggestCategoryIncrease.pctChange) >= 30
+  ) {
+    suggestions.push(
+      `Watch ${biggestCategoryIncrease.label}; it may need its own budget limit.`
+    );
+  }
+
+  if (stoppedCategoryCount > 0) {
+    suggestions.push(
+      `Review categories where spending dropped to zero to confirm this is intentional and sustainable.`
+    );
+  }
+
+  if (newCategoryCount > 0) {
+    suggestions.push(
+      `Track the new spending categories to see if they should be part of your recurring monthly plan.`
+    );
+  }
+
+  // --- Collapsible list of insights ---
+  const VISIBLE_COUNT = 10;
+  const visibleInsights = showAll
+    ? insights
+    : insights.slice(0, VISIBLE_COUNT);
+
+  const isTotalKind = (kind: InsightKind) =>
+    kind === "total_new" ||
+    kind === "total_zero" ||
+    kind === "total_increase" ||
+    kind === "total_decrease";
+
+  const getIconForKind = (kind: InsightKind): string => {
+    switch (kind) {
+      case "increase":
+      case "total_increase":
+        return "🔺";
+      case "decrease":
+      case "total_decrease":
+        return "🔻";
+      case "new":
+      case "total_new":
+        return "🆕";
+      case "stopped":
+      case "total_zero":
+        return "⚫";
+      default:
+        return "•";
+    }
+  };
+
+  const getTypeLabel = (kind: InsightKind): string => {
+    switch (kind) {
+      case "increase":
+      case "total_increase":
+        return "Increase";
+      case "decrease":
+      case "total_decrease":
+        return "Decrease";
+      case "new":
+      case "total_new":
+        return "New";
+      case "stopped":
+      case "total_zero":
+        return "Dropped to zero";
+      default:
+        return "Change";
+    }
+  };
 
   return (
     <section className="mb-6">
@@ -373,16 +542,88 @@ export default function SmartInsightsPanel({
           </div>
         )}
 
+        {attentionItems.length > 0 && (
+          <div className="mb-3 border border-gray-800/70 rounded-md p-2 bg-black/60">
+            <p className="text-[11px] font-semibold mb-1 text-gray-200">
+              What to pay attention to
+            </p>
+            <ul className="text-[11px] text-gray-300 space-y-0.5 list-disc list-inside">
+              {attentionItems.map((item, idx) => (
+                <li key={idx}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {suggestions.length > 0 && (
+          <div className="mb-3 text-[11px] text-gray-300">
+            <p className="font-semibold mb-1">Suggested next steps</p>
+            <ul className="space-y-0.5 list-disc list-inside">
+              {suggestions.map((s, idx) => (
+                <li key={idx}>{s}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {insights.length === 0 ? (
           <p className="text-xs text-gray-500">
             No major changes vs last month with the current filters.
           </p>
         ) : (
-          <ul className="text-xs text-gray-200 space-y-1.5 list-disc list-inside">
-            {insights.map((insight, idx) => (
-              <li key={idx}>{insight.text}</li>
-            ))}
-          </ul>
+          <>
+            <ul className="text-xs text-gray-200 space-y-1.5">
+              {visibleInsights.map((insight, idx) => {
+                const globalIndex = insights.indexOf(insight);
+                const isHighImpact = globalIndex > -1 && globalIndex < 5;
+                const icon = getIconForKind(insight.kind);
+                const typeLabel = getTypeLabel(insight.kind);
+
+                return (
+                  <li key={idx}>
+                    <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
+                      <span className="flex-1">
+                        {icon} {insight.text}
+                      </span>
+                      <div className="flex flex-wrap gap-1 text-[10px] text-gray-400 sm:ml-2 mt-0.5 sm:mt-0">
+                        {isHighImpact && (
+                          <span className="px-1.5 py-0.5 border border-gray-700 rounded-full">
+                            High impact
+                          </span>
+                        )}
+                        {insight.currency && (
+                          <span className="px-1.5 py-0.5 border border-gray-700 rounded-full">
+                            {insight.currency}
+                          </span>
+                        )}
+                        {!isTotalKind(insight.kind) &&
+                          insight.categoryName && (
+                            <span className="px-1.5 py-0.5 border border-gray-700 rounded-full">
+                              {insight.categoryName}
+                            </span>
+                          )}
+                        <span className="px-1.5 py-0.5 border border-gray-700 rounded-full">
+                          {typeLabel}
+                        </span>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {insights.length > VISIBLE_COUNT && (
+              <button
+                type="button"
+                className="mt-2 text-[11px] text-gray-400 underline"
+                onClick={() => setShowAll((prev) => !prev)}
+              >
+                {showAll
+                  ? "Show fewer insights"
+                  : `Show all insights (${insights.length})`}
+              </button>
+            )}
+          </>
         )}
       </div>
     </section>
