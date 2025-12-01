@@ -214,9 +214,8 @@ export default function SmartInsightsPanel({
     }
   }
 
-  // Sort biggest changes first, limit how many we show
+  // Sort biggest changes first (no limit – show full list)
   insights.sort((a, b) => b.sortValue - a.sortValue);
-  const topInsights = insights.slice(0, 6);
 
   const currentLabel = new Date(
     selectedYear,
@@ -245,13 +244,13 @@ export default function SmartInsightsPanel({
           </p>
         </div>
 
-        {topInsights.length === 0 ? (
+        {insights.length === 0 ? (
           <p className="text-xs text-gray-500">
             No major changes vs last month with the current filters.
           </p>
         ) : (
           <ul className="text-xs text-gray-200 space-y-1.5 list-disc list-inside">
-            {topInsights.map((insight, idx) => (
+            {insights.map((insight, idx) => (
               <li key={idx}>{insight.text}</li>
             ))}
           </ul>
