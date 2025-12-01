@@ -13,6 +13,7 @@ import FullHistoryIncomeExpenseChart from "@/components/dashboard/FullHistoryInc
 import CumulativeNetBalanceChart from "@/components/dashboard/CumulativeNetBalanceChart";
 import SmartInsightsPanel from "@/components/dashboard/SmartInsightsPanel";
 import BudgetInsightsPanel from "@/components/dashboard/BudgetInsightsPanel";
+import AiInsightsSidebar from "@/components/dashboard/AiInsightsSidebar";
 
 type Wallet = {
   id: string;
@@ -525,6 +526,19 @@ export default function DashboardPage() {
           />
         )}
 
+        {/* AI insights coach */}
+        {!loadingData && (
+          <AiInsightsSidebar
+            transactions={transactions}
+            categories={categories}
+            selectedYear={selectedYear}
+            selectedMonth={selectedMonth}
+            walletFilter={walletFilter}
+            categoryFilter={categoryFilter}
+          />
+        )}
+
+        
         {/* Summary cards */}
         <section className="grid gap-4 md:grid-cols-3 mb-8">
           <div className="border border-gray-800 rounded p-4">
