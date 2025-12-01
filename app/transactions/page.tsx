@@ -31,6 +31,8 @@ type Transaction = {
   created_at: string;
 };
 
+const PAGE_SIZE = 25;
+
 function parseAmountToMinor(amount: string): number {
   const cleaned = amount.replace(",", "").trim();
   const [whole, fractional = ""] = cleaned.split(".");
@@ -51,6 +53,7 @@ type PendingDelete = {
 
 export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -65,6 +68,7 @@ export default function TransactionsPage() {
   const [type, setType] = useState<TransactionType>("expense");
   const [amount, setAmount] = useState("0");
   const [date, setDate] = useState("");
+
   const [description, setDescription] = useState("");
 
   // Inline editing state
@@ -87,8 +91,12 @@ export default function TransactionsPage() {
     null
   );
 
+  // Pagination cursor
+  const [oldestOccurredAt, setOldestOccurredAt] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+
   useEffect(() => {
-    async function loadData() {
+    async function loadInitial() {
       setLoading(true);
       setErrorMsg("");
 
@@ -139,7 +147,7 @@ export default function TransactionsPage() {
         .from("transactions")
         .select("*")
         .order("occurred_at", { ascending: false })
-        .limit(50);
+        .limit(PAGE_SIZE);
 
       if (txError) {
         console.error(txError);
@@ -148,7 +156,16 @@ export default function TransactionsPage() {
         return;
       }
 
-      setTransactions(txData as Transaction[]);
+      const castTx = (txData ?? []) as Transaction[];
+      setTransactions(castTx);
+
+      if (castTx.length > 0) {
+        setOldestOccurredAt(castTx[castTx.length - 1].occurred_at);
+        setHasMore(castTx.length === PAGE_SIZE);
+      } else {
+        setOldestOccurredAt(null);
+        setHasMore(false);
+      }
 
       if (walletData && walletData.length > 0 && !walletId) {
         setWalletId(walletData[0].id);
@@ -163,8 +180,53 @@ export default function TransactionsPage() {
       setLoading(false);
     }
 
-    loadData();
-  }, [walletId, categoryId, date]);
+    loadInitial();
+  }, []); // only once on mount
+
+  async function handleLoadMore() {
+    if (!oldestOccurredAt || !hasMore || loadingMore) return;
+
+    setLoadingMore(true);
+    setErrorMsg("");
+
+    const { data, error } = await supabaseBrowserClient
+      .from("transactions")
+      .select("*")
+      .lt("occurred_at", oldestOccurredAt)
+      .order("occurred_at", { ascending: false })
+      .limit(PAGE_SIZE);
+
+    if (error) {
+      console.error(error);
+      setErrorMsg(error.message);
+      setLoadingMore(false);
+      return;
+    }
+
+    const newTx = (data ?? []) as Transaction[];
+
+    if (newTx.length === 0) {
+      setHasMore(false);
+      setLoadingMore(false);
+      return;
+    }
+
+    setTransactions((prev) => {
+      const existingIds = new Set(prev.map((t) => t.id));
+      const filteredNew = newTx.filter((t) => !existingIds.has(t.id));
+      const combined = [...prev, ...filteredNew];
+      combined.sort((a, b) =>
+        b.occurred_at.localeCompare(a.occurred_at)
+      );
+      return combined;
+    });
+
+    if (newTx.length < PAGE_SIZE) {
+      setHasMore(false);
+    }
+    setOldestOccurredAt(newTx[newTx.length - 1].occurred_at);
+    setLoadingMore(false);
+  }
 
   async function handleCreateTransaction(e: React.FormEvent) {
     e.preventDefault();
@@ -226,7 +288,21 @@ export default function TransactionsPage() {
       return;
     }
 
-    setTransactions((prev) => [data as Transaction, ...prev]);
+    const created = data as Transaction;
+
+    setTransactions((prev) => {
+      const combined = [created, ...prev];
+      combined.sort((a, b) =>
+        b.occurred_at.localeCompare(a.occurred_at)
+      );
+      return combined;
+    });
+
+    // When a new, more recent transaction appears, adjust cursor if needed
+    if (!oldestOccurredAt) {
+      setOldestOccurredAt(created.occurred_at);
+    }
+
     setAmount("0");
     setDescription("");
     setSaving(false);
@@ -304,9 +380,17 @@ export default function TransactionsPage() {
       return;
     }
 
-    setTransactions((prev) =>
-      prev.map((tx) => (tx.id === editingTxId ? (data as Transaction) : tx))
-    );
+    const updated = data as Transaction;
+
+    setTransactions((prev) => {
+      const combined = prev.map((tx) =>
+        tx.id === editingTxId ? updated : tx
+      );
+      combined.sort((a, b) =>
+        b.occurred_at.localeCompare(a.occurred_at)
+      );
+      return combined;
+    });
 
     setSavingEdit(false);
     handleCancelInlineEdit();
@@ -354,11 +438,15 @@ export default function TransactionsPage() {
     clearTimeout(pendingDelete.timeoutId);
 
     setTransactions((prev) => {
-      const next = [pendingDelete.tx, ...prev];
-      // Keep list sorted by occurred_at desc
-      return next.sort((a, b) =>
+      const existingIds = new Set(prev.map((t) => t.id));
+      if (existingIds.has(pendingDelete.tx.id)) {
+        return prev;
+      }
+      const combined = [pendingDelete.tx, ...prev];
+      combined.sort((a, b) =>
         b.occurred_at.localeCompare(a.occurred_at)
       );
+      return combined;
     });
 
     setPendingDelete(null);
@@ -369,7 +457,7 @@ export default function TransactionsPage() {
     categories.map((c) => [c.id, c] as const)
   );
 
-  // First apply date range filter
+  // Date range filter
   const dateFilteredTransactions = transactions.filter((tx) => {
     const dateStr = tx.occurred_at.slice(0, 10);
     if (fromDate && dateStr < fromDate) return false;
@@ -377,7 +465,7 @@ export default function TransactionsPage() {
     return true;
   });
 
-  // Then apply search filter
+  // Search filter
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredTransactions =
     !normalizedQuery
@@ -623,203 +711,218 @@ export default function TransactionsPage() {
               No transactions match your filters.
             </p>
           ) : (
-            <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
-              {filteredTransactions.map((tx) => {
-                const wallet = walletMap[tx.wallet_id];
-                const category = tx.category_id
-                  ? categoryMap[tx.category_id]
-                  : null;
-                const dateStr = tx.occurred_at.slice(0, 10);
-                const isEditing = editingTxId === tx.id;
+            <>
+              <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
+                {filteredTransactions.map((tx) => {
+                  const wallet = walletMap[tx.wallet_id];
+                  const category = tx.category_id
+                    ? categoryMap[tx.category_id]
+                    : null;
+                  const dateStr = tx.occurred_at.slice(0, 10);
+                  const isEditing = editingTxId === tx.id;
 
-                if (isEditing) {
+                  if (isEditing) {
+                    return (
+                      <div
+                        key={tx.id}
+                        className="px-4 py-3 space-y-2 bg-black/60"
+                      >
+                        <div className="text-xs text-gray-400 mb-1">
+                          Editing transaction
+                        </div>
+                        <div className="grid gap-2 md:grid-cols-4">
+                          <div>
+                            <label className="block text-[11px] mb-1">
+                              Wallet
+                            </label>
+                            <select
+                              className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                              value={editWalletId}
+                              onChange={(e) =>
+                                setEditWalletId(e.target.value)
+                              }
+                            >
+                              {wallets.map((w) => (
+                                <option key={w.id} value={w.id}>
+                                  {w.name} ({w.currency_code})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] mb-1">
+                              Category
+                            </label>
+                            <select
+                              className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                              value={editCategoryId}
+                              onChange={(e) =>
+                                setEditCategoryId(e.target.value)
+                              }
+                            >
+                              {categories.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.name} ({c.type})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] mb-1">
+                              Type
+                            </label>
+                            <select
+                              className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                              value={editType}
+                              onChange={(e) =>
+                                setEditType(
+                                  e.target.value as TransactionType
+                                )
+                              }
+                            >
+                              <option value="expense">Expense</option>
+                              <option value="income">Income</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] mb-1">
+                              Date
+                            </label>
+                            <input
+                              type="date"
+                              className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                              value={editDate}
+                              onChange={(e) =>
+                                setEditDate(e.target.value)
+                              }
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid gap-2 md:grid-cols-3">
+                          <div>
+                            <label className="block text-[11px] mb-1">
+                              Amount
+                            </label>
+                            <input
+                              type="text"
+                              className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                              value={editAmount}
+                              onChange={(e) =>
+                                setEditAmount(e.target.value)
+                              }
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-[11px] mb-1">
+                              Description
+                            </label>
+                            <input
+                              type="text"
+                              className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                              value={editDescription}
+                              onChange={(e) =>
+                                setEditDescription(e.target.value)
+                              }
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={handleCancelInlineEdit}
+                            className="px-3 py-1 rounded border border-gray-700 text-[11px] text-gray-200 bg-gray-900 hover:bg-gray-800 transition"
+                            disabled={savingEdit}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSaveInlineEdit}
+                            className="px-3 py-1 rounded border border-gray-700 text-[11px] bg-white text-black font-semibold hover:bg-gray-200 transition"
+                            disabled={savingEdit}
+                          >
+                            {savingEdit ? "Saving..." : "Save"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTransaction(tx)}
+                            className="px-3 py-1 rounded border border-red-500 text-[11px] text-red-300 bg-gray-900 hover:bg-gray-900/70 transition"
+                            disabled={savingEdit}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
                     <div
                       key={tx.id}
-                      className="px-4 py-3 space-y-2 bg-black/60"
+                      className="flex items-center justify-between px-4 py-2"
                     >
-                      <div className="text-xs text-gray-400 mb-1">
-                        Editing transaction
-                      </div>
-                      <div className="grid gap-2 md:grid-cols-4">
-                        <div>
-                          <label className="block text-[11px] mb-1">
-                            Wallet
-                          </label>
-                          <select
-                            className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
-                            value={editWalletId}
-                            onChange={(e) =>
-                              setEditWalletId(e.target.value)
-                            }
-                          >
-                            {wallets.map((w) => (
-                              <option key={w.id} value={w.id}>
-                                {w.name} ({w.currency_code})
-                              </option>
-                            ))}
-                          </select>
+                      <div>
+                        <div className="font-medium">
+                          {category ? category.name : "Uncategorized"}{" "}
+                          <span className="text-xs text-gray-400">
+                            ({tx.type})
+                          </span>
                         </div>
-                        <div>
-                          <label className="block text-[11px] mb-1">
-                            Category
-                          </label>
-                          <select
-                            className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
-                            value={editCategoryId}
-                            onChange={(e) =>
-                              setEditCategoryId(e.target.value)
-                            }
-                          >
-                            {categories.map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {c.name} ({c.type})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-[11px] mb-1">
-                            Type
-                          </label>
-                          <select
-                            className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
-                            value={editType}
-                            onChange={(e) =>
-                              setEditType(
-                                e.target.value as TransactionType
-                              )
-                            }
-                          >
-                            <option value="expense">Expense</option>
-                            <option value="income">Income</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-[11px] mb-1">
-                            Date
-                          </label>
-                          <input
-                            type="date"
-                            className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
-                            value={editDate}
-                            onChange={(e) =>
-                              setEditDate(e.target.value)
-                            }
-                          />
+                        <div className="text-xs text-gray-400">
+                          {wallet ? wallet.name : "Unknown wallet"} •{" "}
+                          {dateStr}
+                          {tx.description ? ` • ${tx.description}` : null}
                         </div>
                       </div>
-
-                      <div className="grid gap-2 md:grid-cols-3">
-                        <div>
-                          <label className="block text-[11px] mb-1">
-                            Amount
-                          </label>
-                          <input
-                            type="text"
-                            className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
-                            value={editAmount}
-                            onChange={(e) =>
-                              setEditAmount(e.target.value)
-                            }
-                          />
+                      <div className="flex flex-col items-end gap-1">
+                        <div
+                          className={
+                            tx.type === "income"
+                              ? "text-green-400"
+                              : "text-red-400"
+                          }
+                        >
+                          {tx.type === "income" ? "+" : "-"}
+                          {formatMinorToAmount(tx.amount_minor)}{" "}
+                          {tx.currency_code}
                         </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-[11px] mb-1">
-                            Description
-                          </label>
-                          <input
-                            type="text"
-                            className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
-                            value={editDescription}
-                            onChange={(e) =>
-                              setEditDescription(e.target.value)
-                            }
-                          />
+                        <div className="flex gap-2 text-[11px]">
+                          <button
+                            type="button"
+                            onClick={() => handleStartInlineEdit(tx)}
+                            className="px-2 py-1 rounded border border-gray-700 bg-gray-900 hover:bg-gray-800 transition"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTransaction(tx)}
+                            className="px-2 py-1 rounded border border-red-500 text-red-300 bg-gray-900 hover:bg-gray-900/70 transition"
+                          >
+                            Delete
+                          </button>
                         </div>
-                      </div>
-
-                      <div className="flex justify-end gap-2 pt-1">
-                        <button
-                          type="button"
-                          onClick={handleCancelInlineEdit}
-                          className="px-3 py-1 rounded border border-gray-700 text-[11px] text-gray-200 bg-gray-900 hover:bg-gray-800 transition"
-                          disabled={savingEdit}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleSaveInlineEdit}
-                          className="px-3 py-1 rounded border border-gray-700 text-[11px] bg-white text-black font-semibold hover:bg-gray-200 transition"
-                          disabled={savingEdit}
-                        >
-                          {savingEdit ? "Saving..." : "Save"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteTransaction(tx)}
-                          className="px-3 py-1 rounded border border-red-500 text-[11px] text-red-300 bg-gray-900 hover:bg-gray-900/70 transition"
-                          disabled={savingEdit}
-                        >
-                          Delete
-                        </button>
                       </div>
                     </div>
                   );
-                }
+                })}
+              </div>
 
-                return (
-                  <div
-                    key={tx.id}
-                    className="flex items-center justify-between px-4 py-2"
+              {hasMore && (
+                <div className="flex justify-center mt-4">
+                  <button
+                    type="button"
+                    onClick={handleLoadMore}
+                    disabled={loadingMore}
+                    className="px-4 py-2 rounded border border-gray-700 text-sm bg-gray-900 hover:bg-gray-800 disabled:opacity-50 transition"
                   >
-                    <div>
-                      <div className="font-medium">
-                        {category ? category.name : "Uncategorized"}{" "}
-                        <span className="text-xs text-gray-400">
-                          ({tx.type})
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        {wallet ? wallet.name : "Unknown wallet"} •{" "}
-                        {dateStr}
-                        {tx.description ? ` • ${tx.description}` : null}
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <div
-                        className={
-                          tx.type === "income"
-                            ? "text-green-400"
-                            : "text-red-400"
-                        }
-                      >
-                        {tx.type === "income" ? "+" : "-"}
-                        {formatMinorToAmount(tx.amount_minor)}{" "}
-                        {tx.currency_code}
-                      </div>
-                      <div className="flex gap-2 text-[11px]">
-                        <button
-                          type="button"
-                          onClick={() => handleStartInlineEdit(tx)}
-                          className="px-2 py-1 rounded border border-gray-700 bg-gray-900 hover:bg-gray-800 transition"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteTransaction(tx)}
-                          className="px-2 py-1 rounded border border-red-500 text-red-300 bg-gray-900 hover:bg-gray-900/70 transition"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                    {loadingMore ? "Loading..." : "Load more"}
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </section>
 
