@@ -291,7 +291,7 @@ export default function AiInsightsSidebar({
     .map((m) => formatMonthLabel(m.year, m.month));
 
   return (
-    <aside className="border border-gray-800 rounded p-4 bg-black/60">
+    <aside className="border border-gray-800 rounded p-4 bg-black/60 mb-8">
       <h2 className="text-sm font-semibold mb-1">AI Insights Coach</h2>
       <p className="text-[11px] text-gray-400 mb-3">
         Looking at your spending over {currentLabel}
