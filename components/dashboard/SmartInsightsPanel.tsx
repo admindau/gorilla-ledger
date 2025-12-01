@@ -50,6 +50,12 @@ type Insight = {
   text: string;
 };
 
+type ChangeStat = {
+  pctChange: number;
+  diffMinor: number;
+  label: string;
+};
+
 export default function SmartInsightsPanel({
   transactions,
   categories,
@@ -79,6 +85,15 @@ export default function SmartInsightsPanel({
   const currentTotals: Record<string, number> = {};
   const previousTotals: Record<string, number> = {};
 
+  // Counters / trackers for summary
+  let newCategoryCount = 0;
+  let stoppedCategoryCount = 0;
+
+  let biggestCategoryIncrease: ChangeStat | null = null;
+  let biggestCategoryDecrease: ChangeStat | null = null;
+  let biggestTotalIncrease: ChangeStat | null = null;
+  let biggestTotalDecrease: ChangeStat | null = null;
+
   for (const tx of transactions) {
     if (tx.type !== "expense") continue;
     if (!tx.category_id) continue;
@@ -91,11 +106,7 @@ export default function SmartInsightsPanel({
     const category = categoryMap[tx.category_id];
     if (isInternalTransferCategory(category)) continue;
 
-    const inCurrent = isSameMonth(
-      tx.occurred_at,
-      selectedYear,
-      selectedMonth
-    );
+    const inCurrent = isSameMonth(tx.occurred_at, selectedYear, selectedMonth);
     const inPrevious = isSameMonth(tx.occurred_at, prevYear, prevMonth);
 
     if (!inCurrent && !inPrevious) continue;
@@ -138,6 +149,7 @@ export default function SmartInsightsPanel({
       const currMajor = formatMinorToMajor(currMinor);
       const text = `New spending in ${name} this month: ${currMajor} ${currency} (was 0.00 last month).`;
       insights.push({ sortValue: currMinor, text });
+      newCategoryCount += 1;
       continue;
     }
 
@@ -146,6 +158,7 @@ export default function SmartInsightsPanel({
       const prevMajor = formatMinorToMajor(prevMinor);
       const text = `No spending in ${name} this month; it is down 100% vs last month (${prevMajor} ${currency} → 0.00 ${currency}).`;
       insights.push({ sortValue: prevMinor, text });
+      stoppedCategoryCount += 1;
       continue;
     }
 
@@ -165,6 +178,28 @@ export default function SmartInsightsPanel({
       const text = `${name} spending is ${direction} ${pctRounded}% vs last month (${currMajor} ${currency} vs ${prevMajor} ${currency}).`;
 
       insights.push({ sortValue: Math.abs(diff), text });
+
+      const stat: ChangeStat = {
+        pctChange,
+        diffMinor: Math.abs(diff),
+        label: `${name} in ${currency}`,
+      };
+
+      if (pctChange > 0) {
+        if (
+          !biggestCategoryIncrease ||
+          Math.abs(pctChange) > Math.abs(biggestCategoryIncrease.pctChange)
+        ) {
+          biggestCategoryIncrease = stat;
+        }
+      } else if (pctChange < 0) {
+        if (
+          !biggestCategoryDecrease ||
+          Math.abs(pctChange) > Math.abs(biggestCategoryDecrease.pctChange)
+        ) {
+          biggestCategoryDecrease = stat;
+        }
+      }
     }
   }
 
@@ -193,6 +228,20 @@ export default function SmartInsightsPanel({
       const prevMajor = formatMinorToMajor(prevMinor);
       const text = `Overall expenses in ${currency} dropped to 0.00 from ${prevMajor} ${currency} (-100% vs last month).`;
       insights.push({ sortValue: prevMinor * 2, text });
+
+      const stat: ChangeStat = {
+        pctChange: -100,
+        diffMinor: prevMinor,
+        label: `overall expenses in ${currency}`,
+      };
+
+      if (
+        !biggestTotalDecrease ||
+        Math.abs(stat.pctChange) > Math.abs(biggestTotalDecrease.pctChange)
+      ) {
+        biggestTotalDecrease = stat;
+      }
+
       continue;
     }
 
@@ -211,25 +260,99 @@ export default function SmartInsightsPanel({
 
       // Multiply sortValue so totals tend to appear higher in the list
       insights.push({ sortValue: Math.abs(diff) * 2, text });
+
+      const stat: ChangeStat = {
+        pctChange,
+        diffMinor: Math.abs(diff),
+        label: `overall expenses in ${currency}`,
+      };
+
+      if (pctChange > 0) {
+        if (
+          !biggestTotalIncrease ||
+          Math.abs(pctChange) > Math.abs(biggestTotalIncrease.pctChange)
+        ) {
+          biggestTotalIncrease = stat;
+        }
+      } else if (pctChange < 0) {
+        if (
+          !biggestTotalDecrease ||
+          Math.abs(pctChange) > Math.abs(biggestTotalDecrease.pctChange)
+        ) {
+          biggestTotalDecrease = stat;
+        }
+      }
     }
   }
 
   // Sort biggest changes first (no limit – show full list)
   insights.sort((a, b) => b.sortValue - a.sortValue);
 
-  const currentLabel = new Date(
-    selectedYear,
-    selectedMonth,
-    1
-  ).toLocaleString("en", {
-    month: "long",
-    year: "numeric",
-  });
+  const currentLabel = new Date(selectedYear, selectedMonth, 1).toLocaleString(
+    "en",
+    {
+      month: "long",
+      year: "numeric",
+    }
+  );
 
   const prevLabel = new Date(prevYear, prevMonth, 1).toLocaleString("en", {
     month: "long",
     year: "numeric",
   });
+
+  // Build a compact summary sentence for the top of the panel
+  let summaryParts: string[] = [];
+
+  if (biggestTotalIncrease && biggestTotalIncrease.pctChange > 0) {
+    const pct = Math.round(Math.abs(biggestTotalIncrease.pctChange));
+    summaryParts.push(
+      `${biggestTotalIncrease.label} is up ${pct}% vs last month.`
+    );
+  }
+
+  if (biggestTotalDecrease && biggestTotalDecrease.pctChange < 0) {
+    const pct = Math.round(Math.abs(biggestTotalDecrease.pctChange));
+    summaryParts.push(
+      `${biggestTotalDecrease.label} is down ${pct}% vs last month.`
+    );
+  }
+
+  if (!biggestTotalIncrease && biggestCategoryIncrease) {
+    const pct = Math.round(Math.abs(biggestCategoryIncrease.pctChange));
+    summaryParts.push(
+      `${biggestCategoryIncrease.label} is up ${pct}% vs last month.`
+    );
+  }
+
+  if (!biggestTotalDecrease && biggestCategoryDecrease) {
+    const pct = Math.round(Math.abs(biggestCategoryDecrease.pctChange));
+    summaryParts.push(
+      `${biggestCategoryDecrease.label} is down ${pct}% vs last month.`
+    );
+  }
+
+  if (newCategoryCount > 0 || stoppedCategoryCount > 0) {
+    const bits: string[] = [];
+    if (newCategoryCount > 0) {
+      bits.push(
+        `new spending appeared in ${newCategoryCount} categor${
+          newCategoryCount === 1 ? "y" : "ies"
+        }`
+      );
+    }
+    if (stoppedCategoryCount > 0) {
+      bits.push(
+        `spending dropped to zero in ${stoppedCategoryCount} categor${
+          stoppedCategoryCount === 1 ? "y" : "ies"
+        }`
+      );
+    }
+    summaryParts.push(bits.join("; ") + ".");
+  }
+
+  const summaryText =
+    summaryParts.length > 0 ? summaryParts.join(" ") : null;
 
   return (
     <section className="mb-6">
@@ -243,6 +366,12 @@ export default function SmartInsightsPanel({
             current wallet &amp; category filters.
           </p>
         </div>
+
+        {summaryText && (
+          <div className="mb-2 text-[11px] text-gray-300">
+            {summaryText}
+          </div>
+        )}
 
         {insights.length === 0 ? (
           <p className="text-xs text-gray-500">
