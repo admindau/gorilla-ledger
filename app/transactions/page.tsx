@@ -60,6 +60,10 @@ export default function TransactionsPage() {
   const [date, setDate] = useState("");
   const [description, setDescription] = useState("");
 
+  // Search state for recent transactions
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
   useEffect(() => {
     async function loadData() {
       setLoading(true);
@@ -210,6 +214,44 @@ export default function TransactionsPage() {
     categories.map((c) => [c.id, c] as const)
   );
 
+  // Apply search filter to recent transactions
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredTransactions =
+    !normalizedQuery
+      ? transactions
+      : transactions.filter((tx) => {
+          const wallet = walletMap[tx.wallet_id];
+          const category = tx.category_id ? categoryMap[tx.category_id] : null;
+          const dateStr = tx.occurred_at.slice(0, 10);
+          const descriptionText = tx.description ?? "";
+          const amountText = formatMinorToAmount(tx.amount_minor);
+
+          const parts = [
+            wallet ? wallet.name : "",
+            wallet ? wallet.currency_code : "",
+            category ? category.name : "",
+            tx.type,
+            tx.currency_code,
+            dateStr,
+            descriptionText,
+            amountText,
+          ];
+
+          return parts.some((part) =>
+            part.toLowerCase().includes(normalizedQuery)
+          );
+        });
+
+  function handleSearchSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSearchQuery(searchInput);
+  }
+
+  function handleClearSearch() {
+    setSearchInput("");
+    setSearchQuery("");
+  }
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
       <header className="w-full flex items-center justify-between px-6 py-4 border-b border-gray-800">
@@ -242,7 +284,10 @@ export default function TransactionsPage() {
               You need at least one wallet and one category to create a transaction.
             </p>
           ) : (
-            <form onSubmit={handleCreateTransaction} className="grid gap-4 md:grid-cols-3">
+            <form
+              onSubmit={handleCreateTransaction}
+              className="grid gap-4 md:grid-cols-3"
+            >
               <div>
                 <label className="block text-sm mb-1">Wallet</label>
                 <select
@@ -332,19 +377,60 @@ export default function TransactionsPage() {
         <section>
           <h2 className="text-lg font-semibold mb-3">Recent Transactions</h2>
 
+          {/* Search for recent transactions */}
+          <form
+            onSubmit={handleSearchSubmit}
+            className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2"
+          >
+            <p className="text-xs text-gray-400">
+              Search by description, category, wallet, currency, date or amount.
+            </p>
+            <div className="flex gap-2 w-full md:w-96">
+              <input
+                type="text"
+                className="flex-1 p-2 rounded bg-gray-900 border border-gray-700 text-sm"
+                placeholder="Search recent transactions..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+              />
+              <button
+                type="submit"
+                className="px-3 py-2 rounded bg-white text-black text-xs font-semibold hover:bg-gray-200 transition"
+              >
+                Search
+              </button>
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={handleClearSearch}
+                  className="px-3 py-2 rounded bg-gray-900 border border-gray-700 text-xs text-gray-200 hover:bg-gray-800 transition"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </form>
+
           {loading ? (
             <p className="text-gray-400 text-sm">Loading...</p>
           ) : transactions.length === 0 ? (
             <p className="text-gray-500 text-sm">You have no transactions yet.</p>
+          ) : filteredTransactions.length === 0 ? (
+            <p className="text-gray-500 text-sm">
+              No transactions match your search.
+            </p>
           ) : (
             <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
-              {transactions.map((tx) => {
+              {filteredTransactions.map((tx) => {
                 const wallet = walletMap[tx.wallet_id];
                 const category = tx.category_id ? categoryMap[tx.category_id] : null;
                 const dateStr = tx.occurred_at.slice(0, 10);
 
                 return (
-                  <div key={tx.id} className="flex items-center justify-between px-4 py-2">
+                  <div
+                    key={tx.id}
+                    className="flex items-center justify-between px-4 py-2"
+                  >
                     <div>
                       <div className="font-medium">
                         {category ? category.name : "Uncategorized"}{" "}
@@ -357,9 +443,7 @@ export default function TransactionsPage() {
                     </div>
                     <div
                       className={
-                        tx.type === "income"
-                          ? "text-green-400"
-                          : "text-red-400"
+                        tx.type === "income" ? "text-green-400" : "text-red-400"
                       }
                     >
                       {tx.type === "income" ? "+" : "-"}
