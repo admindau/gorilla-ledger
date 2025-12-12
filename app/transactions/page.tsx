@@ -52,7 +52,6 @@ function extFromFile(file: File): string {
   const name = file.name || "";
   const idx = name.lastIndexOf(".");
   if (idx >= 0 && idx < name.length - 1) return name.slice(idx + 1).toLowerCase();
-  // fallbacks by mime
   if (file.type === "application/pdf") return "pdf";
   if (file.type === "image/jpeg") return "jpg";
   if (file.type === "image/png") return "png";
@@ -177,6 +176,11 @@ export default function TransactionsPage() {
   const [editAmount, setEditAmount] = useState("0");
   const [editDate, setEditDate] = useState("");
   const [editDescription, setEditDescription] = useState("");
+
+  // NEW: receipts upload while editing a transaction
+  const [editReceiptFiles, setEditReceiptFiles] = useState<File[]>([]);
+  const [editReceiptWarn, setEditReceiptWarn] = useState("");
+  const [uploadingEditReceipts, setUploadingEditReceipts] = useState(false);
 
   // Search & date filters for recent transactions
   const [searchInput, setSearchInput] = useState("");
@@ -330,6 +334,63 @@ export default function TransactionsPage() {
     setNewReceiptFiles((prev) => prev.filter((_, i) => i !== idx));
   }
 
+  // NEW: editing receipts handlers
+  function handleAddEditReceiptFiles(files: File[]) {
+    setEditReceiptWarn("");
+    const { ok, rejected } = validateReceiptFiles(files);
+
+    if (rejected.length > 0) {
+      const msg = rejected.map((r) => `${r.name}: ${r.reason}`).join(" | ");
+      setEditReceiptWarn(msg);
+    }
+    if (ok.length > 0) {
+      setEditReceiptFiles((prev) => [...prev, ...ok]);
+    }
+  }
+
+  function handleRemoveEditReceiptAt(idx: number) {
+    setEditReceiptFiles((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  async function handleUploadReceiptsForEditingTx() {
+    if (!editingTxId) return;
+    if (editReceiptFiles.length === 0) {
+      setEditReceiptWarn("Please select at least one receipt file to upload.");
+      return;
+    }
+
+    setUploadingEditReceipts(true);
+    setErrorMsg("");
+    setEditReceiptWarn("");
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseBrowserClient.auth.getUser();
+
+    if (userError || !user) {
+      setErrorMsg("You must be logged in.");
+      setUploadingEditReceipts(false);
+      return;
+    }
+
+    for (const f of editReceiptFiles) {
+      const res = await uploadReceiptForTransaction({
+        userId: user.id,
+        transactionId: editingTxId,
+        file: f,
+      });
+      if (!res.ok) {
+        setErrorMsg(`Failed to upload receipt: ${res.error}`);
+        break;
+      }
+    }
+
+    // Clear selection after attempt
+    setEditReceiptFiles([]);
+    setUploadingEditReceipts(false);
+  }
+
   async function handleCreateTransaction(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -432,6 +493,10 @@ export default function TransactionsPage() {
     setEditAmount(formatMinorToAmount(tx.amount_minor));
     setEditDate(tx.occurred_at.slice(0, 10));
     setEditDescription(tx.description ?? "");
+
+    // NEW: reset edit receipts state
+    setEditReceiptFiles([]);
+    setEditReceiptWarn("");
   }
 
   function handleCancelInlineEdit() {
@@ -440,6 +505,11 @@ export default function TransactionsPage() {
     setEditCategoryId("");
     setEditAmount("0");
     setEditDescription("");
+
+    // NEW: reset edit receipts state
+    setEditReceiptFiles([]);
+    setEditReceiptWarn("");
+    setUploadingEditReceipts(false);
   }
 
   async function handleSaveInlineEdit() {
@@ -898,7 +968,7 @@ export default function TransactionsPage() {
                             type="button"
                             onClick={handleCancelInlineEdit}
                             className="px-3 py-1 rounded border border-gray-700 text-[11px] text-gray-200 bg-gray-900 hover:bg-gray-800 transition"
-                            disabled={savingEdit}
+                            disabled={savingEdit || uploadingEditReceipts}
                           >
                             Cancel
                           </button>
@@ -906,7 +976,7 @@ export default function TransactionsPage() {
                             type="button"
                             onClick={handleSaveInlineEdit}
                             className="px-3 py-1 rounded border border-gray-700 text-[11px] bg-white text-black font-semibold hover:bg-gray-200 transition"
-                            disabled={savingEdit}
+                            disabled={savingEdit || uploadingEditReceipts}
                           >
                             {savingEdit ? "Saving..." : "Save"}
                           </button>
@@ -914,10 +984,42 @@ export default function TransactionsPage() {
                             type="button"
                             onClick={() => handleDeleteTransaction(tx)}
                             className="px-3 py-1 rounded border border-red-500 text-[11px] text-red-300 bg-gray-900 hover:bg-gray-900/70 transition"
-                            disabled={savingEdit}
+                            disabled={savingEdit || uploadingEditReceipts}
                           >
                             Delete
                           </button>
+                        </div>
+
+                        {/* NEW: Add receipts while editing */}
+                        <div className="pt-2 border-t border-gray-800">
+                          <div className="text-xs text-gray-400 mb-2">
+                            Add receipts to this transaction
+                          </div>
+
+                          <ReceiptUploader
+                            files={editReceiptFiles}
+                            onAdd={handleAddEditReceiptFiles}
+                            onRemoveAt={handleRemoveEditReceiptAt}
+                            disabled={uploadingEditReceipts || savingEdit}
+                            label="Upload receipts (PDF or images, max 5 MB each)"
+                          />
+
+                          {editReceiptWarn && (
+                            <div className="mt-2 text-xs text-yellow-300 border border-yellow-500/30 bg-yellow-500/10 rounded p-2">
+                              {editReceiptWarn}
+                            </div>
+                          )}
+
+                          <div className="mt-2 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={handleUploadReceiptsForEditingTx}
+                              disabled={uploadingEditReceipts || editReceiptFiles.length === 0}
+                              className="px-4 py-2 rounded bg-white text-black text-xs font-semibold hover:bg-gray-200 transition disabled:opacity-50"
+                            >
+                              {uploadingEditReceipts ? "Uploading..." : "Upload receipts"}
+                            </button>
+                          </div>
                         </div>
 
                         <div className="pt-2">
@@ -942,11 +1044,7 @@ export default function TransactionsPage() {
                         </div>
 
                         <div className="flex flex-col items-end gap-1">
-                          <div
-                            className={
-                              tx.type === "income" ? "text-green-400" : "text-red-400"
-                            }
-                          >
+                          <div className={tx.type === "income" ? "text-green-400" : "text-red-400"}>
                             {tx.type === "income" ? "+" : "-"}
                             {formatMinorToAmount(tx.amount_minor)} {tx.currency_code}
                           </div>
