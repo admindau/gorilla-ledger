@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
-import ReceiptUploader, { validateReceiptFiles } from "@/components/receipts/ReceiptUploader";
+import ReceiptUploader, {
+  validateReceiptFiles,
+} from "@/components/receipts/ReceiptUploader";
 import ReceiptList from "@/components/receipts/ReceiptList";
 
 type Wallet = {
@@ -82,18 +84,36 @@ async function uploadReceiptForTransaction(params: {
       .single();
 
     if (insErr || !receipt?.id) {
-      return { ok: false, error: insErr?.message ?? "Failed to create receipt record." };
+      return {
+        ok: false,
+        error: insErr?.message ?? "Failed to create receipt record.",
+      };
     }
 
     const receiptId = receipt.id as string;
     const ext = extFromFile(params.file);
 
-    // Ask server for signed upload token/path
+    // Ensure we have a session token for secure server-side validation.
+    const {
+      data: sessionData,
+      error: sessionError,
+    } = await supabaseBrowserClient.auth.getSession();
+
+    const accessToken = sessionData?.session?.access_token;
+    if (sessionError || !accessToken) {
+      // cleanup db row
+      await supabaseBrowserClient.from("receipts").delete().eq("id", receiptId);
+      return { ok: false, error: "Not authenticated (missing access token)." };
+    }
+
+    // Ask server for signed upload token/path (server infers user from JWT)
     const signRes = await fetch("/api/receipts/sign-upload", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
       body: JSON.stringify({
-        user_id: params.userId,
         transaction_id: params.transactionId,
         receipt_id: receiptId,
         ext,
@@ -177,7 +197,7 @@ export default function TransactionsPage() {
   const [editDate, setEditDate] = useState("");
   const [editDescription, setEditDescription] = useState("");
 
-  // NEW: receipts upload while editing a transaction
+  // receipts upload while editing a transaction
   const [editReceiptFiles, setEditReceiptFiles] = useState<File[]>([]);
   const [editReceiptWarn, setEditReceiptWarn] = useState("");
   const [uploadingEditReceipts, setUploadingEditReceipts] = useState(false);
@@ -273,7 +293,8 @@ export default function TransactionsPage() {
     }
 
     loadInitial();
-  }, []); // only once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleLoadMore() {
     if (!oldestOccurredAt || !hasMore || loadingMore) return;
@@ -334,7 +355,6 @@ export default function TransactionsPage() {
     setNewReceiptFiles((prev) => prev.filter((_, i) => i !== idx));
   }
 
-  // NEW: editing receipts handlers
   function handleAddEditReceiptFiles(files: File[]) {
     setEditReceiptWarn("");
     const { ok, rejected } = validateReceiptFiles(files);
@@ -386,7 +406,6 @@ export default function TransactionsPage() {
       }
     }
 
-    // Clear selection after attempt
     setEditReceiptFiles([]);
     setUploadingEditReceipts(false);
   }
@@ -453,7 +472,6 @@ export default function TransactionsPage() {
 
     const created = data as Transaction;
 
-    // Attach receipts if any
     if (newReceiptFiles.length > 0) {
       for (const f of newReceiptFiles) {
         const res = await uploadReceiptForTransaction({
@@ -462,7 +480,9 @@ export default function TransactionsPage() {
           file: f,
         });
         if (!res.ok) {
-          setErrorMsg(`Transaction saved, but a receipt failed to upload: ${res.error}`);
+          setErrorMsg(
+            `Transaction saved, but a receipt failed to upload: ${res.error}`
+          );
           break;
         }
       }
@@ -483,7 +503,6 @@ export default function TransactionsPage() {
     setSaving(false);
   }
 
-  // Inline editing handlers
   function handleStartInlineEdit(tx: Transaction) {
     setEditingTxId(tx.id);
     setEditWalletId(tx.wallet_id);
@@ -494,7 +513,6 @@ export default function TransactionsPage() {
     setEditDate(tx.occurred_at.slice(0, 10));
     setEditDescription(tx.description ?? "");
 
-    // NEW: reset edit receipts state
     setEditReceiptFiles([]);
     setEditReceiptWarn("");
   }
@@ -506,7 +524,6 @@ export default function TransactionsPage() {
     setEditAmount("0");
     setEditDescription("");
 
-    // NEW: reset edit receipts state
     setEditReceiptFiles([]);
     setEditReceiptWarn("");
     setUploadingEditReceipts(false);
@@ -573,9 +590,11 @@ export default function TransactionsPage() {
     handleCancelInlineEdit();
   }
 
-  // Undo delete: schedule delete in DB, allow undo in UI
   async function actuallyDeleteFromDatabase(id: string) {
-    const { error } = await supabaseBrowserClient.from("transactions").delete().eq("id", id);
+    const { error } = await supabaseBrowserClient
+      .from("transactions")
+      .delete()
+      .eq("id", id);
     if (error) {
       console.error(error);
       setErrorMsg(error.message);
@@ -618,9 +637,10 @@ export default function TransactionsPage() {
   }
 
   const walletMap = Object.fromEntries(wallets.map((w) => [w.id, w] as const));
-  const categoryMap = Object.fromEntries(categories.map((c) => [c.id, c] as const));
+  const categoryMap = Object.fromEntries(
+    categories.map((c) => [c.id, c] as const)
+  );
 
-  // Date range filter
   const dateFilteredTransactions = transactions.filter((tx) => {
     const dateStr = tx.occurred_at.slice(0, 10);
     if (fromDate && dateStr < fromDate) return false;
@@ -628,7 +648,6 @@ export default function TransactionsPage() {
     return true;
   });
 
-  // Search filter
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredTransactions =
     !normalizedQuery
@@ -651,7 +670,9 @@ export default function TransactionsPage() {
             amountText,
           ];
 
-          return parts.some((part) => part.toLowerCase().includes(normalizedQuery));
+          return parts.some((part) =>
+            part.toLowerCase().includes(normalizedQuery)
+          );
         });
 
   function handleSearchSubmit(e: React.FormEvent) {
@@ -691,16 +712,19 @@ export default function TransactionsPage() {
 
         {errorMsg && <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>}
 
-        {/* Add transaction */}
         <section className="mb-8 border border-gray-800 rounded p-4">
           <h2 className="text-lg font-semibold mb-3">Add Transaction</h2>
 
           {wallets.length === 0 || categories.length === 0 ? (
             <p className="text-sm text-yellow-300">
-              You need at least one wallet and one category to create a transaction.
+              You need at least one wallet and one category to create a
+              transaction.
             </p>
           ) : (
-            <form onSubmit={handleCreateTransaction} className="grid gap-4 md:grid-cols-3">
+            <form
+              onSubmit={handleCreateTransaction}
+              className="grid gap-4 md:grid-cols-3"
+            >
               <div>
                 <label className="block text-sm mb-1">Wallet</label>
                 <select
@@ -800,13 +824,13 @@ export default function TransactionsPage() {
           )}
         </section>
 
-        {/* Recent transactions */}
         <section>
           <h2 className="text-lg font-semibold mb-3">Recent Transactions</h2>
 
-          {/* Date range filters */}
           <div className="mb-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-            <p className="text-xs text-gray-400">Filter by date range (optional).</p>
+            <p className="text-xs text-gray-400">
+              Filter by date range (optional).
+            </p>
             <div className="flex gap-2 w-full md:w-auto">
               <input
                 type="date"
@@ -833,7 +857,6 @@ export default function TransactionsPage() {
             </div>
           </div>
 
-          {/* Search */}
           <form
             onSubmit={handleSearchSubmit}
             className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2"
@@ -870,26 +893,39 @@ export default function TransactionsPage() {
           {loading ? (
             <p className="text-gray-400 text-sm">Loading...</p>
           ) : transactions.length === 0 ? (
-            <p className="text-gray-500 text-sm">You have no transactions yet.</p>
+            <p className="text-gray-500 text-sm">
+              You have no transactions yet.
+            </p>
           ) : filteredTransactions.length === 0 ? (
-            <p className="text-gray-500 text-sm">No transactions match your filters.</p>
+            <p className="text-gray-500 text-sm">
+              No transactions match your filters.
+            </p>
           ) : (
             <>
               <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
                 {filteredTransactions.map((tx) => {
                   const wallet = walletMap[tx.wallet_id];
-                  const category = tx.category_id ? categoryMap[tx.category_id] : null;
+                  const category = tx.category_id
+                    ? categoryMap[tx.category_id]
+                    : null;
                   const dateStr = tx.occurred_at.slice(0, 10);
                   const isEditing = editingTxId === tx.id;
 
                   if (isEditing) {
                     return (
-                      <div key={tx.id} className="px-4 py-3 space-y-2 bg-black/60">
-                        <div className="text-xs text-gray-400 mb-1">Editing transaction</div>
+                      <div
+                        key={tx.id}
+                        className="px-4 py-3 space-y-2 bg-black/60"
+                      >
+                        <div className="text-xs text-gray-400 mb-1">
+                          Editing transaction
+                        </div>
 
                         <div className="grid gap-2 md:grid-cols-4">
                           <div>
-                            <label className="block text-[11px] mb-1">Wallet</label>
+                            <label className="block text-[11px] mb-1">
+                              Wallet
+                            </label>
                             <select
                               className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
                               value={editWalletId}
@@ -904,11 +940,15 @@ export default function TransactionsPage() {
                           </div>
 
                           <div>
-                            <label className="block text-[11px] mb-1">Category</label>
+                            <label className="block text-[11px] mb-1">
+                              Category
+                            </label>
                             <select
                               className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
                               value={editCategoryId}
-                              onChange={(e) => setEditCategoryId(e.target.value)}
+                              onChange={(e) =>
+                                setEditCategoryId(e.target.value)
+                              }
                             >
                               {categories.map((c) => (
                                 <option key={c.id} value={c.id}>
@@ -919,11 +959,15 @@ export default function TransactionsPage() {
                           </div>
 
                           <div>
-                            <label className="block text-[11px] mb-1">Type</label>
+                            <label className="block text-[11px] mb-1">
+                              Type
+                            </label>
                             <select
                               className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
                               value={editType}
-                              onChange={(e) => setEditType(e.target.value as TransactionType)}
+                              onChange={(e) =>
+                                setEditType(e.target.value as TransactionType)
+                              }
                             >
                               <option value="expense">Expense</option>
                               <option value="income">Income</option>
@@ -931,7 +975,9 @@ export default function TransactionsPage() {
                           </div>
 
                           <div>
-                            <label className="block text-[11px] mb-1">Date</label>
+                            <label className="block text-[11px] mb-1">
+                              Date
+                            </label>
                             <input
                               type="date"
                               className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
@@ -943,7 +989,9 @@ export default function TransactionsPage() {
 
                         <div className="grid gap-2 md:grid-cols-3">
                           <div>
-                            <label className="block text-[11px] mb-1">Amount</label>
+                            <label className="block text-[11px] mb-1">
+                              Amount
+                            </label>
                             <input
                               type="text"
                               className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
@@ -953,12 +1001,16 @@ export default function TransactionsPage() {
                           </div>
 
                           <div className="md:col-span-2">
-                            <label className="block text-[11px] mb-1">Description</label>
+                            <label className="block text-[11px] mb-1">
+                              Description
+                            </label>
                             <input
                               type="text"
                               className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
                               value={editDescription}
-                              onChange={(e) => setEditDescription(e.target.value)}
+                              onChange={(e) =>
+                                setEditDescription(e.target.value)
+                              }
                             />
                           </div>
                         </div>
@@ -990,7 +1042,6 @@ export default function TransactionsPage() {
                           </button>
                         </div>
 
-                        {/* NEW: Add receipts while editing */}
                         <div className="pt-2 border-t border-gray-800">
                           <div className="text-xs text-gray-400 mb-2">
                             Add receipts to this transaction
@@ -1014,10 +1065,15 @@ export default function TransactionsPage() {
                             <button
                               type="button"
                               onClick={handleUploadReceiptsForEditingTx}
-                              disabled={uploadingEditReceipts || editReceiptFiles.length === 0}
+                              disabled={
+                                uploadingEditReceipts ||
+                                editReceiptFiles.length === 0
+                              }
                               className="px-4 py-2 rounded bg-white text-black text-xs font-semibold hover:bg-gray-200 transition disabled:opacity-50"
                             >
-                              {uploadingEditReceipts ? "Uploading..." : "Upload receipts"}
+                              {uploadingEditReceipts
+                                ? "Uploading..."
+                                : "Upload receipts"}
                             </button>
                           </div>
                         </div>
@@ -1035,7 +1091,9 @@ export default function TransactionsPage() {
                         <div>
                           <div className="font-medium">
                             {category ? category.name : "Uncategorized"}{" "}
-                            <span className="text-xs text-gray-400">({tx.type})</span>
+                            <span className="text-xs text-gray-400">
+                              ({tx.type})
+                            </span>
                           </div>
                           <div className="text-xs text-gray-400">
                             {wallet ? wallet.name : "Unknown wallet"} • {dateStr}
@@ -1044,9 +1102,16 @@ export default function TransactionsPage() {
                         </div>
 
                         <div className="flex flex-col items-end gap-1">
-                          <div className={tx.type === "income" ? "text-green-400" : "text-red-400"}>
+                          <div
+                            className={
+                              tx.type === "income"
+                                ? "text-green-400"
+                                : "text-red-400"
+                            }
+                          >
                             {tx.type === "income" ? "+" : "-"}
-                            {formatMinorToAmount(tx.amount_minor)} {tx.currency_code}
+                            {formatMinorToAmount(tx.amount_minor)}{" "}
+                            {tx.currency_code}
                           </div>
 
                           <div className="flex gap-2 text-[11px]">
@@ -1092,13 +1157,14 @@ export default function TransactionsPage() {
           )}
         </section>
 
-        {/* Undo delete toast */}
         {pendingDelete && (
           <div className="fixed bottom-4 inset-x-0 flex justify-center px-4">
             <div className="max-w-md w-full bg-gray-900 border border-gray-700 rounded px-4 py-3 text-xs text-gray-100 flex items-center justify-between gap-3 shadow-lg">
               <span>
                 Transaction deleted.{" "}
-                <span className="text-gray-400">You can undo this for a few seconds.</span>
+                <span className="text-gray-400">
+                  You can undo this for a few seconds.
+                </span>
               </span>
               <button
                 type="button"

@@ -1,9 +1,12 @@
 // app/api/cron/recurring/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
 
-// Match your recurring_rules schema
+/**
+ * Match your recurring_rules schema
+ */
 type RecurringRule = {
   id: string;
   user_id: string;
@@ -11,7 +14,7 @@ type RecurringRule = {
   category_id: string | null;
   amount_minor: number;
   currency_code: string;
-  type: string; // "income" | "expense" | etc.
+  type: string;
   description: string | null;
 
   frequency: "daily" | "weekly" | "monthly";
@@ -19,10 +22,10 @@ type RecurringRule = {
   day_of_month: number | null;
   day_of_week: number | null;
 
-  start_date: string | null; // date (YYYY-MM-DD)
-  end_date: string | null;   // date (YYYY-MM-DD)
+  start_date: string | null; // YYYY-MM-DD
+  end_date: string | null; // YYYY-MM-DD
 
-  next_run_at: string;       // timestamptz
+  next_run_at: string; // timestamptz
   is_active: boolean;
 
   created_at: string;
@@ -33,14 +36,40 @@ type Frequency = RecurringRule["frequency"];
 
 export const dynamic = "force-dynamic";
 
-// Move next_run_at forward based on frequency + interval
+function constantTimeEquals(a: string, b: string): boolean {
+  const aBuf = Buffer.from(a);
+  const bBuf = Buffer.from(b);
+  if (aBuf.length !== bBuf.length) return false;
+  return timingSafeEqual(aBuf, bBuf);
+}
+
+function getCronSecretFromHeaders(req: NextRequest): string | null {
+  const h =
+    req.headers.get("x-cron-secret") ||
+    req.headers.get("X-CRON-SECRET") ||
+    req.headers.get("authorization") ||
+    req.headers.get("Authorization");
+
+  if (!h) return null;
+  if (h.toLowerCase().startsWith("bearer ")) return h.slice(7).trim();
+  return h.trim();
+}
+
+function isAuthorizedCron(req: NextRequest): boolean {
+  const expected = process.env.CRON_SECRET;
+  if (!expected) return false;
+  const provided = getCronSecretFromHeaders(req);
+  if (!provided) return false;
+  return constantTimeEquals(provided, expected);
+}
+
 function advanceNextRunAt(
   currentIso: string,
   frequency: Frequency,
   interval: number | null
 ): string {
   const step = interval && interval > 0 ? interval : 1;
-  const d = new Date(currentIso); // current next_run_at
+  const d = new Date(currentIso);
 
   switch (frequency) {
     case "daily":
@@ -55,17 +84,20 @@ function advanceNextRunAt(
       break;
   }
 
-  return d.toISOString(); // timestamptz
+  return d.toISOString();
 }
 
-export async function POST(_req: NextRequest) {
+async function handler(req: NextRequest) {
+  if (!isAuthorizedCron(req)) {
+    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
   const supabase = supabaseAdminClient;
 
   const now = new Date();
   const nowIso = now.toISOString();
-  const todayStr = nowIso.slice(0, 10); // "YYYY-MM-DD" (for logging / potential future use)
+  const todayStr = nowIso.slice(0, 10);
 
-  // 1️⃣ Load all due, active rules
   const { data: rules, error: rulesError } = await supabase
     .from("recurring_rules")
     .select("*")
@@ -82,16 +114,18 @@ export async function POST(_req: NextRequest) {
   }
 
   if (!rules || rules.length === 0) {
-    return NextResponse.json({
-      date: todayStr,
-      processed: 0,
-      created: 0,
-      updated: 0,
-      message: "No recurring rules due at this time",
-    });
+    return NextResponse.json(
+      {
+        date: todayStr,
+        processed: 0,
+        created: 0,
+        updated: 0,
+        message: "No recurring rules due at this time",
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   }
 
-  // Optional: respect start_date / end_date windows
   const activeWindowRules = (rules as RecurringRule[]).filter((r) => {
     const today = todayStr;
     if (r.start_date && today < r.start_date) return false;
@@ -103,34 +137,50 @@ export async function POST(_req: NextRequest) {
   let updatedCount = 0;
 
   for (const rule of activeWindowRules) {
-    // 2️⃣ Insert a concrete transaction for this rule
-    // NOTE: no `occurred_on` here because that column does not exist
-    const { error: insertError } = await supabase.from("transactions").insert({
-      user_id: rule.user_id,
-      wallet_id: rule.wallet_id,
-      category_id: rule.category_id,
-      amount_minor: rule.amount_minor,
-      currency_code: rule.currency_code,
-      type: rule.type,
-      description: rule.description,
-    });
+    const dueAtIso = new Date(rule.next_run_at).toISOString();
 
-    if (insertError) {
+    const { data: existingTx, error: exErr } = await supabase
+      .from("transactions")
+      .select("id")
+      .eq("user_id", rule.user_id)
+      .eq("wallet_id", rule.wallet_id)
+      .eq("amount_minor", rule.amount_minor)
+      .eq("currency_code", rule.currency_code)
+      .eq("type", rule.type)
+      .eq("occurred_at", dueAtIso)
+      .maybeSingle();
+
+    if (exErr) {
       console.error(
-        `[cron/recurring] Failed to create transaction for rule ${rule.id}:`,
-        insertError
+        `[cron/recurring] Idempotency check failed for rule ${rule.id}:`,
+        exErr
       );
-      // Skip advancing next_run_at so we can retry on next cron
       continue;
     }
 
-    console.log(
-      `[cron/recurring] Created transaction instance for rule ${rule.id} on ${todayStr}`
-    );
+    if (!existingTx?.id) {
+      const { error: insertError } = await supabase.from("transactions").insert({
+        user_id: rule.user_id,
+        wallet_id: rule.wallet_id,
+        category_id: rule.category_id,
+        amount_minor: rule.amount_minor,
+        currency_code: rule.currency_code,
+        type: rule.type,
+        description: rule.description,
+        occurred_at: dueAtIso,
+      });
 
-    createdCount += 1;
+      if (insertError) {
+        console.error(
+          `[cron/recurring] Failed to create tx for rule ${rule.id}:`,
+          insertError
+        );
+        continue;
+      }
 
-    // 3️⃣ Advance the rule's next_run_at
+      createdCount += 1;
+    }
+
     const nextRunAt = advanceNextRunAt(
       rule.next_run_at,
       rule.frequency,
@@ -139,10 +189,7 @@ export async function POST(_req: NextRequest) {
 
     const { error: updateError } = await supabase
       .from("recurring_rules")
-      .update({
-        next_run_at: nextRunAt,
-        // If you later add a last_run_at column, you can also set: last_run_at: nowIso
-      })
+      .update({ next_run_at: nextRunAt })
       .eq("id", rule.id);
 
     if (updateError) {
@@ -156,15 +203,21 @@ export async function POST(_req: NextRequest) {
     updatedCount += 1;
   }
 
-  return NextResponse.json({
-    date: todayStr,
-    processed: activeWindowRules.length,
-    created: createdCount,
-    updated: updatedCount,
-  });
+  return NextResponse.json(
+    {
+      date: todayStr,
+      processed: activeWindowRules.length,
+      created: createdCount,
+      updated: updatedCount,
+    },
+    { headers: { "Cache-Control": "no-store" } }
+  );
 }
 
-// Allow GET for manual testing from browser
 export async function GET(req: NextRequest) {
-  return POST(req);
+  return handler(req);
+}
+
+export async function POST(req: NextRequest) {
+  return handler(req);
 }

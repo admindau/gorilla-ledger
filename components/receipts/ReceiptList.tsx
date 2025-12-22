@@ -17,6 +17,13 @@ type Props = {
   transactionId: string;
 };
 
+async function getAccessToken(): Promise<string | null> {
+  const {
+    data: { session },
+  } = await supabaseBrowserClient.auth.getSession();
+  return session?.access_token ?? null;
+}
+
 export default function ReceiptList({ transactionId }: Props) {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<ReceiptRow[]>([]);
@@ -29,7 +36,9 @@ export default function ReceiptList({ transactionId }: Props) {
 
     const { data, error } = await supabaseBrowserClient
       .from("receipts")
-      .select("id, transaction_id, storage_path, original_name, mime_type, size_bytes, created_at")
+      .select(
+        "id, transaction_id, storage_path, original_name, mime_type, size_bytes, created_at"
+      )
       .eq("transaction_id", transactionId)
       .order("created_at", { ascending: false });
 
@@ -43,11 +52,22 @@ export default function ReceiptList({ transactionId }: Props) {
     setLoading(false);
   }
 
-  async function openReceipt(path: string) {
+  async function openReceipt(receiptId: string) {
+    setError("");
+
+    const token = await getAccessToken();
+    if (!token) {
+      setError("Not authenticated.");
+      return;
+    }
+
     const res = await fetch("/api/receipts/sign-read", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path, expires_in: 600 }),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ receipt_id: receiptId, expires_in: 600 }),
     });
 
     const json = await res.json();
@@ -63,11 +83,22 @@ export default function ReceiptList({ transactionId }: Props) {
     if (!confirm("Delete this receipt?")) return;
 
     setError("");
+
+    const token = await getAccessToken();
+    if (!token) {
+      setError("Not authenticated.");
+      return;
+    }
+
     const res = await fetch("/api/receipts/delete", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ receipt_id: id }),
     });
+
     const json = await res.json();
     if (!res.ok) {
       setError(json?.error ?? "Failed to delete receipt.");
@@ -118,7 +149,7 @@ export default function ReceiptList({ transactionId }: Props) {
                     <button
                       type="button"
                       className="px-2 py-1 rounded border border-gray-700 bg-gray-900 hover:bg-gray-800 transition text-[11px]"
-                      onClick={() => openReceipt(r.storage_path)}
+                      onClick={() => openReceipt(r.id)}
                     >
                       Open
                     </button>
