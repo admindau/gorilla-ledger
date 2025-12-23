@@ -11,15 +11,26 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     setErrorMsg("");
+    setSuccessMsg("");
     setLoading(true);
+
+    // Always send confirmation links back to our PKCE confirmation route.
+    // This must be allowed in Supabase Auth "Redirect URLs".
+    const origin =
+      typeof window !== "undefined" ? window.location.origin : "";
+    const emailRedirectTo = `${origin}/auth/confirm`;
 
     const { error } = await supabaseBrowserClient.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo,
+      },
     });
 
     if (error) {
@@ -39,8 +50,14 @@ export default function RegisterPage() {
 
     setLoading(false);
 
-    // On success, redirect to login
-    router.push("/auth/login");
+    // Better UX: tell the user to confirm their email.
+    setSuccessMsg("Account created. Please check your email to confirm your account.");
+
+    // Optionally still redirect them to login after a short moment.
+    // If you prefer immediate redirect, keep router.push("/auth/login") only.
+    setTimeout(() => {
+      router.push("/auth/login");
+    }, 1200);
   }
 
   return (
@@ -68,6 +85,7 @@ export default function RegisterPage() {
           />
 
           {errorMsg && <p className="text-red-400 text-sm">{errorMsg}</p>}
+          {successMsg && <p className="text-green-400 text-sm">{successMsg}</p>}
 
           <button
             type="submit"
