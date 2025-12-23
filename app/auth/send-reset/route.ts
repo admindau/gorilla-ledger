@@ -53,7 +53,7 @@ export async function POST(request: Request) {
       email,
       options: {
         // Keep the redirect target stable and explicitly tied to our site URL.
-        redirectTo: `${siteUrl}/auth/update-password`,
+        redirectTo: `${siteUrl}/auth/confirm?next=/auth/update-password`,
       },
     });
 
