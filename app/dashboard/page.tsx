@@ -417,7 +417,7 @@ export default function DashboardPage() {
     if (walletFilter !== "all" && tx.wallet_id !== walletFilter) return false;
 
     const category = tx.category_id ? categoryMap[tx.category_id] : null;
-    if (isInternalTransferCategory(category)) return false;
+    if (isInternalTransferCategory(category)) return false; // FIX: no `continue` in filter
 
     if (categoryFilter !== "all" && tx.category_id !== categoryFilter)
       return false;
@@ -496,52 +496,62 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
       {/* Top bar */}
-      <header className="w-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-6 py-4 border-b border-gray-800">
-        <div className="font-semibold text-lg">Gorilla Ledger™</div>
+      <header className="w-full px-6 py-4 border-b border-gray-800">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="font-semibold text-lg">Gorilla Ledger™</div>
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-300">
-          <a href="/wallets" className="underline">
-            Wallets
-          </a>
-          <a href="/categories" className="underline">
-            Categories
-          </a>
-          <a href="/transactions" className="underline">
-            Transactions
-          </a>
-          <a href="/budgets" className="underline">
-            Budgets
-          </a>
-          <a href="/recurring" className="underline">
-            Recurring
-          </a>
-          <a href="/settings/security" className="underline">
-            Security
-          </a>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-300">
+            <a href="/wallets" className="underline">
+              Wallets
+            </a>
+            <a href="/categories" className="underline">
+              Categories
+            </a>
+            <a href="/transactions" className="underline">
+              Transactions
+            </a>
+            <a href="/budgets" className="underline">
+              Budgets
+            </a>
+            <a href="/recurring" className="underline">
+              Recurring
+            </a>
+            <a href="/settings/security" className="underline">
+              Security
+            </a>
 
-          {/* Security posture (desktop only to avoid crowding) */}
-          <div className="hidden lg:flex items-center gap-3 text-xs">
-            <span className="text-gray-400">MFA:</span>
-            <span className={mfaEnabled ? "text-emerald-400" : "text-gray-300"}>
-              {mfaEnabled ? "Enabled" : "Disabled"}
-            </span>
-            <span className="text-gray-500">•</span>
-            <span className="text-gray-400">Last security check:</span>
-            <span className="text-gray-300">{lastSecurityLabel}</span>
+            {email && (
+              <span className="hidden md:inline max-w-[220px] truncate">
+                {email}
+              </span>
+            )}
+
+            <button
+              onClick={handleLogout}
+              className="px-3 py-1 rounded border border-gray-600 hover:bg-white hover:text-black transition"
+            >
+              Logout
+            </button>
           </div>
+        </div>
 
-          {email && (
-            <span className="hidden md:inline max-w-[220px] truncate">
-              {email}
-            </span>
+        {/* Security posture row (mobile-first; stays neat on all screens) */}
+        <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+          <span className="text-gray-400">MFA:</span>
+          <span className={mfaEnabled ? "text-emerald-400" : "text-gray-300"}>
+            {mfaEnabled ? "Enabled" : "Disabled"}
+          </span>
+          <span className="text-gray-600">•</span>
+          <span className="text-gray-400">Last security check:</span>
+          <span className="text-gray-300">{lastSecurityLabel}</span>
+          {mfaEnabled && !hasBackupFactor && (
+            <>
+              <span className="text-gray-600">•</span>
+              <span className="text-amber-300">
+                Backup authenticator not configured
+              </span>
+            </>
           )}
-
-          <button
-            onClick={handleLogout}
-            className="px-3 py-1 rounded border border-gray-600 hover:bg-white hover:text-black transition"
-          >
-            Logout
-          </button>
         </div>
       </header>
 
