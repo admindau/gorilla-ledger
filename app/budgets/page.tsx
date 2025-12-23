@@ -38,6 +38,20 @@ function formatMinorToAmount(minor: number): string {
   return (minor / 100).toFixed(2);
 }
 
+function formatDaysAgo(days: number) {
+  if (days <= 0) return "0 day(s) ago";
+  if (days === 1) return "1 day ago";
+  return `${days} day(s) ago`;
+}
+
+function computeDaysAgo(iso: string) {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return null;
+  const now = Date.now();
+  const diffDays = Math.floor((now - t) / (1000 * 60 * 60 * 24));
+  return Math.max(0, diffDays);
+}
+
 export default function BudgetsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -46,6 +60,11 @@ export default function BudgetsPage() {
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+
+  // Header/security UI state
+  const [userEmail, setUserEmail] = useState<string>("");
+  const [mfaEnabled, setMfaEnabled] = useState<boolean>(false);
+  const [lastSecurityCheckDays, setLastSecurityCheckDays] = useState<number | null>(null);
 
   // Form + filter state
   const now = new Date();
@@ -59,6 +78,44 @@ export default function BudgetsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState("0");
   const [rowBusyId, setRowBusyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadHeaderSecurity() {
+      try {
+        const {
+          data: { user },
+        } = await supabaseBrowserClient.auth.getUser();
+
+        setUserEmail(user?.email ?? "");
+
+        const { data: factorsData } = await supabaseBrowserClient.auth.mfa.listFactors();
+        const totpCount = factorsData?.totp?.length ?? 0;
+        const enabled = totpCount > 0;
+        setMfaEnabled(enabled);
+
+        const { data: aal } = await supabaseBrowserClient.auth.mfa.getAuthenticatorAssuranceLevel();
+        const isAAL2 = aal?.currentLevel === "aal2";
+
+        const key = "gl_last_security_check_at";
+        if (enabled && isAAL2) {
+          const nowIso = new Date().toISOString();
+          localStorage.setItem(key, nowIso);
+        }
+
+        const existing = localStorage.getItem(key);
+        if (existing) {
+          const d = computeDaysAgo(existing);
+          setLastSecurityCheckDays(d);
+        } else {
+          setLastSecurityCheckDays(null);
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    loadHeaderSecurity();
+  }, []);
 
   useEffect(() => {
     async function loadData() {
@@ -130,6 +187,14 @@ export default function BudgetsPage() {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function handleLogout() {
+    try {
+      await supabaseBrowserClient.auth.signOut();
+    } finally {
+      window.location.href = "/";
+    }
+  }
 
   const walletMap = useMemo(() => Object.fromEntries(wallets.map((w) => [w.id, w] as const)), [
     wallets,
@@ -292,21 +357,64 @@ export default function BudgetsPage() {
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      <header className="w-full flex items-center justify-between px-6 py-4 border-b border-gray-800">
-        <div className="font-semibold">Gorilla Ledger™ – Budgets</div>
-        <div className="flex gap-4 text-sm">
-          <a href="/wallets" className="underline text-gray-300">
-            Wallets
-          </a>
-          <a href="/categories" className="underline text-gray-300">
-            Categories
-          </a>
-          <a href="/transactions" className="underline text-gray-300">
-            Transactions
-          </a>
-          <a href="/dashboard" className="underline text-gray-300">
-            Dashboard
-          </a>
+      <header className="w-full px-6 py-4 border-b border-gray-800">
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="font-semibold">Gorilla Ledger™</div>
+
+            <nav className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+              <a href="/wallets" className="underline text-gray-300">
+                Wallets
+              </a>
+              <a href="/categories" className="underline text-gray-300">
+                Categories
+              </a>
+              <a href="/transactions" className="underline text-gray-300">
+                Transactions
+              </a>
+              <a href="/budgets" className="underline text-gray-300">
+                Budgets
+              </a>
+              <a href="/recurring" className="underline text-gray-300">
+                Recurring
+              </a>
+              <a href="/settings/security" className="underline text-gray-300">
+                Security
+              </a>
+              <a href="/dashboard" className="underline text-gray-300">
+                Dashboard
+              </a>
+            </nav>
+
+            <div className="flex items-center gap-3">
+              <div className="text-sm text-gray-200 truncate max-w-[220px]">{userEmail}</div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="px-3 py-1.5 rounded border border-gray-700 text-sm text-gray-200"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+
+          <div className="text-xs text-gray-300 flex flex-wrap gap-2">
+            <span>
+              MFA:{" "}
+              <span className={mfaEnabled ? "text-green-400" : "text-gray-300"}>
+                {mfaEnabled ? "Enabled" : "Not enabled"}
+              </span>
+            </span>
+            <span className="text-gray-500">•</span>
+            <span>
+              Last security check:{" "}
+              {lastSecurityCheckDays === null ? (
+                <span className="text-gray-400">—</span>
+              ) : (
+                <span className="text-gray-200">{formatDaysAgo(lastSecurityCheckDays)}</span>
+              )}
+            </span>
+          </div>
         </div>
       </header>
 
@@ -436,7 +544,8 @@ export default function BudgetsPage() {
                         <div>
                           <div className="font-medium">{category ? category.name : "Unknown category"}</div>
                           <div className="text-xs text-gray-400">
-                            {wallet ? wallet.name : "All wallets"} • {currency || "—"} • {year}-{String(month).padStart(2, "0")}
+                            {wallet ? wallet.name : "All wallets"} • {currency || "—"} • {year}-
+                            {String(month).padStart(2, "0")}
                           </div>
                         </div>
 

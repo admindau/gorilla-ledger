@@ -13,6 +13,20 @@ type Category = {
   created_at: string;
 };
 
+function formatDaysAgo(days: number) {
+  if (days <= 0) return "0 day(s) ago";
+  if (days === 1) return "1 day ago";
+  return `${days} day(s) ago`;
+}
+
+function computeDaysAgo(iso: string) {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return null;
+  const now = Date.now();
+  const diffDays = Math.floor((now - t) / (1000 * 60 * 60 * 24));
+  return Math.max(0, diffDays);
+}
+
 export default function CategoriesPage() {
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -29,9 +43,55 @@ export default function CategoriesPage() {
   const [editType, setEditType] = useState<CategoryType>("expense");
   const [rowBusyId, setRowBusyId] = useState<string | null>(null);
 
+  // header/security UI state
+  const [userEmail, setUserEmail] = useState<string>("");
+  const [mfaEnabled, setMfaEnabled] = useState<boolean>(false);
+  const [lastSecurityCheckDays, setLastSecurityCheckDays] = useState<number | null>(null);
+
   const categoryById = useMemo(() => {
     return Object.fromEntries(categories.map((c) => [c.id, c] as const));
   }, [categories]);
+
+  useEffect(() => {
+    async function loadHeaderSecurity() {
+      try {
+        const {
+          data: { user },
+        } = await supabaseBrowserClient.auth.getUser();
+
+        setUserEmail(user?.email ?? "");
+
+        // MFA enabled status = enrolled TOTP factor(s)
+        const { data: factorsData } = await supabaseBrowserClient.auth.mfa.listFactors();
+        const totpCount = factorsData?.totp?.length ?? 0;
+        const enabled = totpCount > 0;
+        setMfaEnabled(enabled);
+
+        // "Last security check" heuristic:
+        // If user is currently AAL2, we stamp/refresh a local marker.
+        const { data: aal } = await supabaseBrowserClient.auth.mfa.getAuthenticatorAssuranceLevel();
+        const isAAL2 = aal?.currentLevel === "aal2";
+
+        const key = "gl_last_security_check_at";
+        if (enabled && isAAL2) {
+          const nowIso = new Date().toISOString();
+          localStorage.setItem(key, nowIso);
+        }
+
+        const existing = localStorage.getItem(key);
+        if (existing) {
+          const d = computeDaysAgo(existing);
+          setLastSecurityCheckDays(d);
+        } else {
+          setLastSecurityCheckDays(null);
+        }
+      } catch {
+        // Non-fatal; header will still render
+      }
+    }
+
+    loadHeaderSecurity();
+  }, []);
 
   useEffect(() => {
     async function loadCategories() {
@@ -69,6 +129,14 @@ export default function CategoriesPage() {
 
     loadCategories();
   }, []);
+
+  async function handleLogout() {
+    try {
+      await supabaseBrowserClient.auth.signOut();
+    } finally {
+      window.location.href = "/";
+    }
+  }
 
   async function handleCreateCategory(e: React.FormEvent) {
     e.preventDefault();
@@ -183,13 +251,11 @@ export default function CategoriesPage() {
       return;
     }
 
-    const { data, error } = await supabaseBrowserClient
+    const { error } = await supabaseBrowserClient
       .from("categories")
       .update({ is_active: false })
       .eq("id", id)
-      .eq("user_id", user.id)
-      .select()
-      .single();
+      .eq("user_id", user.id);
 
     if (error) {
       console.error(error);
@@ -198,7 +264,6 @@ export default function CategoriesPage() {
       return;
     }
 
-    // Remove from active list immediately
     setCategories((prev) => prev.filter((x) => x.id !== id));
     if (editingId === id) cancelEdit();
     setRowBusyId(null);
@@ -284,15 +349,61 @@ export default function CategoriesPage() {
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      <header className="w-full flex items-center justify-between px-6 py-4 border-b border-gray-800">
-        <div className="font-semibold">Gorilla Ledger™ – Categories</div>
-        <div className="flex gap-4 text-sm">
-          <a href="/wallets" className="underline text-gray-300">
-            Wallets
-          </a>
-          <a href="/dashboard" className="underline text-gray-300">
-            Dashboard
-          </a>
+      <header className="w-full px-6 py-4 border-b border-gray-800">
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="font-semibold">Gorilla Ledger™</div>
+
+            <nav className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+              <a href="/wallets" className="underline text-gray-300">
+                Wallets
+              </a>
+              <a href="/categories" className="underline text-gray-300">
+                Categories
+              </a>
+              <a href="/transactions" className="underline text-gray-300">
+                Transactions
+              </a>
+              <a href="/budgets" className="underline text-gray-300">
+                Budgets
+              </a>
+              <a href="/recurring" className="underline text-gray-300">
+                Recurring
+              </a>
+              <a href="/settings/security" className="underline text-gray-300">
+                Security
+              </a>
+            </nav>
+
+            <div className="flex items-center gap-3">
+              <div className="text-sm text-gray-200 truncate max-w-[220px]">{userEmail}</div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="px-3 py-1.5 rounded border border-gray-700 text-sm text-gray-200"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+
+          <div className="text-xs text-gray-300 flex flex-wrap gap-2">
+            <span>
+              MFA:{" "}
+              <span className={mfaEnabled ? "text-green-400" : "text-gray-300"}>
+                {mfaEnabled ? "Enabled" : "Not enabled"}
+              </span>
+            </span>
+            <span className="text-gray-500">•</span>
+            <span>
+              Last security check:{" "}
+              {lastSecurityCheckDays === null ? (
+                <span className="text-gray-400">—</span>
+              ) : (
+                <span className="text-gray-200">{formatDaysAgo(lastSecurityCheckDays)}</span>
+              )}
+            </span>
+          </div>
         </div>
       </header>
 
@@ -347,9 +458,7 @@ export default function CategoriesPage() {
             {loading ? (
               <p className="text-gray-400 text-sm">Loading categories...</p>
             ) : incomeCategories.length === 0 ? (
-              <p className="text-gray-500 text-sm">
-                You don&apos;t have any income categories yet.
-              </p>
+              <p className="text-gray-500 text-sm">You don&apos;t have any income categories yet.</p>
             ) : (
               <ul className="border border-gray-800 rounded divide-y divide-gray-800">
                 {incomeCategories.map(renderCategoryRow)}
@@ -362,9 +471,7 @@ export default function CategoriesPage() {
             {loading ? (
               <p className="text-gray-400 text-sm">Loading categories...</p>
             ) : expenseCategories.length === 0 ? (
-              <p className="text-gray-500 text-sm">
-                You don&apos;t have any expense categories yet.
-              </p>
+              <p className="text-gray-500 text-sm">You don&apos;t have any expense categories yet.</p>
             ) : (
               <ul className="border border-gray-800 rounded divide-y divide-gray-800">
                 {expenseCategories.map(renderCategoryRow)}
