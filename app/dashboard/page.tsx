@@ -253,10 +253,14 @@ export default function DashboardPage() {
   async function handleLogout() {
     // UI/UX hardening: warn if MFA enabled but no backup factor
     if (mfaEnabled && !hasBackupFactor) {
-      const ok = window.confirm(
-        "MFA is enabled but you have not added a backup authenticator. If you lose access to your authenticator app, you may be locked out. Do you still want to log out?"
-      );
-      if (!ok) return;
+const ok = window.confirm(
+  mfaEnabled && !hasBackupFactor
+    ? "You are about to log out of Gorilla Ledger™.\n\nReminder: You have not configured a backup authenticator. If you lose access to your authenticator app, account recovery may not be possible.\n\nContinue?"
+    : "You are about to log out of Gorilla Ledger™. Continue?"
+);
+
+if (!ok) return;
+
     }
 
     await supabaseBrowserClient.auth.signOut();
