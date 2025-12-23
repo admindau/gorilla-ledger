@@ -12,8 +12,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Email is required." }, { status: 400 });
     }
 
-    const baseUrl =
-      process.env.NEXT_PUBLIC_SITE_URL ?? "https://gl.savvyrilla.tech";
+    /**
+     * Canonical site URL used to build recovery redirect targets.
+     * Prefer env; fall back to production domain to avoid undefined links.
+     */
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gl.savvyrilla.tech";
+    if (!process.env.NEXT_PUBLIC_SITE_URL) {
+      console.warn(
+        "[send-reset] NEXT_PUBLIC_SITE_URL missing; falling back to https://gl.savvyrilla.tech"
+      );
+    }
 
     const supabaseUrl =
       process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -39,16 +47,23 @@ export async function POST(request: Request) {
       },
     });
 
+    // ---- UPDATED generateLink (hardened + deterministic) ----
     const { data, error } = await supabaseAdmin.auth.admin.generateLink({
       type: "recovery",
       email,
       options: {
-        redirectTo: `${baseUrl}/auth/update-password`,
+        // Keep the redirect target stable and explicitly tied to our site URL.
+        redirectTo: `${siteUrl}/auth/update-password`,
       },
     });
 
     if (error || !data?.properties?.action_link) {
-      console.error("[send-reset] generateLink error:", error, data);
+      console.error("[send-reset] generateLink failed:", {
+        error,
+        hasActionLink: Boolean(data?.properties?.action_link),
+      });
+
+      // Preserve anti-enumeration behavior: always return 200 with generic message.
       return NextResponse.json(
         {
           message:
@@ -57,6 +72,7 @@ export async function POST(request: Request) {
         { status: 200 }
       );
     }
+    // --------------------------------------------------------
 
     const resetLink = data.properties.action_link;
     console.log("[send-reset] got resetLink");
