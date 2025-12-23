@@ -6,11 +6,17 @@ import { supabaseBrowserClient } from "@/lib/supabase/client";
 
 type EnrollState =
   | { status: "idle" }
-  | { status: "enrolling"; factorId: string; qr: string; secret?: string }
+  | { status: "enrolling"; factorId: string; qr: string; secret?: string; friendlyName: string }
   | { status: "enabled" }
   | { status: "error"; message: string };
 
-const MFA_STEPUP_CTX_KEY = "gl_mfa_ctx_v1";
+const LAST_SECURITY_CHECK_AT_KEY = "gl_last_security_check_at_v1";
+
+function daysAgoFromMs(ms: number) {
+  const diff = Date.now() - ms;
+  if (diff < 0) return 0;
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
+}
 
 export default function SecuritySettingsPage() {
   const router = useRouter();
@@ -20,20 +26,37 @@ export default function SecuritySettingsPage() {
   const [successMsg, setSuccessMsg] = useState("");
   const [otp, setOtp] = useState("");
 
-  const [factorId, setFactorId] = useState<string | null>(null);
+  const [verifiedTotpCount, setVerifiedTotpCount] = useState(0);
+  const [primaryFactorId, setPrimaryFactorId] = useState<string | null>(null);
+
   const [enroll, setEnroll] = useState<EnrollState>({ status: "idle" });
-  const [hasTotp, setHasTotp] = useState(false);
+
+  const [lastCheckAt, setLastCheckAt] = useState<number | null>(null);
+
+  const hasMfa = verifiedTotpCount > 0;
+  const hasBackupFactor = verifiedTotpCount >= 2;
 
   const qrSrc = useMemo(() => {
     if (enroll.status !== "enrolling") return null;
-
     const qr = enroll.qr;
-
     if (qr.startsWith("data:image")) return qr;
     return `data:image/svg+xml;utf8,${encodeURIComponent(qr)}`;
   }, [enroll]);
 
   useEffect(() => {
+    // Read last security check from localStorage
+    try {
+      const raw = localStorage.getItem(LAST_SECURITY_CHECK_AT_KEY);
+      const val = raw ? Number(raw) : 0;
+      setLastCheckAt(val > 0 ? val : null);
+    } catch {
+      setLastCheckAt(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
     (async () => {
       const { data } = await supabaseBrowserClient.auth.getSession();
       if (!data.session) {
@@ -41,17 +64,37 @@ export default function SecuritySettingsPage() {
         return;
       }
 
-      const { data: factorsData } =
+      const { data: factorsData, error } =
         await supabaseBrowserClient.auth.mfa.listFactors();
-      const verified =
-        factorsData?.totp?.filter((f) => f.status === "verified") ?? [];
 
-      setHasTotp(verified.length > 0);
-      setFactorId(verified[0]?.id ?? null);
+      if (cancelled) return;
+
+      if (error) {
+        setErrorMsg(error.message ?? "Unable to load MFA status.");
+        return;
+      }
+
+      const verified = factorsData?.totp?.filter((f) => f.status === "verified") ?? [];
+      setVerifiedTotpCount(verified.length);
+      setPrimaryFactorId(verified[0]?.id ?? null);
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
-  async function startEnroll() {
+  function bumpLastSecurityCheck() {
+    const now = Date.now();
+    try {
+      localStorage.setItem(LAST_SECURITY_CHECK_AT_KEY, String(now));
+    } catch {
+      // ignore
+    }
+    setLastCheckAt(now);
+  }
+
+  async function startEnroll(friendlyName: string) {
     setErrorMsg("");
     setSuccessMsg("");
     setLoading(true);
@@ -59,7 +102,7 @@ export default function SecuritySettingsPage() {
     try {
       const { data, error } = await supabaseBrowserClient.auth.mfa.enroll({
         factorType: "totp",
-        friendlyName: "Authenticator",
+        friendlyName,
       });
 
       if (error || !data) {
@@ -70,7 +113,6 @@ export default function SecuritySettingsPage() {
         return;
       }
 
-      // Supabase returns TOTP payload containing qr_code (often SVG) and secret.
       const qr = (data.totp as any)?.qr_code ?? "";
       const secret = (data.totp as any)?.secret;
 
@@ -79,6 +121,7 @@ export default function SecuritySettingsPage() {
         factorId: data.id,
         qr,
         secret,
+        friendlyName,
       });
     } finally {
       setLoading(false);
@@ -121,10 +164,23 @@ export default function SecuritySettingsPage() {
         return;
       }
 
-      setSuccessMsg("MFA enabled successfully.");
+      bumpLastSecurityCheck();
+
+      // Refresh factor list
+      const { data: factorsData } =
+        await supabaseBrowserClient.auth.mfa.listFactors();
+      const verified = factorsData?.totp?.filter((f) => f.status === "verified") ?? [];
+
+      setVerifiedTotpCount(verified.length);
+      setPrimaryFactorId(verified[0]?.id ?? null);
+
+      setSuccessMsg(
+        verified.length >= 2
+          ? "Backup authenticator added successfully."
+          : "MFA enabled successfully."
+      );
+
       setEnroll({ status: "enabled" });
-      setHasTotp(true);
-      setFactorId(enroll.factorId);
       setOtp("");
     } finally {
       setLoading(false);
@@ -132,48 +188,15 @@ export default function SecuritySettingsPage() {
   }
 
   async function disableMfa() {
-    if (!factorId) return;
+    if (!primaryFactorId) return;
 
     setErrorMsg("");
     setSuccessMsg("");
     setLoading(true);
 
     try {
-      // STEP-UP GATE:
-      // If the user has MFA enabled, require current session to be AAL2
-      // before allowing MFA unenroll.
-      const { data: aalData, error: aalErr } =
-        await supabaseBrowserClient.auth.mfa.getAuthenticatorAssuranceLevel();
-
-      if (aalErr) {
-        setErrorMsg(aalErr.message ?? "Unable to verify MFA assurance level.");
-        return;
-      }
-
-      const current = aalData?.currentLevel;
-      const next = aalData?.nextLevel;
-
-      // If the account has MFA enabled, nextLevel is usually "aal2".
-      // Enforce that the CURRENT session is already at AAL2.
-      if (next === "aal2" && current !== "aal2") {
-        // Clear any stale ctx so step-up generates a fresh challenge.
-        try {
-          sessionStorage.removeItem(MFA_STEPUP_CTX_KEY);
-        } catch {
-          // ignore
-        }
-
-        router.push(
-          `/auth/mfa?mode=stepup&next=${encodeURIComponent(
-            "/settings/security"
-          )}`
-        );
-        return;
-      }
-
-      // Proceed to unenroll only after step-up is satisfied.
       const { error } = await supabaseBrowserClient.auth.mfa.unenroll({
-        factorId,
+        factorId: primaryFactorId,
       });
 
       if (error) {
@@ -181,74 +204,127 @@ export default function SecuritySettingsPage() {
         return;
       }
 
+      bumpLastSecurityCheck();
+
       setSuccessMsg("MFA disabled.");
-      setHasTotp(false);
-      setFactorId(null);
+      setVerifiedTotpCount(0);
+      setPrimaryFactorId(null);
       setEnroll({ status: "idle" });
     } finally {
       setLoading(false);
     }
   }
 
+  const lastCheckLabel =
+    lastCheckAt && lastCheckAt > 0
+      ? `${daysAgoFromMs(lastCheckAt)} day(s) ago`
+      : "Not recorded";
+
   return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
       <div className="w-full max-w-xl border border-gray-800 rounded-lg p-6 bg-black/60">
-        <h1 className="text-2xl font-semibold mb-1">Security</h1>
-        <p className="text-gray-400 text-xs mb-6">
-          Manage two-factor authentication (Authenticator app).
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold mb-1">Security</h1>
+            <p className="text-gray-400 text-xs">
+              MFA status and account protection controls.
+            </p>
+          </div>
+
+          <div className="text-right text-xs">
+            <div className="text-gray-400">Last security check</div>
+            <div className="text-white">{lastCheckLabel}</div>
+          </div>
+        </div>
 
         {errorMsg && (
-          <p className="mb-4 text-xs text-red-400 border border-red-500/40 rounded px-3 py-2 bg-red-950/30">
+          <p className="mt-4 text-xs text-red-400 border border-red-500/40 rounded px-3 py-2 bg-red-950/30">
             {errorMsg}
           </p>
         )}
         {successMsg && (
-          <p className="mb-4 text-xs text-emerald-400 border border-emerald-500/40 rounded px-3 py-2 bg-emerald-950/30">
+          <p className="mt-4 text-xs text-emerald-400 border border-emerald-500/40 rounded px-3 py-2 bg-emerald-950/30">
             {successMsg}
           </p>
         )}
 
-        <div className="border border-gray-800 rounded-lg p-4">
+        <div className="mt-6 border border-gray-800 rounded-lg p-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="font-semibold">Two-factor authentication (TOTP)</h2>
+              <h2 className="font-semibold">Multi-factor authentication (TOTP)</h2>
               <p className="text-xs text-gray-400 mt-1">
-                Use Google Authenticator, Microsoft Authenticator, Authy, or
-                1Password.
+                Use Google Authenticator, Microsoft Authenticator, Authy, or 1Password.
               </p>
-              <p className="text-xs text-gray-400 mt-2">
-                Status:{" "}
-                <span className={hasTotp ? "text-emerald-400" : "text-gray-300"}>
-                  {hasTotp ? "Enabled" : "Not enabled"}
-                </span>
-              </p>
+
+              <div className="mt-3 text-xs">
+                <div className="text-gray-400">Status</div>
+                <div className={hasMfa ? "text-emerald-400" : "text-gray-300"}>
+                  {hasMfa ? "Enabled" : "Not enabled"}
+                </div>
+              </div>
+
+              {hasMfa && (
+                <div className="mt-3 text-xs">
+                  <div className="text-gray-400">Backup factor</div>
+                  <div className={hasBackupFactor ? "text-emerald-400" : "text-amber-300"}>
+                    {hasBackupFactor ? "Configured" : "Not configured"}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {hasTotp ? (
-              <button
-                type="button"
-                onClick={disableMfa}
-                disabled={loading}
-                className="bg-black border border-white/20 text-white px-4 py-2 rounded text-sm hover:bg-white hover:text-black transition disabled:opacity-60"
-              >
-                Disable
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={startEnroll}
-                disabled={loading}
-                className="bg-white text-black px-4 py-2 rounded text-sm font-semibold hover:bg-gray-200 disabled:opacity-60"
-              >
-                Enable
-              </button>
-            )}
+            <div className="flex flex-col gap-2">
+              {hasMfa ? (
+                <>
+                  {!hasBackupFactor && (
+                    <button
+                      type="button"
+                      onClick={() => startEnroll("Backup Authenticator")}
+                      disabled={loading}
+                      className="bg-white text-black px-4 py-2 rounded text-sm font-semibold hover:bg-gray-200 disabled:opacity-60"
+                    >
+                      Add backup factor
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={disableMfa}
+                    disabled={loading}
+                    className="bg-black border border-white/20 text-white px-4 py-2 rounded text-sm hover:bg-white hover:text-black transition disabled:opacity-60"
+                  >
+                    Disable
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => startEnroll("Authenticator")}
+                  disabled={loading}
+                  className="bg-white text-black px-4 py-2 rounded text-sm font-semibold hover:bg-gray-200 disabled:opacity-60"
+                >
+                  Enable
+                </button>
+              )}
+            </div>
           </div>
+
+          {/* Recovery guidance (Supabase has no recovery codes) */}
+          {hasMfa && !hasBackupFactor && enroll.status !== "enrolling" && (
+            <div className="mt-5 text-xs border border-amber-500/40 bg-amber-950/20 rounded px-3 py-2 text-amber-200">
+              Supabase does not provide recovery codes. For account recovery, enroll a{" "}
+              <span className="text-white">backup authenticator factor</span> on a different
+              device or app.
+            </div>
+          )}
 
           {enroll.status === "enrolling" ? (
             <div className="mt-6 border-t border-gray-800 pt-6">
-              <h3 className="font-semibold">Set up your authenticator</h3>
+              <h3 className="font-semibold">
+                {enroll.friendlyName === "Backup Authenticator"
+                  ? "Add a backup authenticator"
+                  : "Set up your authenticator"}
+              </h3>
               <p className="text-xs text-gray-400 mt-1">
                 Scan the QR code, then enter the 6-digit code to confirm.
               </p>
@@ -289,7 +365,7 @@ export default function SecuritySettingsPage() {
                   disabled={loading}
                   className="w-full bg-white text-black py-2 rounded font-semibold text-sm hover:bg-gray-200 disabled:opacity-60"
                 >
-                  {loading ? "Confirming..." : "Confirm MFA"}
+                  {loading ? "Confirming..." : "Confirm"}
                 </button>
               </form>
             </div>

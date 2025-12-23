@@ -8,11 +8,11 @@ type MfaCtx = {
   factorId: string;
   challengeId: string;
   next: string;
-  // Optional metadata (useful for debugging/UI)
   mode?: "login" | "stepup";
 };
 
 const STORAGE_KEY = "gl_mfa_ctx_v1";
+const LAST_SECURITY_CHECK_AT_KEY = "gl_last_security_check_at_v1";
 
 function isSixDigitCode(value: string) {
   const trimmed = value.replace(/\s+/g, "");
@@ -24,7 +24,10 @@ export default function MfaClient() {
   const sp = useSearchParams();
 
   const next = useMemo(() => sp.get("next") ?? "/dashboard", [sp]);
-  const mode = useMemo(() => (sp.get("mode") === "stepup" ? "stepup" : "login"), [sp]);
+  const mode = useMemo(
+    () => (sp.get("mode") === "stepup" ? "stepup" : "login"),
+    [sp]
+  );
 
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,9 +35,6 @@ export default function MfaClient() {
   const [errorMsg, setErrorMsg] = useState("");
   const [ctx, setCtx] = useState<MfaCtx | null>(null);
 
-  // Boot logic:
-  // - If ctx exists in sessionStorage, use it (login MFA flow).
-  // - If missing and mode=stepup, dynamically create a new challenge for an enrolled TOTP factor.
   useEffect(() => {
     let cancelled = false;
 
@@ -42,7 +42,7 @@ export default function MfaClient() {
       setBooting(true);
       setErrorMsg("");
 
-      // 1) First, try existing ctx (login flow)
+      // 1) Login flow: ctx pre-seeded in sessionStorage
       const raw = sessionStorage.getItem(STORAGE_KEY);
       if (raw) {
         try {
@@ -52,15 +52,13 @@ export default function MfaClient() {
           setBooting(false);
           return;
         } catch {
-          // If invalid, remove it and continue boot.
           sessionStorage.removeItem(STORAGE_KEY);
         }
       }
 
-      // 2) No ctx — if step-up, create a challenge on the fly
+      // 2) Step-up flow: create a challenge dynamically for a verified TOTP factor
       if (mode === "stepup") {
         try {
-          // Ensure user is logged in
           const {
             data: { session },
             error: sessionErr,
@@ -75,20 +73,18 @@ export default function MfaClient() {
             return;
           }
 
-          // List enrolled factors and pick a verified TOTP factor
           const { data: factorsData, error: factorsErr } =
             await supabaseBrowserClient.auth.mfa.listFactors();
 
           if (factorsErr) throw factorsErr;
 
           const totpFactor =
-            factorsData?.totp?.find((f) => f.status === "verified") ??
-            factorsData?.totp?.[0];
+            factorsData?.totp?.find((f) => f.status === "verified") ?? null;
 
           if (!totpFactor) {
             if (!cancelled) {
               setErrorMsg(
-                "No authenticator (TOTP) factor is enrolled for this account. Enable MFA first under Security."
+                "No authenticator factor is enrolled for this account. Enable MFA first under Security."
               );
               setBooting(false);
             }
@@ -128,7 +124,7 @@ export default function MfaClient() {
         return;
       }
 
-      // 3) No ctx and not stepup => user landed here incorrectly
+      // 3) No ctx and not stepup
       if (!cancelled) {
         setErrorMsg("MFA session not found. Please log in again.");
         setBooting(false);
@@ -166,10 +162,14 @@ export default function MfaClient() {
         return;
       }
 
-      // Verification upgrades the session to AAL2 (when factor is valid).
-      // Clear ctx to prevent reuse.
-      sessionStorage.removeItem(STORAGE_KEY);
+      // Record “last security check” on successful OTP verify
+      try {
+        localStorage.setItem(LAST_SECURITY_CHECK_AT_KEY, String(Date.now()));
+      } catch {
+        // ignore
+      }
 
+      sessionStorage.removeItem(STORAGE_KEY);
       router.replace(ctx.next || "/dashboard");
     } finally {
       setLoading(false);
@@ -180,7 +180,6 @@ export default function MfaClient() {
     sessionStorage.removeItem(STORAGE_KEY);
 
     if (mode === "stepup") {
-      // Return to target without changing anything.
       router.replace(next);
       return;
     }
@@ -207,7 +206,9 @@ export default function MfaClient() {
         )}
 
         {booting ? (
-          <div className="text-xs text-gray-400 text-center">Preparing verification…</div>
+          <div className="text-xs text-gray-400 text-center">
+            Preparing verification…
+          </div>
         ) : (
           <form onSubmit={handleVerify} className="space-y-4 text-sm">
             <div>
@@ -233,7 +234,11 @@ export default function MfaClient() {
         )}
 
         <div className="mt-4 text-xs text-gray-400 text-center">
-          <button type="button" onClick={handleCancel} className="text-white underline">
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="text-white underline"
+          >
             {mode === "stepup" ? "Cancel" : "Back to login"}
           </button>
         </div>
