@@ -5,14 +5,12 @@ import { cookies } from "next/headers";
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
-  const next = url.searchParams.get("next") ?? "/auth/update-password";
+  const next = url.searchParams.get("next") ?? "/dashboard";
   const origin = url.origin;
 
   if (!code) {
     return NextResponse.redirect(new URL("/auth/login?error=missing_code", origin));
   }
-
-  const cookieStore = await cookies();
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -21,7 +19,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL("/auth/login?error=missing_env", origin));
   }
 
-  // Create a response we can attach cookies to
+  const cookieStore = await cookies();
   const response = NextResponse.redirect(new URL(next, origin));
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
