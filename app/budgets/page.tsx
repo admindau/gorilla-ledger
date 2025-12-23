@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
 type Wallet = {
@@ -55,6 +55,11 @@ export default function BudgetsPage() {
   const [categoryId, setCategoryId] = useState("");
   const [amount, setAmount] = useState("0");
 
+  // Edit state (per-row)
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editAmount, setEditAmount] = useState("0");
+  const [rowBusyId, setRowBusyId] = useState<string | null>(null);
+
   useEffect(() => {
     async function loadData() {
       setLoading(true);
@@ -71,12 +76,10 @@ export default function BudgetsPage() {
         return;
       }
 
-      // Wallets
-      const { data: walletData, error: walletError } =
-        await supabaseBrowserClient
-          .from("wallets")
-          .select("id, name, currency_code")
-          .order("created_at", { ascending: true });
+      const { data: walletData, error: walletError } = await supabaseBrowserClient
+        .from("wallets")
+        .select("id, name, currency_code")
+        .order("created_at", { ascending: true });
 
       if (walletError) {
         console.error(walletError);
@@ -84,17 +87,14 @@ export default function BudgetsPage() {
         setLoading(false);
         return;
       }
-
       setWallets(walletData as Wallet[]);
 
-      // Categories
-      const { data: categoryData, error: categoryError } =
-        await supabaseBrowserClient
-          .from("categories")
-          .select("id, name, type")
-          .eq("is_active", true)
-          .order("type", { ascending: true })
-          .order("name", { ascending: true });
+      const { data: categoryData, error: categoryError } = await supabaseBrowserClient
+        .from("categories")
+        .select("id, name, type")
+        .eq("is_active", true)
+        .order("type", { ascending: true })
+        .order("name", { ascending: true });
 
       if (categoryError) {
         console.error(categoryError);
@@ -102,18 +102,15 @@ export default function BudgetsPage() {
         setLoading(false);
         return;
       }
-
       setCategories(categoryData as Category[]);
 
-      // Budgets (we load a chunk and filter client-side)
-      const { data: budgetData, error: budgetError } =
-        await supabaseBrowserClient
-          .from("budgets")
-          .select("*")
-          .order("year", { ascending: false })
-          .order("month", { ascending: false })
-          .order("created_at", { ascending: false })
-          .limit(200);
+      const { data: budgetData, error: budgetError } = await supabaseBrowserClient
+        .from("budgets")
+        .select("*")
+        .order("year", { ascending: false })
+        .order("month", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(200);
 
       if (budgetError) {
         console.error(budgetError);
@@ -124,13 +121,8 @@ export default function BudgetsPage() {
 
       setBudgets(budgetData as Budget[]);
 
-      // sensible defaults
-      if (walletData && walletData.length > 0 && !walletId) {
-        setWalletId(walletData[0].id);
-      }
-      if (categoryData && categoryData.length > 0 && !categoryId) {
-        setCategoryId(categoryData[0].id);
-      }
+      if (walletData && walletData.length > 0 && !walletId) setWalletId(walletData[0].id);
+      if (categoryData && categoryData.length > 0 && !categoryId) setCategoryId(categoryData[0].id);
 
       setLoading(false);
     }
@@ -138,6 +130,25 @@ export default function BudgetsPage() {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const walletMap = useMemo(() => Object.fromEntries(wallets.map((w) => [w.id, w] as const)), [
+    wallets,
+  ]);
+  const categoryMap = useMemo(
+    () => Object.fromEntries(categories.map((c) => [c.id, c] as const)),
+    [categories]
+  );
+
+  const budgetsForPeriod = useMemo(() => budgets.filter((b) => b.year === year && b.month === month), [
+    budgets,
+    year,
+    month,
+  ]);
+
+  const monthLabel = new Date(year, month - 1, 1).toLocaleString("en", {
+    month: "long",
+    year: "numeric",
+  });
 
   async function handleCreateBudget(e: React.FormEvent) {
     e.preventDefault();
@@ -149,7 +160,6 @@ export default function BudgetsPage() {
       setSaving(false);
       return;
     }
-
     if (!categoryId) {
       setErrorMsg("Please select a category.");
       setSaving(false);
@@ -194,25 +204,94 @@ export default function BudgetsPage() {
     setSaving(false);
   }
 
-  const walletMap = Object.fromEntries(
-    wallets.map((w) => [w.id, w] as const)
-  );
-  const categoryMap = Object.fromEntries(
-    categories.map((c) => [c.id, c] as const)
-  );
+  function beginEdit(budget: Budget) {
+    setEditingId(budget.id);
+    setEditAmount(formatMinorToAmount(budget.amount_minor));
+    setErrorMsg("");
+  }
 
-  const budgetsForPeriod = budgets.filter(
-    (b) => b.year === year && b.month === month
-  );
+  function cancelEdit() {
+    setEditingId(null);
+    setEditAmount("0");
+    setErrorMsg("");
+  }
 
-  const monthLabel = new Date(year, month - 1, 1).toLocaleString("en", {
-    month: "long",
-    year: "numeric",
-  });
+  async function handleSaveEdit(budget: Budget) {
+    setRowBusyId(budget.id);
+    setErrorMsg("");
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseBrowserClient.auth.getUser();
+
+    if (userError || !user) {
+      setErrorMsg("You must be logged in.");
+      setRowBusyId(null);
+      return;
+    }
+
+    const amount_minor = parseAmountToMinor(editAmount);
+
+    const { data, error } = await supabaseBrowserClient
+      .from("budgets")
+      .update({ amount_minor })
+      .eq("id", budget.id)
+      .eq("user_id", user.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(error);
+      setErrorMsg(error.message);
+      setRowBusyId(null);
+      return;
+    }
+
+    setBudgets((prev) => prev.map((b) => (b.id === budget.id ? (data as Budget) : b)));
+    setEditingId(null);
+    setRowBusyId(null);
+  }
+
+  async function handleDeleteBudget(budget: Budget) {
+    const cat = categoryMap[budget.category_id];
+    const ok = window.confirm(`Delete budget${cat ? ` for "${cat.name}"` : ""}?`);
+    if (!ok) return;
+
+    setRowBusyId(budget.id);
+    setErrorMsg("");
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseBrowserClient.auth.getUser();
+
+    if (userError || !user) {
+      setErrorMsg("You must be logged in.");
+      setRowBusyId(null);
+      return;
+    }
+
+    const { error } = await supabaseBrowserClient
+      .from("budgets")
+      .delete()
+      .eq("id", budget.id)
+      .eq("user_id", user.id);
+
+    if (error) {
+      console.error(error);
+      setErrorMsg(error.message);
+      setRowBusyId(null);
+      return;
+    }
+
+    setBudgets((prev) => prev.filter((b) => b.id !== budget.id));
+    if (editingId === budget.id) cancelEdit();
+    setRowBusyId(null);
+  }
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      {/* Top bar */}
       <header className="w-full flex items-center justify-between px-6 py-4 border-b border-gray-800">
         <div className="font-semibold">Gorilla Ledger™ – Budgets</div>
         <div className="flex gap-4 text-sm">
@@ -234,11 +313,8 @@ export default function BudgetsPage() {
       <main className="flex-1 px-4 py-6 max-w-5xl mx-auto w-full">
         <h1 className="text-2xl font-semibold mb-4">Budgets</h1>
 
-        {errorMsg && (
-          <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>
-        )}
+        {errorMsg && <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>}
 
-        {/* Period selector */}
         <section className="mb-4 flex flex-wrap gap-4 items-center text-sm">
           <div>
             <label className="block text-xs mb-1">Year</label>
@@ -275,7 +351,6 @@ export default function BudgetsPage() {
           </div>
         </section>
 
-        {/* Add budget form */}
         <section className="mb-8 border border-gray-800 rounded p-4">
           <h2 className="text-lg font-semibold mb-3">Add Budget</h2>
 
@@ -284,10 +359,7 @@ export default function BudgetsPage() {
               You need at least one wallet and one category to set a budget.
             </p>
           ) : (
-            <form
-              onSubmit={handleCreateBudget}
-              className="grid gap-4 md:grid-cols-3"
-            >
+            <form onSubmit={handleCreateBudget} className="grid gap-4 md:grid-cols-3">
               <div>
                 <label className="block text-sm mb-1">Wallet</label>
                 <select
@@ -341,43 +413,91 @@ export default function BudgetsPage() {
           )}
         </section>
 
-        {/* Budgets list */}
         <section>
-          <h2 className="text-lg font-semibold mb-3">
-            Budgets for {monthLabel}
-          </h2>
+          <h2 className="text-lg font-semibold mb-3">Budgets for {monthLabel}</h2>
 
           {loading ? (
             <p className="text-gray-400 text-sm">Loading...</p>
           ) : budgetsForPeriod.length === 0 ? (
-            <p className="text-gray-500 text-sm">
-              You have no budgets set for this period yet.
-            </p>
+            <p className="text-gray-500 text-sm">You have no budgets set for this period yet.</p>
           ) : (
             <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
               {budgetsForPeriod.map((b) => {
                 const wallet = b.wallet_id ? walletMap[b.wallet_id] : null;
                 const category = categoryMap[b.category_id];
                 const currency = wallet?.currency_code ?? "";
+                const isEditing = editingId === b.id;
+                const isBusy = rowBusyId === b.id;
 
                 return (
-                  <div
-                    key={b.id}
-                    className="flex items-center justify-between px-4 py-2"
-                  >
-                    <div>
-                      <div className="font-medium">
-                        {category ? category.name : "Unknown category"}
+                  <div key={b.id} className="px-4 py-3">
+                    {!isEditing ? (
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                        <div>
+                          <div className="font-medium">{category ? category.name : "Unknown category"}</div>
+                          <div className="text-xs text-gray-400">
+                            {wallet ? wallet.name : "All wallets"} • {currency || "—"} • {year}-{String(month).padStart(2, "0")}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div className="font-semibold">
+                            {formatMinorToAmount(b.amount_minor)} {currency}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => beginEdit(b)}
+                            disabled={isBusy}
+                            className="px-3 py-1.5 rounded border border-gray-700 text-sm text-gray-200"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteBudget(b)}
+                            disabled={isBusy}
+                            className="px-3 py-1.5 rounded border border-red-900 text-sm text-red-300"
+                          >
+                            {isBusy ? "Working..." : "Delete"}
+                          </button>
+                        </div>
                       </div>
-                      <div className="text-xs text-gray-400">
-                        {wallet ? wallet.name : "All wallets"} •{" "}
-                        {currency || "—"}
+                    ) : (
+                      <div className="grid gap-3 md:grid-cols-3 items-end">
+                        <div className="md:col-span-2">
+                          <div className="text-xs text-gray-400 mb-1">
+                            {category ? category.name : "Unknown category"} • {wallet ? wallet.name : "All wallets"} •{" "}
+                            {currency || "—"}
+                          </div>
+                          <label className="block text-xs mb-1 text-gray-400">Amount</label>
+                          <input
+                            type="text"
+                            className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+                            value={editAmount}
+                            onChange={(e) => setEditAmount(e.target.value)}
+                          />
+                        </div>
+
+                        <div className="flex gap-2 md:justify-end">
+                          <button
+                            type="button"
+                            onClick={() => handleSaveEdit(b)}
+                            disabled={isBusy}
+                            className="px-3 py-2 rounded bg-white text-black font-semibold"
+                          >
+                            {isBusy ? "Saving..." : "Save"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={cancelEdit}
+                            disabled={isBusy}
+                            className="px-3 py-2 rounded border border-gray-700 text-gray-200"
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                    <div className="font-semibold">
-                      {formatMinorToAmount(b.amount_minor)}{" "}
-                      {currency}
-                    </div>
+                    )}
                   </div>
                 );
               })}
