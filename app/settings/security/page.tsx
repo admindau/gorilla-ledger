@@ -6,7 +6,13 @@ import { supabaseBrowserClient } from "@/lib/supabase/client";
 
 type EnrollState =
   | { status: "idle" }
-  | { status: "enrolling"; factorId: string; qr: string; secret?: string; friendlyName: string }
+  | {
+      status: "enrolling";
+      factorId: string;
+      qr: string;
+      secret?: string;
+      friendlyName: string;
+    }
   | { status: "enabled" }
   | { status: "error"; message: string };
 
@@ -74,7 +80,8 @@ export default function SecuritySettingsPage() {
         return;
       }
 
-      const verified = factorsData?.totp?.filter((f) => f.status === "verified") ?? [];
+      const verified =
+        factorsData?.totp?.filter((f) => f.status === "verified") ?? [];
       setVerifiedTotpCount(verified.length);
       setPrimaryFactorId(verified[0]?.id ?? null);
     })();
@@ -169,7 +176,8 @@ export default function SecuritySettingsPage() {
       // Refresh factor list
       const { data: factorsData } =
         await supabaseBrowserClient.auth.mfa.listFactors();
-      const verified = factorsData?.totp?.filter((f) => f.status === "verified") ?? [];
+      const verified =
+        factorsData?.totp?.filter((f) => f.status === "verified") ?? [];
 
       setVerifiedTotpCount(verified.length);
       setPrimaryFactorId(verified[0]?.id ?? null);
@@ -251,9 +259,12 @@ export default function SecuritySettingsPage() {
         <div className="mt-6 border border-gray-800 rounded-lg p-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="font-semibold">Multi-factor authentication (TOTP)</h2>
+              <h2 className="font-semibold">
+                Multi-factor authentication (TOTP)
+              </h2>
               <p className="text-xs text-gray-400 mt-1">
-                Use Google Authenticator, Microsoft Authenticator, Authy, or 1Password.
+                Use Google Authenticator, Microsoft Authenticator, Authy, or
+                1Password.
               </p>
 
               <div className="mt-3 text-xs">
@@ -266,7 +277,11 @@ export default function SecuritySettingsPage() {
               {hasMfa && (
                 <div className="mt-3 text-xs">
                   <div className="text-gray-400">Backup factor</div>
-                  <div className={hasBackupFactor ? "text-emerald-400" : "text-amber-300"}>
+                  <div
+                    className={
+                      hasBackupFactor ? "text-emerald-400" : "text-amber-300"
+                    }
+                  >
                     {hasBackupFactor ? "Configured" : "Not configured"}
                   </div>
                 </div>
@@ -312,9 +327,10 @@ export default function SecuritySettingsPage() {
           {/* Recovery guidance (Supabase has no recovery codes) */}
           {hasMfa && !hasBackupFactor && enroll.status !== "enrolling" && (
             <div className="mt-5 text-xs border border-amber-500/40 bg-amber-950/20 rounded px-3 py-2 text-amber-200">
-              Supabase does not provide recovery codes. For account recovery, enroll a{" "}
-              <span className="text-white">backup authenticator factor</span> on a different
-              device or app.
+              Supabase does not provide recovery codes. For account recovery,
+              enroll a{" "}
+              <span className="text-white">backup authenticator factor</span> on
+              a different device or app.
             </div>
           )}
 
