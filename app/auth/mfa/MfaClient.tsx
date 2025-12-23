@@ -8,34 +8,138 @@ type MfaCtx = {
   factorId: string;
   challengeId: string;
   next: string;
+  // Optional metadata (useful for debugging/UI)
+  mode?: "login" | "stepup";
 };
 
 const STORAGE_KEY = "gl_mfa_ctx_v1";
+
+function isSixDigitCode(value: string) {
+  const trimmed = value.replace(/\s+/g, "");
+  return /^\d{6}$/.test(trimmed);
+}
 
 export default function MfaClient() {
   const router = useRouter();
   const sp = useSearchParams();
 
   const next = useMemo(() => sp.get("next") ?? "/dashboard", [sp]);
+  const mode = useMemo(() => (sp.get("mode") === "stepup" ? "stepup" : "login"), [sp]);
 
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [booting, setBooting] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [ctx, setCtx] = useState<MfaCtx | null>(null);
 
+  // Boot logic:
+  // - If ctx exists in sessionStorage, use it (login MFA flow).
+  // - If missing and mode=stepup, dynamically create a new challenge for an enrolled TOTP factor.
   useEffect(() => {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      setErrorMsg("MFA session not found. Please log in again.");
-      return;
+    let cancelled = false;
+
+    async function boot() {
+      setBooting(true);
+      setErrorMsg("");
+
+      // 1) First, try existing ctx (login flow)
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw) as MfaCtx;
+          const hydrated: MfaCtx = { ...parsed, next, mode };
+          if (!cancelled) setCtx(hydrated);
+          setBooting(false);
+          return;
+        } catch {
+          // If invalid, remove it and continue boot.
+          sessionStorage.removeItem(STORAGE_KEY);
+        }
+      }
+
+      // 2) No ctx — if step-up, create a challenge on the fly
+      if (mode === "stepup") {
+        try {
+          // Ensure user is logged in
+          const {
+            data: { session },
+            error: sessionErr,
+          } = await supabaseBrowserClient.auth.getSession();
+
+          if (sessionErr) throw sessionErr;
+          if (!session) {
+            if (!cancelled) {
+              setErrorMsg("Your session has expired. Please log in again.");
+              setBooting(false);
+            }
+            return;
+          }
+
+          // List enrolled factors and pick a verified TOTP factor
+          const { data: factorsData, error: factorsErr } =
+            await supabaseBrowserClient.auth.mfa.listFactors();
+
+          if (factorsErr) throw factorsErr;
+
+          const totpFactor =
+            factorsData?.totp?.find((f) => f.status === "verified") ??
+            factorsData?.totp?.[0];
+
+          if (!totpFactor) {
+            if (!cancelled) {
+              setErrorMsg(
+                "No authenticator (TOTP) factor is enrolled for this account. Enable MFA first under Security."
+              );
+              setBooting(false);
+            }
+            return;
+          }
+
+          const { data: challengeData, error: challengeErr } =
+            await supabaseBrowserClient.auth.mfa.challenge({
+              factorId: totpFactor.id,
+            });
+
+          if (challengeErr) throw challengeErr;
+          if (!challengeData?.id) {
+            if (!cancelled) {
+              setErrorMsg("Unable to start MFA challenge. Please try again.");
+              setBooting(false);
+            }
+            return;
+          }
+
+          const newCtx: MfaCtx = {
+            factorId: totpFactor.id,
+            challengeId: challengeData.id,
+            next,
+            mode: "stepup",
+          };
+
+          sessionStorage.setItem(STORAGE_KEY, JSON.stringify(newCtx));
+          if (!cancelled) setCtx(newCtx);
+        } catch (e: any) {
+          if (!cancelled) {
+            setErrorMsg(e?.message ?? "Unable to start step-up MFA. Try again.");
+          }
+        } finally {
+          if (!cancelled) setBooting(false);
+        }
+        return;
+      }
+
+      // 3) No ctx and not stepup => user landed here incorrectly
+      if (!cancelled) {
+        setErrorMsg("MFA session not found. Please log in again.");
+        setBooting(false);
+      }
     }
-    try {
-      const parsed = JSON.parse(raw) as MfaCtx;
-      setCtx({ ...parsed, next });
-    } catch {
-      setErrorMsg("MFA session invalid. Please log in again.");
-    }
-  }, [next]);
+
+    boot();
+    return () => {
+      cancelled = true;
+    };
+  }, [next, mode]);
 
   async function handleVerify(e: FormEvent) {
     e.preventDefault();
@@ -44,7 +148,7 @@ export default function MfaClient() {
     if (!ctx) return;
 
     const trimmed = code.replace(/\s+/g, "");
-    if (!/^\d{6}$/.test(trimmed)) {
+    if (!isSixDigitCode(trimmed)) {
       setErrorMsg("Enter the 6-digit code from your authenticator app.");
       return;
     }
@@ -62,15 +166,25 @@ export default function MfaClient() {
         return;
       }
 
+      // Verification upgrades the session to AAL2 (when factor is valid).
+      // Clear ctx to prevent reuse.
       sessionStorage.removeItem(STORAGE_KEY);
+
       router.replace(ctx.next || "/dashboard");
     } finally {
       setLoading(false);
     }
   }
 
-  function backToLogin() {
+  function handleCancel() {
     sessionStorage.removeItem(STORAGE_KEY);
+
+    if (mode === "stepup") {
+      // Return to target without changing anything.
+      router.replace(next);
+      return;
+    }
+
     router.replace(`/auth/login?next=${encodeURIComponent(next)}`);
   }
 
@@ -81,7 +195,9 @@ export default function MfaClient() {
           Two-factor verification
         </h1>
         <p className="text-gray-400 text-xs mb-6 text-center">
-          Enter the 6-digit code from your authenticator app.
+          {mode === "stepup"
+            ? "Confirm your code to continue."
+            : "Enter the 6-digit code from your authenticator app."}
         </p>
 
         {errorMsg && (
@@ -90,31 +206,35 @@ export default function MfaClient() {
           </p>
         )}
 
-        <form onSubmit={handleVerify} className="space-y-4 text-sm">
-          <div>
-            <label className="block mb-1 text-xs text-gray-400">Code</label>
-            <input
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              className="w-full bg-black border border-gray-700 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-white tracking-widest text-center"
-              placeholder="123456"
-            />
-          </div>
+        {booting ? (
+          <div className="text-xs text-gray-400 text-center">Preparing verification…</div>
+        ) : (
+          <form onSubmit={handleVerify} className="space-y-4 text-sm">
+            <div>
+              <label className="block mb-1 text-xs text-gray-400">Code</label>
+              <input
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                className="w-full bg-black border border-gray-700 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-white tracking-widest text-center"
+                placeholder="123456"
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={loading || !ctx}
-            className="w-full mt-2 bg-white text-black py-2 rounded font-semibold text-sm hover:bg-gray-200 disabled:opacity-60"
-          >
-            {loading ? "Verifying..." : "Verify"}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={loading || !ctx}
+              className="w-full mt-2 bg-white text-black py-2 rounded font-semibold text-sm hover:bg-gray-200 disabled:opacity-60"
+            >
+              {loading ? "Verifying..." : "Verify"}
+            </button>
+          </form>
+        )}
 
         <div className="mt-4 text-xs text-gray-400 text-center">
-          <button type="button" onClick={backToLogin} className="text-white underline">
-            Back to login
+          <button type="button" onClick={handleCancel} className="text-white underline">
+            {mode === "stepup" ? "Cancel" : "Back to login"}
           </button>
         </div>
       </div>

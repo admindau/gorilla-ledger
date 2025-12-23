@@ -10,6 +10,8 @@ type EnrollState =
   | { status: "enabled" }
   | { status: "error"; message: string };
 
+const MFA_STEPUP_CTX_KEY = "gl_mfa_ctx_v1";
+
 export default function SecuritySettingsPage() {
   const router = useRouter();
 
@@ -39,8 +41,10 @@ export default function SecuritySettingsPage() {
         return;
       }
 
-      const { data: factorsData } = await supabaseBrowserClient.auth.mfa.listFactors();
-      const verified = factorsData?.totp?.filter((f) => f.status === "verified") ?? [];
+      const { data: factorsData } =
+        await supabaseBrowserClient.auth.mfa.listFactors();
+      const verified =
+        factorsData?.totp?.filter((f) => f.status === "verified") ?? [];
 
       setHasTotp(verified.length > 0);
       setFactorId(verified[0]?.id ?? null);
@@ -59,7 +63,10 @@ export default function SecuritySettingsPage() {
       });
 
       if (error || !data) {
-        setEnroll({ status: "error", message: error?.message ?? "Failed to enroll MFA." });
+        setEnroll({
+          status: "error",
+          message: error?.message ?? "Failed to enroll MFA.",
+        });
         return;
       }
 
@@ -93,9 +100,10 @@ export default function SecuritySettingsPage() {
 
     setLoading(true);
     try {
-      const { data: chData, error: chErr } = await supabaseBrowserClient.auth.mfa.challenge({
-        factorId: enroll.factorId,
-      });
+      const { data: chData, error: chErr } =
+        await supabaseBrowserClient.auth.mfa.challenge({
+          factorId: enroll.factorId,
+        });
 
       if (chErr || !chData) {
         setErrorMsg(chErr?.message ?? "Failed to create challenge.");
@@ -131,6 +139,39 @@ export default function SecuritySettingsPage() {
     setLoading(true);
 
     try {
+      // STEP-UP GATE:
+      // If the user has MFA enabled, require current session to be AAL2
+      // before allowing MFA unenroll.
+      const { data: aalData, error: aalErr } =
+        await supabaseBrowserClient.auth.mfa.getAuthenticatorAssuranceLevel();
+
+      if (aalErr) {
+        setErrorMsg(aalErr.message ?? "Unable to verify MFA assurance level.");
+        return;
+      }
+
+      const current = aalData?.currentLevel;
+      const next = aalData?.nextLevel;
+
+      // If the account has MFA enabled, nextLevel is usually "aal2".
+      // Enforce that the CURRENT session is already at AAL2.
+      if (next === "aal2" && current !== "aal2") {
+        // Clear any stale ctx so step-up generates a fresh challenge.
+        try {
+          sessionStorage.removeItem(MFA_STEPUP_CTX_KEY);
+        } catch {
+          // ignore
+        }
+
+        router.push(
+          `/auth/mfa?mode=stepup&next=${encodeURIComponent(
+            "/settings/security"
+          )}`
+        );
+        return;
+      }
+
+      // Proceed to unenroll only after step-up is satisfied.
       const { error } = await supabaseBrowserClient.auth.mfa.unenroll({
         factorId,
       });
@@ -173,7 +214,8 @@ export default function SecuritySettingsPage() {
             <div>
               <h2 className="font-semibold">Two-factor authentication (TOTP)</h2>
               <p className="text-xs text-gray-400 mt-1">
-                Use Google Authenticator, Microsoft Authenticator, Authy, or 1Password.
+                Use Google Authenticator, Microsoft Authenticator, Authy, or
+                1Password.
               </p>
               <p className="text-xs text-gray-400 mt-2">
                 Status:{" "}
@@ -213,7 +255,11 @@ export default function SecuritySettingsPage() {
 
               {qrSrc ? (
                 <div className="mt-4 flex items-center justify-center bg-white rounded-lg p-3">
-                  <img src={qrSrc} alt="MFA QR Code" className="max-w-[220px] w-full h-auto" />
+                  <img
+                    src={qrSrc}
+                    alt="MFA QR Code"
+                    className="max-w-[220px] w-full h-auto"
+                  />
                 </div>
               ) : null}
 
@@ -226,7 +272,9 @@ export default function SecuritySettingsPage() {
 
               <form onSubmit={confirmEnroll} className="mt-5 space-y-3">
                 <div>
-                  <label className="block mb-1 text-xs text-gray-400">6-digit code</label>
+                  <label className="block mb-1 text-xs text-gray-400">
+                    6-digit code
+                  </label>
                   <input
                     inputMode="numeric"
                     autoComplete="one-time-code"
