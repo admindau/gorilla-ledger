@@ -259,9 +259,7 @@ export default function DashboardPage() {
 
   function isSelectedMonth(dateStr: string): boolean {
     const d = new Date(dateStr);
-    return (
-      d.getFullYear() === selectedYear && d.getMonth() === selectedMonth
-    );
+    return d.getFullYear() === selectedYear && d.getMonth() === selectedMonth;
   }
 
   // Current (selected) month income/expense totals — per currency (pure multi-currency)
@@ -466,6 +464,10 @@ export default function DashboardPage() {
           <a href="/recurring" className="underline">
             Recurring
           </a>
+          <a href="/settings/security" className="underline">
+            Security
+          </a>
+
           {email && (
             <span className="hidden md:inline max-w-[220px] truncate">
               {email}
@@ -473,7 +475,7 @@ export default function DashboardPage() {
           )}
           <button
             onClick={handleLogout}
-            className="px-3 py-1 rounded border border-gray-600 hover:bg:white hover:text-black transition"
+            className="px-3 py-1 rounded border border-gray-600 hover:bg-white hover:text-black transition"
           >
             Logout
           </button>
@@ -510,9 +512,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {errorMsg && (
-          <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>
-        )}
+        {errorMsg && <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>}
 
         {/* Smart Insights */}
         {!loadingData && (
@@ -538,7 +538,6 @@ export default function DashboardPage() {
           />
         )}
 
-        
         {/* Summary cards */}
         <section className="grid gap-4 md:grid-cols-3 mb-8">
           <div className="border border-gray-800 rounded p-4">
@@ -565,8 +564,8 @@ export default function DashboardPage() {
               )}
             </div>
             <div className="text-xs text-gray-500 mt-1">
-              Totals per currency. Internal transfers excluded. No FX
-              conversion applied.
+              Totals per currency. Internal transfers excluded. No FX conversion
+              applied.
             </div>
           </div>
 
@@ -586,8 +585,8 @@ export default function DashboardPage() {
               )}
             </div>
             <div className="text-xs text-gray-500 mt-1">
-              Totals per currency. Internal transfers excluded. No FX
-              conversion applied.
+              Totals per currency. Internal transfers excluded. No FX conversion
+              applied.
             </div>
           </div>
         </section>
@@ -849,10 +848,7 @@ export default function DashboardPage() {
                   const labelVerb = isExpense ? "Spent" : "Received";
 
                   const usedPercent = Math.round(usedRatio * 100);
-                  const clampedPercent = Math.max(
-                    0,
-                    Math.min(usedPercent, 130)
-                  );
+                  const clampedPercent = Math.max(0, Math.min(usedPercent, 130));
 
                   const barFillPercent = Math.max(
                     0,
@@ -870,10 +866,7 @@ export default function DashboardPage() {
                     statusLabel = "OVER BUDGET";
                     statusBorder = "border-white/70";
                     statusText = "text-white";
-                  } else if (
-                    usedRatio > RISK_THRESHOLD &&
-                    usedRatio <= 1
-                  ) {
+                  } else if (usedRatio > RISK_THRESHOLD && usedRatio <= 1) {
                     statusLabel = "AT RISK";
                     statusBorder = "border-gray-500";
                     statusText = "text-gray-200";
@@ -928,13 +921,11 @@ export default function DashboardPage() {
                             You&apos;ve exceeded this budget.
                           </div>
                         )}
-                        {usedPercent <= 100 &&
-                          usedRatio > RISK_THRESHOLD && (
-                            <div className="mt-1 text-[11px] text-gray-400">
-                              You&apos;re approaching this budget&apos;s
-                              limit.
-                            </div>
-                          )}
+                        {usedPercent <= 100 && usedRatio > RISK_THRESHOLD && (
+                          <div className="mt-1 text-[11px] text-gray-400">
+                            You&apos;re approaching this budget&apos;s limit.
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
