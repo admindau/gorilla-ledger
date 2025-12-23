@@ -4,6 +4,8 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
+const MFA_STORAGE_KEY = "gl_mfa_ctx_v1";
+
 export function LoginForm({ next }: { next: string }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -16,19 +18,65 @@ export function LoginForm({ next }: { next: string }) {
     setErrorMsg("");
     setLoading(true);
 
-    const { error } = await supabaseBrowserClient.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { error } = await supabaseBrowserClient.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    setLoading(false);
+      if (error) {
+        setErrorMsg(error.message);
+        return;
+      }
 
-    if (error) {
-      setErrorMsg(error.message);
-      return;
+      const nextUrl = next || "/dashboard";
+
+      /**
+       * MFA (TOTP) handling:
+       * If user has a verified TOTP factor, start an MFA challenge and redirect to /auth/mfa.
+       */
+      const { data: factorsData, error: factorsErr } =
+        await supabaseBrowserClient.auth.mfa.listFactors();
+
+      if (factorsErr) {
+        // If factor listing fails, proceed normally (avoid lockouts due to transient MFA API errors).
+        router.push(nextUrl);
+        return;
+      }
+
+      const verifiedTotp = factorsData?.totp?.find(
+        (f) => f.status === "verified"
+      );
+
+      if (verifiedTotp) {
+        const { data: challengeData, error: chErr } =
+          await supabaseBrowserClient.auth.mfa.challenge({
+            factorId: verifiedTotp.id,
+          });
+
+        if (chErr || !challengeData) {
+          setErrorMsg(chErr?.message ?? "Failed to start MFA challenge.");
+          return;
+        }
+
+        sessionStorage.setItem(
+          MFA_STORAGE_KEY,
+          JSON.stringify({
+            factorId: verifiedTotp.id,
+            challengeId: challengeData.id,
+            next: nextUrl,
+          })
+        );
+
+        router.replace(`/auth/mfa?next=${encodeURIComponent(nextUrl)}`);
+        return;
+      }
+
+      // No MFA enabled -> proceed normally
+      router.push(nextUrl);
+    } finally {
+      setLoading(false);
     }
-
-    router.push(next || "/dashboard");
   }
 
   function goToRegister() {
