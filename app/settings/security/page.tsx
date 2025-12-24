@@ -9,7 +9,7 @@
    ============================================================================= */
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
 /* =============================================================================
@@ -27,6 +27,30 @@ function daysAgoFromMs(ms: number) {
 function isSixDigitCode(value: string) {
   const trimmed = value.replace(/\s+/g, "");
   return /^\d{6}$/.test(trimmed);
+}
+
+function ymd(d = new Date()) {
+  return d.toISOString().slice(0, 10);
+}
+
+function shortToken(len = 6) {
+  // client-safe, no dependencies
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let out = "";
+  const arr = new Uint8Array(len);
+  // crypto exists in modern browsers; fallback if not
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    crypto.getRandomValues(arr);
+    for (let i = 0; i < len; i++) out += chars[arr[i] % chars.length];
+    return out;
+  }
+  for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
+function looksLikeFriendlyNameExists(msg: string) {
+  const m = (msg || "").toLowerCase();
+  return m.includes("friendly name") && m.includes("already exists");
 }
 
 /* =============================================================================
@@ -62,6 +86,7 @@ export default function SecuritySettingsPage() {
   const [otp, setOtp] = useState("");
 
   // Factors
+  const [allTotp, setAllTotp] = useState<TotpFactor[]>([]);
   const [verifiedTotp, setVerifiedTotp] = useState<TotpFactor[]>([]);
   const [primaryFactorId, setPrimaryFactorId] = useState<string | null>(null);
 
@@ -107,11 +132,15 @@ export default function SecuritySettingsPage() {
     if (error) throw error;
 
     const totp = (data?.totp ?? []) as TotpFactor[];
+    setAllTotp(totp);
+
     const verified = totp.filter((f) => f.status === "verified");
     setVerifiedTotp(verified);
 
-    // Choose a “primary” deterministically:
+    // Choose a “primary” deterministically (first verified)
     setPrimaryFactorId(verified[0]?.id ?? null);
+
+    return totp;
   }
 
   function bumpLastSecurityCheck() {
@@ -136,6 +165,29 @@ export default function SecuritySettingsPage() {
     }
   }
 
+  function nextFriendlyName(existing: TotpFactor[], kind: "primary" | "backup") {
+    // NOTE: We *always* ensure uniqueness to avoid conflicts with orphaned/unverified factors.
+    const base = kind === "backup" ? "Backup Authenticator" : "Authenticator";
+    const existingNames = new Set(
+      existing
+        .map((f) => (f.friendly_name ?? "").trim())
+        .filter(Boolean)
+    );
+
+    // Preferred format: human-readable + date, with a short unique suffix.
+    // Example: "Authenticator (2025-12-24) — K7P2QM"
+    // Keeps it professional while preventing collisions.
+    let attempt = 0;
+    while (attempt < 5) {
+      const name = `${base} (${ymd()}) — ${shortToken(6)}`;
+      if (!existingNames.has(name)) return name;
+      attempt++;
+    }
+
+    // Extreme fallback
+    return `${base} (${ymd()}) — ${Date.now()}`;
+  }
+
   // ---------------------------------------------------------------------------
   // Boot
   // ---------------------------------------------------------------------------
@@ -150,7 +202,7 @@ export default function SecuritySettingsPage() {
       loadLastCheck();
 
       try {
-        const [{ data: u }, _factors] = await Promise.all([
+        const [{ data: u }, _] = await Promise.all([
           supabaseBrowserClient.auth.getUser(),
           refreshFactors(),
         ]);
@@ -166,8 +218,16 @@ export default function SecuritySettingsPage() {
     }
 
     boot();
+
+    // Keep factors fresh if user just changed them in another tab / Supabase dashboard
+    const onFocus = () => {
+      refreshFactors().catch(() => void 0);
+    };
+    window.addEventListener("focus", onFocus);
+
     return () => {
       cancelled = true;
+      window.removeEventListener("focus", onFocus);
     };
   }, []);
 
@@ -181,9 +241,11 @@ export default function SecuritySettingsPage() {
     setLoading(true);
 
     try {
-      const friendlyName = mfaEnabled
-        ? `Backup Authenticator (${new Date().toISOString().slice(0, 10)})`
-        : `Authenticator (${new Date().toISOString().slice(0, 10)})`;
+      // Always refresh first to avoid stale UI decisions
+      const current = await refreshFactors();
+
+      const kind: "primary" | "backup" = mfaEnabled ? "backup" : "primary";
+      const friendlyName = nextFriendlyName(current, kind);
 
       const { data, error } = await supabaseBrowserClient.auth.mfa.enroll({
         factorType: "totp",
@@ -191,6 +253,30 @@ export default function SecuritySettingsPage() {
       });
 
       if (error || !data) {
+        // One automatic retry if Supabase complains about friendly-name collision
+        if (looksLikeFriendlyNameExists(error?.message ?? "")) {
+          const refreshed = await refreshFactors();
+          const retryName = nextFriendlyName(refreshed, kind);
+
+          const retry = await supabaseBrowserClient.auth.mfa.enroll({
+            factorType: "totp",
+            friendlyName: retryName,
+          });
+
+          if (retry.error || !retry.data) {
+            setErrorMsg(retry.error?.message ?? "Failed to start MFA enrollment.");
+            return;
+          }
+
+          setEnroll({
+            status: "enrolling",
+            factorId: retry.data.id,
+            secret: retry.data.totp.secret,
+            qr: retry.data.totp.qr_code,
+          });
+          return;
+        }
+
         setErrorMsg(error?.message ?? "Failed to start MFA enrollment.");
         return;
       }
@@ -201,6 +287,8 @@ export default function SecuritySettingsPage() {
         secret: data.totp.secret,
         qr: data.totp.qr_code,
       });
+    } catch (e: any) {
+      setErrorMsg(e?.message ?? "Failed to start MFA enrollment.");
     } finally {
       setLoading(false);
     }
@@ -246,7 +334,9 @@ export default function SecuritySettingsPage() {
       bumpLastSecurityCheck();
 
       setSuccessMsg(
-        mfaEnabled ? "Backup authenticator added successfully." : "Multi-factor authentication enabled successfully."
+        mfaEnabled
+          ? "Backup authenticator added successfully."
+          : "Multi-factor authentication enabled successfully."
       );
 
       setEnroll({ status: "enabled" });
@@ -390,6 +480,13 @@ export default function SecuritySettingsPage() {
                     </span>
                   </div>
                 </div>
+
+                {/* Optional: show total factors for troubleshooting without exposing Supabase */}
+                {allTotp.length > 0 && (
+                  <div className="mt-2 text-[11px] text-gray-500">
+                    Authenticator factors on this account: {allTotp.length}
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-col gap-2">

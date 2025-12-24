@@ -42,21 +42,25 @@ export default function MfaClient() {
       setBooting(true);
       setErrorMsg("");
 
-      // 1) Login flow: ctx pre-seeded in sessionStorage
+      // Clear ctx if it was stored for a different "mode" or redirect path
       const raw = sessionStorage.getItem(STORAGE_KEY);
       if (raw) {
         try {
           const parsed = JSON.parse(raw) as MfaCtx;
           const hydrated: MfaCtx = { ...parsed, next, mode };
-          if (!cancelled) setCtx(hydrated);
-          setBooting(false);
-          return;
+
+          if (!hydrated.factorId || !hydrated.challengeId) {
+            sessionStorage.removeItem(STORAGE_KEY);
+          } else {
+            if (!cancelled) setCtx(hydrated);
+            setBooting(false);
+            return;
+          }
         } catch {
           sessionStorage.removeItem(STORAGE_KEY);
         }
       }
 
-      // 2) Step-up flow: create a challenge dynamically for a verified TOTP factor
       if (mode === "stepup") {
         try {
           const {
@@ -124,7 +128,6 @@ export default function MfaClient() {
         return;
       }
 
-      // 3) No ctx and not stepup
       if (!cancelled) {
         setErrorMsg("MFA session not found. Please log in again.");
         setBooting(false);
@@ -162,7 +165,6 @@ export default function MfaClient() {
         return;
       }
 
-      // Record “last security check” on successful OTP verify
       try {
         localStorage.setItem(LAST_SECURITY_CHECK_AT_KEY, String(Date.now()));
       } catch {
