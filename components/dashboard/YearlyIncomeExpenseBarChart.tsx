@@ -37,6 +37,7 @@ type Props = {
   categories: Category[];
   targetYear: number;
   walletFilter: string; // "all" or wallet_id
+  yearSource?: "current" | "filter"; // ✅ NEW: UX clarity
 };
 
 type ChartRow = {
@@ -93,7 +94,6 @@ function CustomTooltip({
 }) {
   if (!active || !payload || payload.length === 0) return null;
 
-  // payload entries contain the plotted keys; we want income/expense/net if present
   const byKey: Record<string, number> = {};
   for (const p of payload) {
     if (!p?.dataKey) continue;
@@ -113,19 +113,28 @@ function CustomTooltip({
 
       <div className="flex items-center justify-between gap-6">
         <span className="text-gray-300">Income</span>
-        <span className="text-white">{formatNumber(income)}{ccy}</span>
+        <span className="text-white">
+          {formatNumber(income)}
+          {ccy}
+        </span>
       </div>
 
       <div className="flex items-center justify-between gap-6">
         <span className="text-gray-300">Expenses</span>
-        <span className="text-white">{formatNumber(expense)}{ccy}</span>
+        <span className="text-white">
+          {formatNumber(expense)}
+          {ccy}
+        </span>
       </div>
 
       <div className="my-1 h-px bg-gray-800" />
 
       <div className="flex items-center justify-between gap-6">
         <span className="text-gray-300">Net</span>
-        <span className="text-white">{formatNumber(net)}{ccy}</span>
+        <span className="text-white">
+          {formatNumber(net)}
+          {ccy}
+        </span>
       </div>
 
       <div className="flex items-center justify-between gap-6">
@@ -141,6 +150,7 @@ export default function YearlyIncomeExpenseBarChart({
   categories,
   targetYear,
   walletFilter,
+  yearSource = "current",
 }: Props) {
   const categoryMap = useMemo(() => {
     return Object.fromEntries(categories.map((c) => [c.id, c] as const));
@@ -160,7 +170,6 @@ export default function YearlyIncomeExpenseBarChart({
     hasCurrencyInfo ? currencies[0] : null
   );
 
-  // Keep activeCurrency valid if currencies change
   useEffect(() => {
     if (!hasCurrencyInfo) {
       if (activeCurrency !== null) setActiveCurrency(null);
@@ -210,9 +219,7 @@ export default function YearlyIncomeExpenseBarChart({
       if (tx.type === "expense") base[m].expense += amount;
     }
 
-    for (const row of base) {
-      row.net = row.income - row.expense;
-    }
+    for (const row of base) row.net = row.income - row.expense;
 
     return base;
   }, [
@@ -246,22 +253,28 @@ export default function YearlyIncomeExpenseBarChart({
       }
     }
 
-    return {
-      maxIncome,
-      maxIncomeMonth,
-      maxExpense,
-      maxExpenseMonth,
-    };
+    return { maxIncome, maxIncomeMonth, maxExpense, maxExpenseMonth };
   }, [chartData]);
+
+  const yearSourceLabel =
+    yearSource === "filter" ? "from Year filter" : "current year";
 
   return (
     <section className="mb-6">
       <div className="flex items-center justify-between mb-2">
         <div>
-          <h2 className="text-lg font-semibold">Calendar Year Income vs Expenses</h2>
-          <p className="text-xs text-gray-400">
-            Monthly totals for {targetYear}. Hover a month to see income, expenses,
-            net, and savings rate.
+          <h2 className="text-lg font-semibold">
+            Calendar Year Income vs Expenses
+          </h2>
+
+          {/* ✅ UX polish: explicit year caption */}
+          <div className="mt-0.5 text-[11px] text-gray-400">
+            Year: <span className="text-gray-200">{targetYear}</span>{" "}
+            <span className="text-gray-500">(calendar year — {yearSourceLabel})</span>
+          </div>
+
+          <p className="mt-1 text-xs text-gray-400">
+            Hover a month to see income, expenses, net, and savings rate.
           </p>
         </div>
 
@@ -287,7 +300,8 @@ export default function YearlyIncomeExpenseBarChart({
 
       {!hasAnyActivity ? (
         <p className="text-xs text-gray-500">
-          No income/expense activity found for {targetYear} (based on current filters).
+          No income/expense activity found for {targetYear} (based on current
+          filters).
         </p>
       ) : (
         <div className="border border-gray-800 rounded-lg bg-black/40 p-4 h-72">
@@ -298,7 +312,6 @@ export default function YearlyIncomeExpenseBarChart({
               barGap={6}
               margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
             >
-              {/* Patterns for monochrome differentiation */}
               <defs>
                 <pattern
                   id="expenseHatch"
@@ -307,7 +320,14 @@ export default function YearlyIncomeExpenseBarChart({
                   patternUnits="userSpaceOnUse"
                   patternTransform="rotate(45)"
                 >
-                  <line x1="0" y1="0" x2="0" y2="6" stroke="#ffffff" strokeWidth="2" />
+                  <line
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="6"
+                    stroke="#ffffff"
+                    strokeWidth="2"
+                  />
                 </pattern>
               </defs>
 
@@ -329,7 +349,9 @@ export default function YearlyIncomeExpenseBarChart({
 
               <Tooltip
                 content={
-                  <CustomTooltip currency={hasCurrencyInfo ? activeCurrency : null} />
+                  <CustomTooltip
+                    currency={hasCurrencyInfo ? activeCurrency : null}
+                  />
                 }
               />
 
@@ -340,7 +362,6 @@ export default function YearlyIncomeExpenseBarChart({
                 }}
               />
 
-              {/* Expenses: hatched (white-only), Income: solid white */}
               <Bar
                 dataKey="expense"
                 name="Expenses"
@@ -358,7 +379,6 @@ export default function YearlyIncomeExpenseBarChart({
                 radius={[6, 6, 0, 0]}
               />
 
-              {/* Net overlay line (dashed) */}
               <Line
                 type="monotone"
                 dataKey="net"
@@ -370,7 +390,6 @@ export default function YearlyIncomeExpenseBarChart({
                 opacity={0.9}
               />
 
-              {/* Peak markers */}
               {peaks.maxIncomeMonth && peaks.maxIncome > 0 && (
                 <ReferenceDot
                   x={peaks.maxIncomeMonth}

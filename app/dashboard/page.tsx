@@ -506,7 +506,7 @@ export default function DashboardPage() {
       if (walletFilter !== "all" && tx.wallet_id !== walletFilter) return false;
 
       const category = tx.category_id ? categoryMap[tx.category_id] : null;
-      if (isInternalTransferCategory(category)) return false; // ✅ FIXED
+      if (isInternalTransferCategory(category)) return false;
 
       if (categoryFilter !== "all" && tx.category_id !== categoryFilter)
         return false;
@@ -694,6 +694,7 @@ export default function DashboardPage() {
             categories={categories}
             targetYear={targetCalendarYear}
             walletFilter={walletFilter}
+            yearSource={yearFilter === "all" ? "current" : "filter"} // ✅ NEW
           />
         )}
 
