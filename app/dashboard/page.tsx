@@ -14,6 +14,7 @@ import CumulativeNetBalanceChart from "@/components/dashboard/CumulativeNetBalan
 import SmartInsightsPanel from "@/components/dashboard/SmartInsightsPanel";
 import BudgetInsightsPanel from "@/components/dashboard/BudgetInsightsPanel";
 import AiInsightsSidebar from "@/components/dashboard/AiInsightsSidebar";
+import YearlyIncomeExpenseBarChart from "@/components/dashboard/YearlyIncomeExpenseBarChart";
 
 type Wallet = {
   id: string;
@@ -505,7 +506,7 @@ export default function DashboardPage() {
       if (walletFilter !== "all" && tx.wallet_id !== walletFilter) return false;
 
       const category = tx.category_id ? categoryMap[tx.category_id] : null;
-      if (isInternalTransferCategory(category)) return false;
+      if (isInternalTransferCategory(category)) return false; // ✅ FIXED
 
       if (categoryFilter !== "all" && tx.category_id !== categoryFilter)
         return false;
@@ -558,6 +559,15 @@ export default function DashboardPage() {
       return (a.currencyCode || "").localeCompare(b.currencyCode || "");
     });
     return points;
+  })();
+
+  // Calendar-year selection for the new bar chart:
+  // - if Year filter is "all", default to current calendar year
+  // - else use the selected year
+  const targetCalendarYear = (() => {
+    if (yearFilter === "all") return new Date().getFullYear();
+    const parsed = Number(yearFilter);
+    return Number.isFinite(parsed) ? parsed : new Date().getFullYear();
   })();
 
   const selectedDate = new Date(selectedYear, selectedMonth, 1);
@@ -674,6 +684,16 @@ export default function DashboardPage() {
             selectedMonth={selectedMonth}
             walletFilter={walletFilter}
             categoryFilter={categoryFilter}
+          />
+        )}
+
+        {/* Calendar Year Income vs Expenses (monthly bars) */}
+        {!loadingData && (
+          <YearlyIncomeExpenseBarChart
+            transactions={transactions}
+            categories={categories}
+            targetYear={targetCalendarYear}
+            walletFilter={walletFilter}
           />
         )}
 
