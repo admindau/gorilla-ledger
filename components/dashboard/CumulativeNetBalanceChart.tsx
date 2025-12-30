@@ -93,7 +93,7 @@ export default function CumulativeNetBalanceChart({
     hasCurrencyInfo ? currencies[0] : null
   );
 
-  // Best practice: keep activeCurrency valid when data/filters change
+  // Keep activeCurrency valid when data/filters change
   useEffect(() => {
     if (!hasCurrencyInfo) {
       if (activeCurrency !== null) setActiveCurrency(null);
@@ -114,26 +114,19 @@ export default function CumulativeNetBalanceChart({
         ? data.filter((row) => getCurrency(row) === activeCurrency)
         : data;
 
-    // Group by date (daily preferred), compute cumulative net balance
-    const perDate = new Map<
-      string,
-      { label: string; net: number; currencyCode?: string }
-    >();
+    // Group by date (daily preferred), compute cumulative net FLOW
+    const perDate = new Map<string, { label: string; net: number }>();
 
     for (const row of filtered) {
       const key = getRawDate(row);
       if (!key) continue;
 
-      const existing = perDate.get(key) ?? {
-        label: key,
-        net: 0,
-        currencyCode: getCurrency(row) || undefined,
-      };
+      const existing = perDate.get(key) ?? { label: key, net: 0 };
 
       const income = row.income ?? 0;
       const expense = row.expense ?? 0;
 
-      // Both values are positive; net is income - expense
+      // Net flow for the day: income - expense
       existing.net += income - expense;
 
       perDate.set(key, existing);
@@ -149,8 +142,7 @@ export default function CumulativeNetBalanceChart({
       return {
         label: row.label,
         net: row.net,
-        balance: running,
-        currencyCode: row.currencyCode,
+        cumulativeNetFlow: running,
       };
     });
   }, [data, hasRawData, hasCurrencyInfo, activeCurrency]);
@@ -170,11 +162,11 @@ export default function CumulativeNetBalanceChart({
       <div className="flex items-center justify-between mb-1">
         <div>
           <h2 className="text-lg font-semibold">
-            Cumulative Net Balance – All Time
+            Cumulative Net Flow — All Time
           </h2>
           <p className="text-xs text-gray-400">
-            Net income minus expenses, stacked over time. Use the currency
-            toggle to track long-term balance trends.
+            Income minus expenses accumulated over time. This reflects net flow
+            (not wallet balances) and does not include starting balances.
           </p>
         </div>
 
@@ -200,7 +192,7 @@ export default function CumulativeNetBalanceChart({
 
       {!hasData ? (
         <p className="text-xs text-gray-500">
-          No transactions yet to build a cumulative balance.
+          No transactions yet to build a cumulative net flow view.
         </p>
       ) : (
         <div className="border border-gray-800 rounded-lg bg-black/40 p-4 h-72">
@@ -240,7 +232,9 @@ export default function CumulativeNetBalanceChart({
                   if (!Number.isNaN(num)) return [formatNumber(num), name];
                   return [value, name];
                 }}
-                labelFormatter={(label) => `Date: ${formatDateLabel(String(label))}`}
+                labelFormatter={(label) =>
+                  `Date: ${formatDateLabel(String(label))}`
+                }
               />
 
               <Legend
@@ -252,8 +246,8 @@ export default function CumulativeNetBalanceChart({
 
               <Line
                 type="monotone"
-                dataKey="balance"
-                name="Cumulative balance"
+                dataKey="cumulativeNetFlow"
+                name="Cumulative net flow"
                 stroke="#22c55e"
                 strokeWidth={2}
                 dot={false}
