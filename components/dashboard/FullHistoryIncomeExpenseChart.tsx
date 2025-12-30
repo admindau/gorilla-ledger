@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   LineChart,
   Line,
@@ -14,8 +14,8 @@ import {
 
 type Point = {
   // incoming shape (daily or monthly)
-  day?: string;   // "2025-11-18"
-  date?: string;  // alternative
+  day?: string; // "2025-11-18"
+  date?: string; // alternative
   month?: string; // "2025-11"
   income: number;
   expense: number;
@@ -62,7 +62,7 @@ function formatMonthLabel(label: string): string {
 export default function FullHistoryIncomeExpenseChart({
   data,
 }: FullHistoryIncomeExpenseChartProps) {
-  const hasRawData = data && data.length > 0;
+  const hasRawData = Array.isArray(data) && data.length > 0;
 
   const currencies = useMemo(() => {
     const set = new Set<string>();
@@ -73,10 +73,24 @@ export default function FullHistoryIncomeExpenseChart({
     return Array.from(set).sort();
   }, [data]);
 
-  const [activeCurrency, setActiveCurrency] = useState<string | null>(
-    currencies.length > 0 ? currencies[0] : null
-  );
   const hasCurrencyInfo = currencies.length > 0;
+
+  const [activeCurrency, setActiveCurrency] = useState<string | null>(
+    hasCurrencyInfo ? currencies[0] : null
+  );
+
+  // Best practice: keep activeCurrency valid when data/filters change
+  useEffect(() => {
+    if (!hasCurrencyInfo) {
+      if (activeCurrency !== null) setActiveCurrency(null);
+      return;
+    }
+
+    if (!activeCurrency || !currencies.includes(activeCurrency)) {
+      setActiveCurrency(currencies[0] ?? null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasCurrencyInfo, currencies.join("|")]);
 
   const chartData = useMemo(() => {
     if (!hasRawData) return [];
@@ -95,6 +109,7 @@ export default function FullHistoryIncomeExpenseChart({
     for (const row of filtered) {
       const key = getMonthKey(row);
       if (!key) continue;
+
       const existing = buckets.get(key) ?? {
         label: key,
         income: 0,
@@ -124,6 +139,7 @@ export default function FullHistoryIncomeExpenseChart({
             currency toggle to focus on one currency at a time.
           </p>
         </div>
+
         {hasCurrencyInfo && (
           <div className="inline-flex rounded-full border border-gray-800 bg-black/60 p-0.5 text-[11px]">
             {currencies.map((code) => (
@@ -153,6 +169,7 @@ export default function FullHistoryIncomeExpenseChart({
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#222222" />
+
               <XAxis
                 dataKey="label"
                 tickFormatter={formatMonthLabel}
@@ -160,11 +177,14 @@ export default function FullHistoryIncomeExpenseChart({
                 axisLine={{ stroke: "#374151" }}
                 tickLine={{ stroke: "#374151" }}
               />
+
               <YAxis
                 tick={{ fontSize: 10, fill: "#9ca3af" }}
                 axisLine={{ stroke: "#374151" }}
                 tickLine={{ stroke: "#374151" }}
+                tickFormatter={(v) => Number(v).toLocaleString()}
               />
+
               <Tooltip
                 contentStyle={{
                   backgroundColor: "rgba(0,0,0,0.9)",
@@ -193,12 +213,14 @@ export default function FullHistoryIncomeExpenseChart({
                 }}
                 labelFormatter={(label) => `Month: ${formatMonthLabel(label)}`}
               />
+
               <Legend
                 wrapperStyle={{
                   fontSize: 11,
                   color: "#d1d5db",
                 }}
               />
+
               <Line
                 type="monotone"
                 dataKey="income"
