@@ -80,6 +80,19 @@ function daysAgoFromMs(ms: number) {
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
 
+/** Helpers for true monthly (densified) series */
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+function isoDay(year: number, month0: number, day: number) {
+  // month0 is 0-based
+  return `${year}-${pad2(month0 + 1)}-${pad2(day)}`;
+}
+function daysInMonth(year: number, month0: number) {
+  // month0 is 0-based; day 0 of next month gives last day of current month
+  return new Date(year, month0 + 1, 0).getDate();
+}
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -251,17 +264,13 @@ export default function DashboardPage() {
   }, [router]);
 
   async function handleLogout() {
-    // UI/UX hardening: warn if MFA enabled but no backup factor
-    if (mfaEnabled && !hasBackupFactor) {
-const ok = window.confirm(
-  mfaEnabled && !hasBackupFactor
-    ? "You are about to log out of Gorilla Ledger™.\n\nReminder: You have not configured a backup authenticator. If you lose access to your authenticator app, account recovery may not be possible.\n\nContinue?"
-    : "You are about to log out of Gorilla Ledger™. Continue?"
-);
+    const ok = window.confirm(
+      mfaEnabled && !hasBackupFactor
+        ? "You are about to log out of Gorilla Ledger™.\n\nReminder: You have not configured a backup authenticator. If you lose access to your authenticator app, account recovery may not be possible.\n\nContinue?"
+        : "You are about to log out of Gorilla Ledger™. Continue?"
+    );
 
-if (!ok) return;
-
-    }
+    if (!ok) return;
 
     await supabaseBrowserClient.auth.signOut();
     router.replace("/auth/login");
@@ -474,17 +483,81 @@ if (!ok) return;
   // Last 12 months slice for the historical chart
   const incomeExpenseTrendLast12: IncomeExpenseDailyPoint[] = (() => {
     if (incomeExpenseTrendData.length === 0) return [];
-    const today = new Date();
+    const today2 = new Date();
     const cutoff = new Date(
-      today.getFullYear() - 1,
-      today.getMonth(),
-      today.getDate()
+      today2.getFullYear() - 1,
+      today2.getMonth(),
+      today2.getDate()
     );
 
     return incomeExpenseTrendData.filter((row) => {
       const d = new Date(row.day);
       return d >= cutoff;
     });
+  })();
+
+  // -------- TRUE monthly daily series (Option A) --------
+  const monthlyIncomeExpenseData: IncomeExpenseDailyPoint[] = (() => {
+    // 1) Filter to selected month + wallet/category filters + exclude internal transfers
+    const monthTxs = transactions.filter((tx) => {
+      if (!isSelectedMonth(tx.occurred_at)) return false;
+
+      if (walletFilter !== "all" && tx.wallet_id !== walletFilter) return false;
+
+      const category = tx.category_id ? categoryMap[tx.category_id] : null;
+      if (isInternalTransferCategory(category)) return false;
+
+      if (categoryFilter !== "all" && tx.category_id !== categoryFilter)
+        return false;
+
+      return true;
+    });
+
+    // 2) Currencies in this month slice
+    const currencies = Array.from(
+      new Set(monthTxs.map((tx) => tx.currency_code).filter(Boolean))
+    ).sort();
+
+    if (currencies.length === 0) return [];
+
+    // 3) Pre-seed all days of month for each currency (densification)
+    const dim = daysInMonth(selectedYear, selectedMonth);
+    const map = new Map<
+      string,
+      { day: string; income: number; expense: number; currencyCode: string }
+    >();
+
+    for (const ccy of currencies) {
+      for (let day = 1; day <= dim; day++) {
+        const d = isoDay(selectedYear, selectedMonth, day);
+        const key = `${d}|${ccy}`;
+        map.set(key, { day: d, income: 0, expense: 0, currencyCode: ccy });
+      }
+    }
+
+    // 4) Accumulate
+    for (const tx of monthTxs) {
+      const d = new Date(tx.occurred_at);
+      if (Number.isNaN(d.getTime())) continue;
+
+      const day = d.toISOString().slice(0, 10);
+      const key = `${day}|${tx.currency_code}`;
+      const row = map.get(key);
+      if (!row) continue;
+
+      const amount = tx.amount_minor / 100;
+      if (tx.type === "income") row.income += amount;
+      else if (tx.type === "expense") row.expense += amount;
+    }
+
+    // 5) Sort and return
+    const points = Array.from(map.values());
+    points.sort((a, b) => {
+      const d = a.day.localeCompare(b.day);
+      if (d !== 0) return d;
+      return (a.currencyCode || "").localeCompare(b.currencyCode || "");
+    });
+    return points;
   })();
 
   const selectedDate = new Date(selectedYear, selectedMonth, 1);
@@ -780,20 +853,20 @@ if (!ok) return;
           )}
         </section>
 
-        {/* Monthly income vs expenses */}
+        {/* Monthly income vs expenses (TRUE monthly, month-scoped + densified) */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-2">
             Monthly Income vs Expenses
           </h2>
           {loadingData ? (
             <p className="text-gray-400 text-sm">Loading...</p>
-          ) : incomeExpenseTrendData.length === 0 ? (
+          ) : monthlyIncomeExpenseData.length === 0 ? (
             <p className="text-gray-500 text-sm">
               No transactions yet to build a trend.
             </p>
           ) : (
             <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <MonthlyIncomeExpenseChart data={incomeExpenseTrendData} />
+              <MonthlyIncomeExpenseChart data={monthlyIncomeExpenseData} />
             </div>
           )}
         </section>
