@@ -642,77 +642,45 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <main className="flex-1 px-4 py-6 max-w-6xl mx-auto w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-          <div>
-            <h1 className="text-2xl font-semibold">Overview</h1>
-            <p className="text-gray-400 text-sm">
-              High-level snapshot of your wallets, budgets, and activity.
-            </p>
-          </div>
-
-          {/* Month selector */}
-          <div className="inline-flex items-center gap-2 text-sm">
-            <button
-              type="button"
-              onClick={goToPreviousMonth}
-              className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
-            >
-              ◀
-            </button>
-            <div className="px-3 py-1 border border-gray-800 rounded-full bg-black/40 text-xs uppercase tracking-wide text-gray-300">
-              {monthLabel}
+      <main className="flex-1 px-4 py-6 max-w-7xl mx-auto w-full">
+        {/* Page header + month selector */}
+        <section className="mb-6">
+          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-semibold">Overview</h1>
+              <p className="text-gray-400 text-sm">
+                High-level snapshot of your wallets, budgets, and activity.
+              </p>
             </div>
-            <button
-              type="button"
-              onClick={goToNextMonth}
-              className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
-            >
-              ▶
-            </button>
+
+            {/* Month selector */}
+            <div className="inline-flex items-center gap-2 text-sm">
+              <button
+                type="button"
+                onClick={goToPreviousMonth}
+                className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
+              >
+                ◀
+              </button>
+              <div className="px-3 py-1 border border-gray-800 rounded-full bg-black/40 text-xs uppercase tracking-wide text-gray-300">
+                {monthLabel}
+              </div>
+              <button
+                type="button"
+                onClick={goToNextMonth}
+                className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
+              >
+                ▶
+              </button>
+            </div>
           </div>
-        </div>
 
-        {errorMsg && <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>}
+          {errorMsg && <p className="mt-4 text-red-400 text-sm">{errorMsg}</p>}
+        </section>
 
-        {/* Smart Insights */}
-        {!loadingData && (
-          <SmartInsightsPanel
-            transactions={transactions}
-            categories={categories}
-            selectedYear={selectedYear}
-            selectedMonth={selectedMonth}
-            walletFilter={walletFilter}
-            categoryFilter={categoryFilter}
-          />
-        )}
-
-        {/* Calendar Year Income vs Expenses (monthly bars) */}
-        {!loadingData && (
-          <YearlyIncomeExpenseBarChart
-            transactions={transactions}
-            categories={categories}
-            targetYear={targetCalendarYear}
-            walletFilter={walletFilter}
-            yearSource={yearFilter === "all" ? "current" : "filter"} // ✅ NEW
-          />
-        )}
-
-        {/* AI insights coach */}
-        {!loadingData && (
-          <AiInsightsSidebar
-            transactions={transactions}
-            categories={categories}
-            selectedYear={selectedYear}
-            selectedMonth={selectedMonth}
-            walletFilter={walletFilter}
-            categoryFilter={categoryFilter}
-          />
-        )}
-
-        {/* Summary cards */}
+        {/* KPI strip (Executive summary) */}
         <section className="grid gap-4 md:grid-cols-3 mb-8">
-          <div className="border border-gray-800 rounded p-4">
+          <div className="border border-gray-800 rounded p-4 bg-black/40">
             <div className="text-xs text-gray-400 uppercase mb-1">Wallets</div>
             <div className="text-2xl font-semibold">{wallets.length}</div>
             <div className="text-xs text-gray-500 mt-1">
@@ -720,7 +688,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="border border-gray-800 rounded p-4">
+          <div className="border border-gray-800 rounded p-4 bg-black/40">
             <div className="text-xs text-gray-400 uppercase mb-1">
               Income – {monthLabel}
             </div>
@@ -741,7 +709,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="border border-gray-800 rounded p-4">
+          <div className="border border-gray-800 rounded p-4 bg-black/40">
             <div className="text-xs text-gray-400 uppercase mb-1">
               Expenses – {monthLabel}
             </div>
@@ -763,8 +731,34 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Total Balance by currency */}
+        {/* Executive trend (Hero chart) */}
         <section className="mb-8">
+          <div className="flex items-baseline justify-between gap-3 mb-2">
+            <h2 className="text-lg font-semibold">
+              Calendar-Year Income vs Expenses
+            </h2>
+            <div className="text-[11px] text-gray-400">
+              Executive monthly trend for {targetCalendarYear}.
+            </div>
+          </div>
+
+          {loadingData ? (
+            <p className="text-gray-400 text-sm">Loading...</p>
+          ) : (
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              <YearlyIncomeExpenseBarChart
+                transactions={transactions}
+                categories={categories}
+                targetYear={targetCalendarYear}
+                walletFilter={walletFilter}
+                yearSource={yearFilter === "all" ? "current" : "filter"}
+              />
+            </div>
+          )}
+        </section>
+
+        {/* Total Balance by currency (secondary KPI block) */}
+        <section className="mb-10">
           <h2 className="text-lg font-semibold mb-2">
             Total Balance by Currency
           </h2>
@@ -779,7 +773,7 @@ export default function DashboardPage() {
               {Object.entries(totalsByCurrency).map(([currency, minor]) => (
                 <div
                   key={currency}
-                  className="border border-gray-800 rounded px-4 py-2"
+                  className="border border-gray-800 rounded px-4 py-3 bg-black/40"
                 >
                   <div className="text-xs text-gray-400 uppercase">
                     {currency}
@@ -793,7 +787,53 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Chart filters */}
+        {/* Intelligence section (Smart + AI) */}
+        <section className="mb-10">
+          <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-3">
+            <div>
+              <h2 className="text-lg font-semibold">Intelligence</h2>
+              <p className="text-[11px] text-gray-400">
+                Actionable insights based on your recent activity.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Smart Insights */}
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              {loadingData ? (
+                <p className="text-gray-400 text-sm">Loading...</p>
+              ) : (
+                <SmartInsightsPanel
+                  transactions={transactions}
+                  categories={categories}
+                  selectedYear={selectedYear}
+                  selectedMonth={selectedMonth}
+                  walletFilter={walletFilter}
+                  categoryFilter={categoryFilter}
+                />
+              )}
+            </div>
+
+            {/* AI Insights */}
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              {loadingData ? (
+                <p className="text-gray-400 text-sm">Loading...</p>
+              ) : (
+                <AiInsightsSidebar
+                  transactions={transactions}
+                  categories={categories}
+                  selectedYear={selectedYear}
+                  selectedMonth={selectedMonth}
+                  walletFilter={walletFilter}
+                  categoryFilter={categoryFilter}
+                />
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Chart filters (placed before the analytics it controls) */}
         <section className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
@@ -853,263 +893,291 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Spending by Category (donut) */}
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-2">
-            Spending by Category – {monthLabel}
-          </h2>
-          {loadingData ? (
-            <p className="text-gray-400 text-sm">Loading...</p>
-          ) : (
+        {/* Composition row: Spending donut + Top categories */}
+        <section className="mb-10">
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Spending by Category (donut) */}
             <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <SpendingByCategoryChart
-                transactions={transactions}
-                categories={categories}
-                selectedYear={selectedYear}
-                selectedMonth={selectedMonth}
-                walletFilter={walletFilter}
-                categoryFilter={categoryFilter}
+              <h2 className="text-lg font-semibold mb-2">
+                Spending by Category – {monthLabel}
+              </h2>
+              {loadingData ? (
+                <p className="text-gray-400 text-sm">Loading...</p>
+              ) : (
+                <SpendingByCategoryChart
+                  transactions={transactions}
+                  categories={categories}
+                  selectedYear={selectedYear}
+                  selectedMonth={selectedMonth}
+                  walletFilter={walletFilter}
+                  categoryFilter={categoryFilter}
+                />
+              )}
+            </div>
+
+            {/* Top categories bar chart */}
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              <h2 className="text-lg font-semibold mb-2">
+                Top Spending Categories – This Year
+              </h2>
+              {loadingData ? (
+                <p className="text-gray-400 text-sm">Loading...</p>
+              ) : (
+                <TopCategoriesBarChart
+                  transactions={transactions}
+                  categories={categories}
+                  walletFilter={walletFilter}
+                  categoryFilter={categoryFilter}
+                  yearFilter={yearFilter}
+                />
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Budget control section */}
+        <section className="mb-10">
+          <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-2">
+            <div>
+              <h2 className="text-lg font-semibold">
+                Budget Control – {monthLabel}
+              </h2>
+              <p className="text-[11px] text-gray-400">
+                Your budget health and budget-vs-actual performance for the
+                selected month.
+              </p>
+            </div>
+          </div>
+
+          {/* Budget insights (above the table) */}
+          {!loadingData && totalBudgets > 0 && (
+            <div className="mb-4">
+              <BudgetInsightsPanel
+                summaries={budgetSummaries as any}
+                riskThreshold={RISK_THRESHOLD}
+                monthLabel={monthLabel}
               />
             </div>
           )}
-        </section>
 
-        {/* Monthly income vs expenses (TRUE monthly, month-scoped + densified) */}
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-2">
-            Monthly Income vs Expenses
-          </h2>
-          {loadingData ? (
-            <p className="text-gray-400 text-sm">Loading...</p>
-          ) : monthlyIncomeExpenseData.length === 0 ? (
-            <p className="text-gray-500 text-sm">
-              No transactions yet to build a trend.
-            </p>
-          ) : (
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <MonthlyIncomeExpenseChart data={monthlyIncomeExpenseData} />
-            </div>
-          )}
-        </section>
+          {/* Budgets vs Actual */}
+          <div className="border border-gray-800 rounded p-4 bg-black/40">
+            <h3 className="text-lg font-semibold mb-2">
+              Budgets vs Actual – {monthLabel}
+            </h3>
 
-        {/* Historical 12-month income vs expenses */}
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-2">
-            Historical Income vs Expenses – Last 12 Months
-          </h2>
-          {loadingData ? (
-            <p className="text-gray-400 text-sm">Loading...</p>
-          ) : incomeExpenseTrendLast12.length === 0 ? (
-            <p className="text-gray-500 text-sm">
-              Not enough history yet to show this trend.
-            </p>
-          ) : (
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <HistoricalIncomeExpenseChart data={incomeExpenseTrendLast12} />
-            </div>
-          )}
-        </section>
+            {loadingData ? (
+              <p className="text-gray-400 text-sm">Loading...</p>
+            ) : totalBudgets === 0 ? (
+              <p className="text-gray-500 text-sm">
+                You don&apos;t have any budgets set for this month yet. Add some
+                from the Budgets page.
+              </p>
+            ) : (
+              <>
+                {/* Budgets health summary */}
+                <div className="mb-4 flex flex-wrap gap-2 text-xs text-gray-300">
+                  <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
+                    {totalBudgets}{" "}
+                    {totalBudgets === 1 ? "budget" : "budgets"} this month
+                  </span>
+                  <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
+                    {budgetsOnTrack}{" "}
+                    {budgetsOnTrack === 1 ? "on track" : "on track budgets"}
+                  </span>
+                  <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
+                    {budgetsAtRisk}{" "}
+                    {budgetsAtRisk === 1 ? "at risk" : "at risk budgets"}
+                  </span>
+                  <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
+                    {budgetsOver}{" "}
+                    {budgetsOver === 1 ? "over budget" : "over-budget items"}
+                  </span>
+                </div>
 
-        {/* All-Time Income vs Expenses */}
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-2">
-            All-Time Income vs Expenses
-          </h2>
-          {loadingData ? (
-            <p className="text-gray-400 text-sm">Loading...</p>
-          ) : incomeExpenseTrendData.length === 0 ? (
-            <p className="text-gray-500 text-sm">
-              No transactions yet to build an all-time trend.
-            </p>
-          ) : (
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <FullHistoryIncomeExpenseChart data={incomeExpenseTrendData} />
-            </div>
-          )}
-        </section>
+                <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
+                  {budgetSummaries.map((item) => {
+                    const { budget, wallet, category, actualMinor, usedRatio } =
+                      item;
 
-        {/* Cumulative Net Flow — All Time */}
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-2">
-            Cumulative Net Flow — All Time
-          </h2>
-          <p className="text-[11px] text-gray-400 mb-2">
-            Income minus expenses accumulated over time (net flow). This does not
-            represent wallet balances and does not include starting balances.
-          </p>
+                    const currency = wallet?.currency_code ?? "";
+                    const isExpense = category && category.type === "expense";
+                    const labelVerb = isExpense ? "Spent" : "Received";
 
-          {loadingData ? (
-            <p className="text-gray-400 text-sm">Loading...</p>
-          ) : incomeExpenseTrendData.length === 0 ? (
-            <p className="text-gray-500 text-sm">
-              No transactions yet to build a cumulative net flow view.
-            </p>
-          ) : (
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <CumulativeNetBalanceChart data={incomeExpenseTrendData} />
-            </div>
-          )}
-        </section>
+                    const usedPercent = Math.round(usedRatio * 100);
+                    const clampedPercent = Math.max(0, Math.min(usedPercent, 130));
 
-        {/* Top categories bar chart */}
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-2">
-            Top Spending Categories – This Year
-          </h2>
-          {loadingData ? (
-            <p className="text-gray-400 text-sm">Loading...</p>
-          ) : (
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <TopCategoriesBarChart
-                transactions={transactions}
-                categories={categories}
-                walletFilter={walletFilter}
-                categoryFilter={categoryFilter}
-                yearFilter={yearFilter}
-              />
-            </div>
-          )}
-        </section>
+                    const barFillPercent = Math.max(
+                      0,
+                      Math.min(clampedPercent, 100)
+                    );
 
-        {/* Budget insights (above the table) */}
-        {!loadingData && totalBudgets > 0 && (
-          <BudgetInsightsPanel
-            summaries={budgetSummaries as any}
-            riskThreshold={RISK_THRESHOLD}
-            monthLabel={monthLabel}
-          />
-        )}
+                    const barBorderClass =
+                      usedPercent > 100 ? "border-white/60" : "border-gray-700";
 
-        {/* Budgets vs Actual */}
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-2">
-            Budgets vs Actual – {monthLabel}
-          </h2>
+                    let statusLabel = "ON TRACK";
+                    let statusBorder = "border-gray-700";
+                    let statusText = "text-gray-300";
 
-          {loadingData ? (
-            <p className="text-gray-400 text-sm">Loading...</p>
-          ) : totalBudgets === 0 ? (
-            <p className="text-gray-500 text-sm">
-              You don&apos;t have any budgets set for this month yet. Add some
-              from the Budgets page.
-            </p>
-          ) : (
-            <>
-              {/* Budgets health summary */}
-              <div className="mb-3 flex flex-wrap gap-2 text-xs text-gray-300">
-                <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
-                  {totalBudgets}{" "}
-                  {totalBudgets === 1 ? "budget" : "budgets"} this month
-                </span>
-                <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
-                  {budgetsOnTrack}{" "}
-                  {budgetsOnTrack === 1 ? "on track" : "on track budgets"}
-                </span>
-                <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
-                  {budgetsAtRisk}{" "}
-                  {budgetsAtRisk === 1 ? "at risk" : "at risk budgets"}
-                </span>
-                <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
-                  {budgetsOver}{" "}
-                  {budgetsOver === 1 ? "over budget" : "over-budget items"}
-                </span>
-              </div>
+                    if (usedRatio > 1) {
+                      statusLabel = "OVER BUDGET";
+                      statusBorder = "border-white/70";
+                      statusText = "text-white";
+                    } else if (usedRatio > RISK_THRESHOLD && usedRatio <= 1) {
+                      statusLabel = "AT RISK";
+                      statusBorder = "border-gray-500";
+                      statusText = "text-gray-200";
+                    }
 
-              <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
-                {budgetSummaries.map((item) => {
-                  const { budget, wallet, category, actualMinor, usedRatio } =
-                    item;
-
-                  const currency = wallet?.currency_code ?? "";
-                  const isExpense = category && category.type === "expense";
-                  const labelVerb = isExpense ? "Spent" : "Received";
-
-                  const usedPercent = Math.round(usedRatio * 100);
-                  const clampedPercent = Math.max(0, Math.min(usedPercent, 130));
-
-                  const barFillPercent = Math.max(
-                    0,
-                    Math.min(clampedPercent, 100)
-                  );
-
-                  const barBorderClass =
-                    usedPercent > 100 ? "border-white/60" : "border-gray-700";
-
-                  let statusLabel = "ON TRACK";
-                  let statusBorder = "border-gray-700";
-                  let statusText = "text-gray-300";
-
-                  if (usedRatio > 1) {
-                    statusLabel = "OVER BUDGET";
-                    statusBorder = "border-white/70";
-                    statusText = "text-white";
-                  } else if (usedRatio > RISK_THRESHOLD && usedRatio <= 1) {
-                    statusLabel = "AT RISK";
-                    statusBorder = "border-gray-500";
-                    statusText = "text-gray-200";
-                  }
-
-                  return (
-                    <div
-                      key={budget.id}
-                      className="flex flex-col md:flex-row md:items-center md:justify-between px-4 py-3 gap-3"
-                    >
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <div className="font-medium">
-                            {category ? category.name : "Unknown category"}
+                    return (
+                      <div
+                        key={budget.id}
+                        className="flex flex-col md:flex-row md:items-center md:justify-between px-4 py-3 gap-3"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <div className="font-medium">
+                              {category ? category.name : "Unknown category"}
+                            </div>
+                            <span
+                              className={`text-[9px] px-2 py-0.5 rounded-full border ${statusBorder} ${statusText} tracking-wide uppercase`}
+                            >
+                              {statusLabel}
+                            </span>
                           </div>
-                          <span
-                            className={`text-[9px] px-2 py-0.5 rounded-full border ${statusBorder} ${statusText} tracking-wide uppercase`}
-                          >
-                            {statusLabel}
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          {wallet ? wallet.name : "All wallets"}{" "}
-                          {currency ? `• ${currency}` : ""}
-                        </div>
-                      </div>
-
-                      <div className="w-full md:w-1/2">
-                        <div className="flex items-baseline justify-between mb-1">
-                          <div className="text-sm">
-                            {labelVerb} {formatMinorToAmount(actualMinor)} /{" "}
-                            {formatMinorToAmount(budget.amount_minor)}{" "}
-                            {currency}
-                          </div>
-                          <div className="text-xs text-gray-400 ml-3 whitespace-nowrap">
-                            {usedPercent}% of budget used
+                          <div className="text-xs text-gray-400">
+                            {wallet ? wallet.name : "All wallets"}{" "}
+                            {currency ? `• ${currency}` : ""}
                           </div>
                         </div>
 
-                        {/* Progress bar */}
-                        <div
-                          className={`w-full h-2 rounded-full bg-black border ${barBorderClass} overflow-hidden`}
-                        >
+                        <div className="w-full md:w-1/2">
+                          <div className="flex items-baseline justify-between mb-1">
+                            <div className="text-sm">
+                              {labelVerb} {formatMinorToAmount(actualMinor)} /{" "}
+                              {formatMinorToAmount(budget.amount_minor)}{" "}
+                              {currency}
+                            </div>
+                            <div className="text-xs text-gray-400 ml-3 whitespace-nowrap">
+                              {usedPercent}% of budget used
+                            </div>
+                          </div>
+
+                          {/* Progress bar */}
                           <div
-                            className="h-full bg-white"
-                            style={{ width: `${barFillPercent}%` }}
-                          />
-                        </div>
+                            className={`w-full h-2 rounded-full bg-black border ${barBorderClass} overflow-hidden`}
+                          >
+                            <div
+                              className="h-full bg-white"
+                              style={{ width: `${barFillPercent}%` }}
+                            />
+                          </div>
 
-                        {usedPercent > 100 && (
-                          <div className="mt-1 text-[11px] text-gray-400">
-                            You&apos;ve exceeded this budget.
-                          </div>
-                        )}
-                        {usedPercent <= 100 && usedRatio > RISK_THRESHOLD && (
-                          <div className="mt-1 text-[11px] text-gray-400">
-                            You&apos;re approaching this budget&apos;s limit.
-                          </div>
-                        )}
+                          {usedPercent > 100 && (
+                            <div className="mt-1 text-[11px] text-gray-400">
+                              You&apos;ve exceeded this budget.
+                            </div>
+                          )}
+                          {usedPercent <= 100 && usedRatio > RISK_THRESHOLD && (
+                            <div className="mt-1 text-[11px] text-gray-400">
+                              You&apos;re approaching this budget&apos;s limit.
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+
+        {/* Advanced analytics (everything still present, just grouped more cleanly) */}
+        <section className="mb-12">
+          <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-3">
+            <div>
+              <h2 className="text-lg font-semibold">Advanced Analytics</h2>
+              <p className="text-[11px] text-gray-400">
+                Trend charts to understand seasonality, long-term patterns, and
+                all-time net flow.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2 mb-4">
+            {/* Monthly income vs expenses (TRUE monthly, month-scoped + densified) */}
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              <h3 className="text-lg font-semibold mb-2">
+                Monthly Income vs Expenses
+              </h3>
+              {loadingData ? (
+                <p className="text-gray-400 text-sm">Loading...</p>
+              ) : monthlyIncomeExpenseData.length === 0 ? (
+                <p className="text-gray-500 text-sm">
+                  No transactions yet to build a trend.
+                </p>
+              ) : (
+                <MonthlyIncomeExpenseChart data={monthlyIncomeExpenseData} />
+              )}
+            </div>
+
+            {/* Historical 12-month income vs expenses */}
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              <h3 className="text-lg font-semibold mb-2">
+                Historical Income vs Expenses – Last 12 Months
+              </h3>
+              {loadingData ? (
+                <p className="text-gray-400 text-sm">Loading...</p>
+              ) : incomeExpenseTrendLast12.length === 0 ? (
+                <p className="text-gray-500 text-sm">
+                  Not enough history yet to show this trend.
+                </p>
+              ) : (
+                <HistoricalIncomeExpenseChart data={incomeExpenseTrendLast12} />
+              )}
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* All-Time Income vs Expenses */}
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              <h3 className="text-lg font-semibold mb-2">
+                All-Time Income vs Expenses
+              </h3>
+              {loadingData ? (
+                <p className="text-gray-400 text-sm">Loading...</p>
+              ) : incomeExpenseTrendData.length === 0 ? (
+                <p className="text-gray-500 text-sm">
+                  No transactions yet to build an all-time trend.
+                </p>
+              ) : (
+                <FullHistoryIncomeExpenseChart data={incomeExpenseTrendData} />
+              )}
+            </div>
+
+            {/* Cumulative Net Flow — All Time */}
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              <h3 className="text-lg font-semibold mb-2">
+                Cumulative Net Flow — All Time
+              </h3>
+              <p className="text-[11px] text-gray-400 mb-2">
+                Income minus expenses accumulated over time (net flow). This
+                does not represent wallet balances and does not include starting
+                balances.
+              </p>
+
+              {loadingData ? (
+                <p className="text-gray-400 text-sm">Loading...</p>
+              ) : incomeExpenseTrendData.length === 0 ? (
+                <p className="text-gray-500 text-sm">
+                  No transactions yet to build a cumulative net flow view.
+                </p>
+              ) : (
+                <CumulativeNetBalanceChart data={incomeExpenseTrendData} />
+              )}
+            </div>
+          </div>
         </section>
       </main>
     </div>
