@@ -1108,9 +1108,9 @@ export default function DashboardPage() {
           <div className="grid gap-4 lg:grid-cols-2 mb-4">
             {/* Monthly income vs expenses (TRUE monthly, month-scoped + densified) */}
             <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <h3 className="text-lg font-semibold mb-2">
-                Monthly Income vs Expenses
-              </h3>
+              <h5 className="text-lg font-semibold mb-2">
+                Monthly Budget Summary
+              </h5>
               {loadingData ? (
                 <p className="text-gray-400 text-sm">Loading...</p>
               ) : monthlyIncomeExpenseData.length === 0 ? (
@@ -1124,9 +1124,9 @@ export default function DashboardPage() {
 
             {/* Historical 12-month income vs expenses */}
             <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <h3 className="text-lg font-semibold mb-2">
-                Historical Income vs Expenses – Last 12 Months
-              </h3>
+              <h5 className="text-lg font-semibold mb-2">
+                Annual Performance
+              </h5>
               {loadingData ? (
                 <p className="text-gray-400 text-sm">Loading...</p>
               ) : incomeExpenseTrendLast12.length === 0 ? (
@@ -1142,9 +1142,9 @@ export default function DashboardPage() {
           <div className="grid gap-4 lg:grid-cols-2">
             {/* All-Time Income vs Expenses */}
             <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <h3 className="text-lg font-semibold mb-2">
-                All-Time Income vs Expenses
-              </h3>
+              <h5 className="text-lg font-semibold mb-2">
+                Lifetime Cash Flow
+              </h5>
               {loadingData ? (
                 <p className="text-gray-400 text-sm">Loading...</p>
               ) : incomeExpenseTrendData.length === 0 ? (
@@ -1158,14 +1158,9 @@ export default function DashboardPage() {
 
             {/* Cumulative Net Flow — All Time */}
             <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <h3 className="text-lg font-semibold mb-2">
-                Cumulative Net Flow — All Time
-              </h3>
-              <p className="text-[11px] text-gray-400 mb-2">
-                Income minus expenses accumulated over time (net flow). This
-                does not represent wallet balances and does not include starting
-                balances.
-              </p>
+              <h5 className="text-lg font-semibold mb-2">
+                The Bottom Line
+              </h5>
 
               {loadingData ? (
                 <p className="text-gray-400 text-sm">Loading...</p>
