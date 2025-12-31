@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -94,15 +94,6 @@ function daysInMonth(year: number, month0: number) {
   return new Date(year, month0 + 1, 0).getDate();
 }
 
-function formatMonthLabel(year: number, month0: number) {
-  const d = new Date(year, month0, 1);
-  return d.toLocaleString("en", { month: "long", year: "numeric" });
-}
-
-function cardShellClassName() {
-  return "border border-gray-800 rounded-lg bg-black/40 p-4";
-}
-
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -129,7 +120,7 @@ export default function DashboardPage() {
   const [selectedYear, setSelectedYear] = useState(today.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth()); // 0-based
 
-  // Filters for charts (per wallet, per category, per year)
+  // 🔥 Filters for charts (per wallet, per category, per year)
   const [walletFilter, setWalletFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [yearFilter, setYearFilter] = useState<string>("all");
@@ -296,42 +287,35 @@ export default function DashboardPage() {
 
   // ----- Derived data -----
 
-  const walletMap = useMemo(
-    () => Object.fromEntries(wallets.map((w) => [w.id, w] as const)),
-    [wallets]
-  );
-  const categoryMap = useMemo(
-    () => Object.fromEntries(categories.map((c) => [c.id, c] as const)),
-    [categories]
+  const walletMap = Object.fromEntries(wallets.map((w) => [w.id, w] as const));
+  const categoryMap = Object.fromEntries(
+    categories.map((c) => [c.id, c] as const)
   );
 
   // Per-wallet balance (transfers DO affect balances, so we include them)
-  const walletBalances = useMemo(() => {
-    return wallets.map((w) => {
-      const walletTxs = transactions.filter((tx) => tx.wallet_id === w.id);
-      const delta = walletTxs.reduce((sum, tx) => {
-        const sign = tx.type === "income" ? 1 : -1;
-        return sum + sign * tx.amount_minor;
-      }, 0);
+  const walletBalances = wallets.map((w) => {
+    const walletTxs = transactions.filter((tx) => tx.wallet_id === w.id);
+    const delta = walletTxs.reduce((sum, tx) => {
+      const sign = tx.type === "income" ? 1 : -1;
+      return sum + sign * tx.amount_minor;
+    }, 0);
 
-      const balanceMinor = w.starting_balance_minor + delta;
+    const balanceMinor = w.starting_balance_minor + delta;
 
-      return {
-        ...w,
-        balanceMinor,
-      };
-    });
-  }, [wallets, transactions]);
+    return {
+      ...w,
+      balanceMinor,
+    };
+  });
 
   // Totals per currency
-  const totalsByCurrency: Record<string, number> = useMemo(() => {
-    const totals: Record<string, number> = {};
-    for (const wb of walletBalances) {
-      if (!totals[wb.currency_code]) totals[wb.currency_code] = 0;
-      totals[wb.currency_code] += wb.balanceMinor;
+  const totalsByCurrency: Record<string, number> = {};
+  for (const wb of walletBalances) {
+    if (!totalsByCurrency[wb.currency_code]) {
+      totalsByCurrency[wb.currency_code] = 0;
     }
-    return totals;
-  }, [walletBalances]);
+    totalsByCurrency[wb.currency_code] += wb.balanceMinor;
+  }
 
   function isSelectedMonth(dateStr: string): boolean {
     const d = new Date(dateStr);
@@ -363,21 +347,6 @@ export default function DashboardPage() {
 
   const monthIncomeEntries = Object.entries(monthIncomeByCurrency);
   const monthExpenseEntries = Object.entries(monthExpenseByCurrency);
-
-  const monthNetEntries = useMemo(() => {
-    const set = new Set<string>([
-      ...Object.keys(monthIncomeByCurrency),
-      ...Object.keys(monthExpenseByCurrency),
-    ]);
-
-    const rows: Array<[string, number]> = [];
-    for (const ccy of Array.from(set).sort()) {
-      const inc = monthIncomeByCurrency[ccy] ?? 0;
-      const exp = monthExpenseByCurrency[ccy] ?? 0;
-      rows.push([ccy, inc - exp]);
-    }
-    return rows;
-  }, [monthIncomeByCurrency, monthExpenseByCurrency]);
 
   // Budget vs Actual for selected month
   const budgetsThisMonth = budgets.filter(
@@ -528,7 +497,7 @@ export default function DashboardPage() {
     });
   })();
 
-  // -------- TRUE monthly daily series (month-scoped + densified) --------
+  // -------- TRUE monthly daily series (Option A) --------
   const monthlyIncomeExpenseData: IncomeExpenseDailyPoint[] = (() => {
     // 1) Filter to selected month + wallet/category filters + exclude internal transfers
     const monthTxs = transactions.filter((tx) => {
@@ -592,7 +561,7 @@ export default function DashboardPage() {
     return points;
   })();
 
-  // Calendar-year selection for the yearly bar chart:
+  // Calendar-year selection for the new bar chart:
   // - if Year filter is "all", default to current calendar year
   // - else use the selected year
   const targetCalendarYear = (() => {
@@ -601,7 +570,11 @@ export default function DashboardPage() {
     return Number.isFinite(parsed) ? parsed : new Date().getFullYear();
   })();
 
-  const monthLabel = formatMonthLabel(selectedYear, selectedMonth);
+  const selectedDate = new Date(selectedYear, selectedMonth, 1);
+  const monthLabel = selectedDate.toLocaleString("en", {
+    month: "long",
+    year: "numeric",
+  });
 
   const lastSecurityLabel = lastCheckAt
     ? `${daysAgoFromMs(lastCheckAt)} day(s) ago`
@@ -649,7 +622,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Security posture row */}
+        {/* Security posture row (mobile-first; stays neat on all screens) */}
         <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
           <span className="text-gray-400">MFA:</span>
           <span className={mfaEnabled ? "text-emerald-400" : "text-gray-300"}>
@@ -670,21 +643,20 @@ export default function DashboardPage() {
       </header>
 
       <main className="flex-1 px-4 py-6 max-w-6xl mx-auto w-full">
-        {/* Page header + month selector */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div>
             <h1 className="text-2xl font-semibold">Overview</h1>
             <p className="text-gray-400 text-sm">
-              State → trend → breakdown → insight → control.
+              High-level snapshot of your wallets, budgets, and activity.
             </p>
           </div>
 
+          {/* Month selector */}
           <div className="inline-flex items-center gap-2 text-sm">
             <button
               type="button"
               onClick={goToPreviousMonth}
               className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
-              aria-label="Previous month"
             >
               ◀
             </button>
@@ -695,7 +667,6 @@ export default function DashboardPage() {
               type="button"
               onClick={goToNextMonth}
               className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
-              aria-label="Next month"
             >
               ▶
             </button>
@@ -704,26 +675,57 @@ export default function DashboardPage() {
 
         {errorMsg && <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>}
 
-        {/* KPI strip (Executive summary) */}
-        <section className="grid gap-4 md:grid-cols-4 mb-6">
-          <div className={cardShellClassName()}>
-            <div className="text-[11px] text-gray-400 uppercase mb-1">
-              Wallets
-            </div>
+        {/* Smart Insights */}
+        {!loadingData && (
+          <SmartInsightsPanel
+            transactions={transactions}
+            categories={categories}
+            selectedYear={selectedYear}
+            selectedMonth={selectedMonth}
+            walletFilter={walletFilter}
+            categoryFilter={categoryFilter}
+          />
+        )}
+
+        {/* Calendar Year Income vs Expenses (monthly bars) */}
+        {!loadingData && (
+          <YearlyIncomeExpenseBarChart
+            transactions={transactions}
+            categories={categories}
+            targetYear={targetCalendarYear}
+            walletFilter={walletFilter}
+            yearSource={yearFilter === "all" ? "current" : "filter"} // ✅ NEW
+          />
+        )}
+
+        {/* AI insights coach */}
+        {!loadingData && (
+          <AiInsightsSidebar
+            transactions={transactions}
+            categories={categories}
+            selectedYear={selectedYear}
+            selectedMonth={selectedMonth}
+            walletFilter={walletFilter}
+            categoryFilter={categoryFilter}
+          />
+        )}
+
+        {/* Summary cards */}
+        <section className="grid gap-4 md:grid-cols-3 mb-8">
+          <div className="border border-gray-800 rounded p-4">
+            <div className="text-xs text-gray-400 uppercase mb-1">Wallets</div>
             <div className="text-2xl font-semibold">{wallets.length}</div>
-            <div className="text-[11px] text-gray-500 mt-1">
-              Total wallets tracked.
+            <div className="text-xs text-gray-500 mt-1">
+              Total number of wallets you&apos;re tracking.
             </div>
           </div>
 
-          <div className={cardShellClassName()}>
-            <div className="text-[11px] text-gray-400 uppercase mb-1">
-              Income — {monthLabel}
+          <div className="border border-gray-800 rounded p-4">
+            <div className="text-xs text-gray-400 uppercase mb-1">
+              Income – {monthLabel}
             </div>
-            <div className="text-base font-semibold space-y-1">
-              {loadingData ? (
-                <div className="text-gray-500 text-sm">Loading...</div>
-              ) : monthIncomeEntries.length === 0 ? (
+            <div className="text-lg font-semibold space-y-1">
+              {monthIncomeEntries.length === 0 ? (
                 <div>0.00</div>
               ) : (
                 monthIncomeEntries.map(([currency, minor]) => (
@@ -733,19 +735,18 @@ export default function DashboardPage() {
                 ))
               )}
             </div>
-            <div className="text-[11px] text-gray-500 mt-1">
-              Internal transfers excluded.
+            <div className="text-xs text-gray-500 mt-1">
+              Totals per currency. Internal transfers excluded. No FX conversion
+              applied.
             </div>
           </div>
 
-          <div className={cardShellClassName()}>
-            <div className="text-[11px] text-gray-400 uppercase mb-1">
-              Expenses — {monthLabel}
+          <div className="border border-gray-800 rounded p-4">
+            <div className="text-xs text-gray-400 uppercase mb-1">
+              Expenses – {monthLabel}
             </div>
-            <div className="text-base font-semibold space-y-1">
-              {loadingData ? (
-                <div className="text-gray-500 text-sm">Loading...</div>
-              ) : monthExpenseEntries.length === 0 ? (
+            <div className="text-lg font-semibold space-y-1">
+              {monthExpenseEntries.length === 0 ? (
                 <div>0.00</div>
               ) : (
                 monthExpenseEntries.map(([currency, minor]) => (
@@ -755,45 +756,18 @@ export default function DashboardPage() {
                 ))
               )}
             </div>
-            <div className="text-[11px] text-gray-500 mt-1">
-              Internal transfers excluded.
-            </div>
-          </div>
-
-          <div className={cardShellClassName()}>
-            <div className="text-[11px] text-gray-400 uppercase mb-1">
-              Net Cash Flow — {monthLabel}
-            </div>
-            <div className="text-base font-semibold space-y-1">
-              {loadingData ? (
-                <div className="text-gray-500 text-sm">Loading...</div>
-              ) : monthNetEntries.length === 0 ? (
-                <div>0.00</div>
-              ) : (
-                monthNetEntries.map(([currency, minor]) => (
-                  <div key={currency}>
-                    {formatMinorToAmount(minor)} {currency}
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="text-[11px] text-gray-500 mt-1">
-              Income minus expenses.
+            <div className="text-xs text-gray-500 mt-1">
+              Totals per currency. Internal transfers excluded. No FX conversion
+              applied.
             </div>
           </div>
         </section>
 
         {/* Total Balance by currency */}
-        <section className="mb-6">
-          <div className="flex items-end justify-between gap-4 mb-2">
-            <div>
-              <h2 className="text-lg font-semibold">Total Balance</h2>
-              <p className="text-[11px] text-gray-400">
-                Aggregated wallet balances per currency (no FX conversion).
-              </p>
-            </div>
-          </div>
-
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">
+            Total Balance by Currency
+          </h2>
           {loadingData ? (
             <p className="text-gray-400 text-sm">Loading...</p>
           ) : Object.keys(totalsByCurrency).length === 0 ? (
@@ -801,10 +775,13 @@ export default function DashboardPage() {
               No balances yet – add a wallet and some transactions.
             </p>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {Object.entries(totalsByCurrency).map(([currency, minor]) => (
-                <div key={currency} className={cardShellClassName()}>
-                  <div className="text-[11px] text-gray-400 uppercase">
+                <div
+                  key={currency}
+                  className="border border-gray-800 rounded px-4 py-2"
+                >
+                  <div className="text-xs text-gray-400 uppercase">
                     {currency}
                   </div>
                   <div className="text-lg font-semibold">
@@ -816,426 +793,323 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* HERO: Calendar Year Income vs Expenses */}
+        {/* Chart filters */}
+        <section className="mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold">Chart Filters</h2>
+              <p className="text-[11px] text-gray-400">
+                Apply filters to the charts below, including spending and
+                income/expense trends.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs">
+              <div className="flex items-center gap-1">
+                <span className="text-gray-400">Wallet:</span>
+                <select
+                  value={walletFilter}
+                  onChange={(e) => setWalletFilter(e.target.value)}
+                  className="bg-black border border-gray-700 rounded px-2 py-1 text-xs"
+                >
+                  <option value="all">All wallets</option>
+                  {wallets.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name} ({w.currency_code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-gray-400">Category:</span>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="bg-black border border-gray-700 rounded px-2 py-1 text-xs"
+                >
+                  <option value="all">All categories</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-gray-400">Year:</span>
+                <select
+                  value={yearFilter}
+                  onChange={(e) => setYearFilter(e.target.value)}
+                  className="bg-black border border-gray-700 rounded px-2 py-1 text-xs"
+                >
+                  <option value="all">All years</option>
+                  {chartYearOptions.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Spending by Category (donut) */}
         <section className="mb-8">
-          <div className={cardShellClassName()}>
-            {!loadingData && (
-              <YearlyIncomeExpenseBarChart
+          <h2 className="text-lg font-semibold mb-2">
+            Spending by Category – {monthLabel}
+          </h2>
+          {loadingData ? (
+            <p className="text-gray-400 text-sm">Loading...</p>
+          ) : (
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              <SpendingByCategoryChart
                 transactions={transactions}
                 categories={categories}
-                targetYear={targetCalendarYear}
+                selectedYear={selectedYear}
+                selectedMonth={selectedMonth}
                 walletFilter={walletFilter}
-                yearSource={yearFilter === "all" ? "current" : "filter"}
+                categoryFilter={categoryFilter}
               />
-            )}
-            {loadingData && (
-              <p className="text-gray-400 text-sm">Loading charts...</p>
-            )}
-          </div>
-        </section>
-
-        {/* Chart filters (placed after hero to clarify impact on sections below) */}
-        <section className="mb-8">
-          <div className={cardShellClassName()}>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-semibold">Analytics Filters</h2>
-                <p className="text-[11px] text-gray-400">
-                  These filters apply to the breakdown and trend sections below.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2 text-xs">
-                <div className="flex items-center gap-1">
-                  <span className="text-gray-400">Wallet:</span>
-                  <select
-                    value={walletFilter}
-                    onChange={(e) => setWalletFilter(e.target.value)}
-                    className="bg-black border border-gray-700 rounded px-2 py-1 text-xs"
-                  >
-                    <option value="all">All wallets</option>
-                    {wallets.map((w) => (
-                      <option key={w.id} value={w.id}>
-                        {w.name} ({w.currency_code})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex items-center gap-1">
-                  <span className="text-gray-400">Category:</span>
-                  <select
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
-                    className="bg-black border border-gray-700 rounded px-2 py-1 text-xs"
-                  >
-                    <option value="all">All categories</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex items-center gap-1">
-                  <span className="text-gray-400">Year:</span>
-                  <select
-                    value={yearFilter}
-                    onChange={(e) => setYearFilter(e.target.value)}
-                    className="bg-black border border-gray-700 rounded px-2 py-1 text-xs"
-                  >
-                    <option value="all">All years</option>
-                    {chartYearOptions.map((y) => (
-                      <option key={y} value={y}>
-                        {y}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
             </div>
-          </div>
-        </section>
-
-        {/* Breakdown row (composition) */}
-        <section className="mb-10">
-          <div className="flex items-end justify-between gap-4 mb-3">
-            <div>
-              <h2 className="text-lg font-semibold">Spending Breakdown</h2>
-              <p className="text-[11px] text-gray-400">
-                Category composition and top spending drivers.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className={cardShellClassName()}>
-              <h3 className="text-sm font-semibold mb-1">
-                Spending by Category — {monthLabel}
-              </h3>
-              <p className="text-[11px] text-gray-400 mb-3">
-                Category totals for the selected month. Filters apply.
-              </p>
-
-              {loadingData ? (
-                <p className="text-gray-400 text-sm">Loading...</p>
-              ) : (
-                <SpendingByCategoryChart
-                  transactions={transactions}
-                  categories={categories}
-                  selectedYear={selectedYear}
-                  selectedMonth={selectedMonth}
-                  walletFilter={walletFilter}
-                  categoryFilter={categoryFilter}
-                />
-              )}
-            </div>
-
-            <div className={cardShellClassName()}>
-              {loadingData ? (
-                <p className="text-gray-400 text-sm">Loading...</p>
-              ) : (
-                <TopCategoriesBarChart
-                  transactions={transactions}
-                  categories={categories}
-                  walletFilter={walletFilter}
-                  categoryFilter={categoryFilter}
-                  yearFilter={yearFilter}
-                />
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* Budget insights + Budgets vs Actual (control) */}
-        <section className="mb-10">
-          <div className="flex items-end justify-between gap-4 mb-3">
-            <div>
-              <h2 className="text-lg font-semibold">Budget Control</h2>
-              <p className="text-[11px] text-gray-400">
-                Where you are on-track, at risk, or over the limit.
-              </p>
-            </div>
-          </div>
-
-          {/* Budget insights panel */}
-          {!loadingData && totalBudgets > 0 && (
-            <BudgetInsightsPanel
-              summaries={budgetSummaries as any}
-              riskThreshold={RISK_THRESHOLD}
-              monthLabel={monthLabel}
-            />
           )}
+        </section>
 
-          {/* Budgets vs Actual */}
-          <div className={cardShellClassName()}>
-            <h3 className="text-sm font-semibold mb-1">
-              Budgets vs Actual — {monthLabel}
-            </h3>
+        {/* Monthly income vs expenses (TRUE monthly, month-scoped + densified) */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">
+            Monthly Income vs Expenses
+          </h2>
+          {loadingData ? (
+            <p className="text-gray-400 text-sm">Loading...</p>
+          ) : monthlyIncomeExpenseData.length === 0 ? (
+            <p className="text-gray-500 text-sm">
+              No transactions yet to build a trend.
+            </p>
+          ) : (
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              <MonthlyIncomeExpenseChart data={monthlyIncomeExpenseData} />
+            </div>
+          )}
+        </section>
 
-            {loadingData ? (
-              <p className="text-gray-400 text-sm">Loading...</p>
-            ) : totalBudgets === 0 ? (
-              <p className="text-gray-500 text-sm">
-                You don&apos;t have any budgets set for this month yet. Add some
-                from the Budgets page.
-              </p>
-            ) : (
-              <>
-                {/* Budgets health summary */}
-                <div className="mb-3 flex flex-wrap gap-2 text-xs text-gray-300">
-                  <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
-                    {totalBudgets} {totalBudgets === 1 ? "budget" : "budgets"}{" "}
-                    this month
-                  </span>
-                  <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
-                    {budgetsOnTrack}{" "}
-                    {budgetsOnTrack === 1 ? "on track" : "on track budgets"}
-                  </span>
-                  <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
-                    {budgetsAtRisk}{" "}
-                    {budgetsAtRisk === 1 ? "at risk" : "at risk budgets"}
-                  </span>
-                  <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
-                    {budgetsOver}{" "}
-                    {budgetsOver === 1 ? "over budget" : "over-budget items"}
-                  </span>
-                </div>
+        {/* Historical 12-month income vs expenses */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">
+            Historical Income vs Expenses – Last 12 Months
+          </h2>
+          {loadingData ? (
+            <p className="text-gray-400 text-sm">Loading...</p>
+          ) : incomeExpenseTrendLast12.length === 0 ? (
+            <p className="text-gray-500 text-sm">
+              Not enough history yet to show this trend.
+            </p>
+          ) : (
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              <HistoricalIncomeExpenseChart data={incomeExpenseTrendLast12} />
+            </div>
+          )}
+        </section>
 
-                <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
-                  {budgetSummaries.map((item) => {
-                    const { budget, wallet, category, actualMinor, usedRatio } =
-                      item;
+        {/* All-Time Income vs Expenses */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">
+            All-Time Income vs Expenses
+          </h2>
+          {loadingData ? (
+            <p className="text-gray-400 text-sm">Loading...</p>
+          ) : incomeExpenseTrendData.length === 0 ? (
+            <p className="text-gray-500 text-sm">
+              No transactions yet to build an all-time trend.
+            </p>
+          ) : (
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              <FullHistoryIncomeExpenseChart data={incomeExpenseTrendData} />
+            </div>
+          )}
+        </section>
 
-                    const currency = wallet?.currency_code ?? "";
-                    const isExpense = category && category.type === "expense";
-                    const labelVerb = isExpense ? "Spent" : "Received";
+        {/* Cumulative Net Flow — All Time */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">
+            Cumulative Net Flow — All Time
+          </h2>
+          <p className="text-[11px] text-gray-400 mb-2">
+            Income minus expenses accumulated over time (net flow). This does not
+            represent wallet balances and does not include starting balances.
+          </p>
 
-                    const usedPercent = Math.round(usedRatio * 100);
-                    const clampedPercent = Math.max(
-                      0,
-                      Math.min(usedPercent, 130)
-                    );
+          {loadingData ? (
+            <p className="text-gray-400 text-sm">Loading...</p>
+          ) : incomeExpenseTrendData.length === 0 ? (
+            <p className="text-gray-500 text-sm">
+              No transactions yet to build a cumulative net flow view.
+            </p>
+          ) : (
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              <CumulativeNetBalanceChart data={incomeExpenseTrendData} />
+            </div>
+          )}
+        </section>
 
-                    const barFillPercent = Math.max(
-                      0,
-                      Math.min(clampedPercent, 100)
-                    );
+        {/* Top categories bar chart */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">
+            Top Spending Categories – This Year
+          </h2>
+          {loadingData ? (
+            <p className="text-gray-400 text-sm">Loading...</p>
+          ) : (
+            <div className="border border-gray-800 rounded p-4 bg-black/40">
+              <TopCategoriesBarChart
+                transactions={transactions}
+                categories={categories}
+                walletFilter={walletFilter}
+                categoryFilter={categoryFilter}
+                yearFilter={yearFilter}
+              />
+            </div>
+          )}
+        </section>
 
-                    const barBorderClass =
-                      usedPercent > 100
-                        ? "border-white/60"
-                        : "border-gray-700";
+        {/* Budget insights (above the table) */}
+        {!loadingData && totalBudgets > 0 && (
+          <BudgetInsightsPanel
+            summaries={budgetSummaries as any}
+            riskThreshold={RISK_THRESHOLD}
+            monthLabel={monthLabel}
+          />
+        )}
 
-                    let statusLabel = "ON TRACK";
-                    let statusBorder = "border-gray-700";
-                    let statusText = "text-gray-300";
+        {/* Budgets vs Actual */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">
+            Budgets vs Actual – {monthLabel}
+          </h2>
 
-                    if (usedRatio > 1) {
-                      statusLabel = "OVER BUDGET";
-                      statusBorder = "border-white/70";
-                      statusText = "text-white";
-                    } else if (usedRatio > RISK_THRESHOLD && usedRatio <= 1) {
-                      statusLabel = "AT RISK";
-                      statusBorder = "border-gray-500";
-                      statusText = "text-gray-200";
-                    }
+          {loadingData ? (
+            <p className="text-gray-400 text-sm">Loading...</p>
+          ) : totalBudgets === 0 ? (
+            <p className="text-gray-500 text-sm">
+              You don&apos;t have any budgets set for this month yet. Add some
+              from the Budgets page.
+            </p>
+          ) : (
+            <>
+              {/* Budgets health summary */}
+              <div className="mb-3 flex flex-wrap gap-2 text-xs text-gray-300">
+                <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
+                  {totalBudgets}{" "}
+                  {totalBudgets === 1 ? "budget" : "budgets"} this month
+                </span>
+                <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
+                  {budgetsOnTrack}{" "}
+                  {budgetsOnTrack === 1 ? "on track" : "on track budgets"}
+                </span>
+                <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
+                  {budgetsAtRisk}{" "}
+                  {budgetsAtRisk === 1 ? "at risk" : "at risk budgets"}
+                </span>
+                <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
+                  {budgetsOver}{" "}
+                  {budgetsOver === 1 ? "over budget" : "over-budget items"}
+                </span>
+              </div>
 
-                    return (
-                      <div
-                        key={budget.id}
-                        className="flex flex-col md:flex-row md:items-center md:justify-between px-4 py-3 gap-3"
-                      >
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <div className="font-medium">
-                              {category ? category.name : "Unknown category"}
-                            </div>
-                            <span
-                              className={`text-[9px] px-2 py-0.5 rounded-full border ${statusBorder} ${statusText} tracking-wide uppercase`}
-                            >
-                              {statusLabel}
-                            </span>
+              <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
+                {budgetSummaries.map((item) => {
+                  const { budget, wallet, category, actualMinor, usedRatio } =
+                    item;
+
+                  const currency = wallet?.currency_code ?? "";
+                  const isExpense = category && category.type === "expense";
+                  const labelVerb = isExpense ? "Spent" : "Received";
+
+                  const usedPercent = Math.round(usedRatio * 100);
+                  const clampedPercent = Math.max(0, Math.min(usedPercent, 130));
+
+                  const barFillPercent = Math.max(
+                    0,
+                    Math.min(clampedPercent, 100)
+                  );
+
+                  const barBorderClass =
+                    usedPercent > 100 ? "border-white/60" : "border-gray-700";
+
+                  let statusLabel = "ON TRACK";
+                  let statusBorder = "border-gray-700";
+                  let statusText = "text-gray-300";
+
+                  if (usedRatio > 1) {
+                    statusLabel = "OVER BUDGET";
+                    statusBorder = "border-white/70";
+                    statusText = "text-white";
+                  } else if (usedRatio > RISK_THRESHOLD && usedRatio <= 1) {
+                    statusLabel = "AT RISK";
+                    statusBorder = "border-gray-500";
+                    statusText = "text-gray-200";
+                  }
+
+                  return (
+                    <div
+                      key={budget.id}
+                      className="flex flex-col md:flex-row md:items-center md:justify-between px-4 py-3 gap-3"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium">
+                            {category ? category.name : "Unknown category"}
                           </div>
-                          <div className="text-xs text-gray-400">
-                            {wallet ? wallet.name : "All wallets"}{" "}
-                            {currency ? `• ${currency}` : ""}
-                          </div>
-                        </div>
-
-                        <div className="w-full md:w-1/2">
-                          <div className="flex items-baseline justify-between mb-1">
-                            <div className="text-sm">
-                              {labelVerb} {formatMinorToAmount(actualMinor)} /{" "}
-                              {formatMinorToAmount(budget.amount_minor)}{" "}
-                              {currency}
-                            </div>
-                            <div className="text-xs text-gray-400 ml-3 whitespace-nowrap">
-                              {usedPercent}% of budget used
-                            </div>
-                          </div>
-
-                          <div
-                            className={`w-full h-2 rounded-full bg-black border ${barBorderClass} overflow-hidden`}
+                          <span
+                            className={`text-[9px] px-2 py-0.5 rounded-full border ${statusBorder} ${statusText} tracking-wide uppercase`}
                           >
-                            <div
-                              className="h-full bg-white"
-                              style={{ width: `${barFillPercent}%` }}
-                            />
-                          </div>
-
-                          {usedPercent > 100 && (
-                            <div className="mt-1 text-[11px] text-gray-400">
-                              You&apos;ve exceeded this budget.
-                            </div>
-                          )}
-                          {usedPercent <= 100 && usedRatio > RISK_THRESHOLD && (
-                            <div className="mt-1 text-[11px] text-gray-400">
-                              You&apos;re approaching this budget&apos;s limit.
-                            </div>
-                          )}
+                            {statusLabel}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {wallet ? wallet.name : "All wallets"}{" "}
+                          {currency ? `• ${currency}` : ""}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-        </section>
 
-        {/* Intelligence (Insights) */}
-        <section className="mb-10">
-          <div className="flex items-end justify-between gap-4 mb-3">
-            <div>
-              <h2 className="text-lg font-semibold">Insights</h2>
-              <p className="text-[11px] text-gray-400">
-                Interpretation layer. Keeps charts clean and actionable.
-              </p>
-            </div>
-          </div>
+                      <div className="w-full md:w-1/2">
+                        <div className="flex items-baseline justify-between mb-1">
+                          <div className="text-sm">
+                            {labelVerb} {formatMinorToAmount(actualMinor)} /{" "}
+                            {formatMinorToAmount(budget.amount_minor)}{" "}
+                            {currency}
+                          </div>
+                          <div className="text-xs text-gray-400 ml-3 whitespace-nowrap">
+                            {usedPercent}% of budget used
+                          </div>
+                        </div>
 
-          {!loadingData && (
-            <SmartInsightsPanel
-              transactions={transactions}
-              categories={categories}
-              selectedYear={selectedYear}
-              selectedMonth={selectedMonth}
-              walletFilter={walletFilter}
-              categoryFilter={categoryFilter}
-            />
-          )}
+                        {/* Progress bar */}
+                        <div
+                          className={`w-full h-2 rounded-full bg-black border ${barBorderClass} overflow-hidden`}
+                        >
+                          <div
+                            className="h-full bg-white"
+                            style={{ width: `${barFillPercent}%` }}
+                          />
+                        </div>
 
-          {!loadingData && (
-            <AiInsightsSidebar
-              transactions={transactions}
-              categories={categories}
-              selectedYear={selectedYear}
-              selectedMonth={selectedMonth}
-              walletFilter={walletFilter}
-              categoryFilter={categoryFilter}
-            />
-          )}
-        </section>
-
-        {/* Advanced analytics (still present; organized and optionally collapsible) */}
-        <section className="mb-10">
-          <div className={cardShellClassName()}>
-            <details>
-              <summary className="cursor-pointer select-none">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                  <div className="text-sm font-semibold">
-                    Advanced Analytics
-                  </div>
-                  <div className="text-[11px] text-gray-400">
-                    Monthly trend, historical view, all-time and cumulative net
-                    flow.
-                  </div>
-                </div>
-              </summary>
-
-              <div className="mt-4 space-y-8">
-                {/* Monthly income vs expenses */}
-                <section>
-                  <h3 className="text-sm font-semibold mb-2">
-                    Monthly Income vs Expenses
-                  </h3>
-                  {loadingData ? (
-                    <p className="text-gray-400 text-sm">Loading...</p>
-                  ) : monthlyIncomeExpenseData.length === 0 ? (
-                    <p className="text-gray-500 text-sm">
-                      No transactions yet to build a trend.
-                    </p>
-                  ) : (
-                    <div className="border border-gray-800 rounded p-4 bg-black/40">
-                      <MonthlyIncomeExpenseChart data={monthlyIncomeExpenseData} />
+                        {usedPercent > 100 && (
+                          <div className="mt-1 text-[11px] text-gray-400">
+                            You&apos;ve exceeded this budget.
+                          </div>
+                        )}
+                        {usedPercent <= 100 && usedRatio > RISK_THRESHOLD && (
+                          <div className="mt-1 text-[11px] text-gray-400">
+                            You&apos;re approaching this budget&apos;s limit.
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </section>
-
-                {/* Historical 12-month income vs expenses */}
-                <section>
-                  <h3 className="text-sm font-semibold mb-2">
-                    Historical Income vs Expenses — Last 12 Months
-                  </h3>
-                  {loadingData ? (
-                    <p className="text-gray-400 text-sm">Loading...</p>
-                  ) : incomeExpenseTrendLast12.length === 0 ? (
-                    <p className="text-gray-500 text-sm">
-                      Not enough history yet to show this trend.
-                    </p>
-                  ) : (
-                    <div className="border border-gray-800 rounded p-4 bg-black/40">
-                      <HistoricalIncomeExpenseChart data={incomeExpenseTrendLast12} />
-                    </div>
-                  )}
-                </section>
-
-                {/* All-Time Income vs Expenses */}
-                <section>
-                  <h3 className="text-sm font-semibold mb-2">
-                    All-Time Income vs Expenses
-                  </h3>
-                  {loadingData ? (
-                    <p className="text-gray-400 text-sm">Loading...</p>
-                  ) : incomeExpenseTrendData.length === 0 ? (
-                    <p className="text-gray-500 text-sm">
-                      No transactions yet to build an all-time trend.
-                    </p>
-                  ) : (
-                    <div className="border border-gray-800 rounded p-4 bg-black/40">
-                      <FullHistoryIncomeExpenseChart data={incomeExpenseTrendData} />
-                    </div>
-                  )}
-                </section>
-
-                {/* Cumulative Net Flow — All Time */}
-                <section>
-                  <h3 className="text-sm font-semibold mb-2">
-                    Cumulative Net Flow — All Time
-                  </h3>
-                  <p className="text-[11px] text-gray-400 mb-2">
-                    Income minus expenses accumulated over time (net flow). This
-                    does not represent wallet balances and does not include
-                    starting balances.
-                  </p>
-
-                  {loadingData ? (
-                    <p className="text-gray-400 text-sm">Loading...</p>
-                  ) : incomeExpenseTrendData.length === 0 ? (
-                    <p className="text-gray-500 text-sm">
-                      No transactions yet to build a cumulative net flow view.
-                    </p>
-                  ) : (
-                    <div className="border border-gray-800 rounded p-4 bg-black/40">
-                      <CumulativeNetBalanceChart data={incomeExpenseTrendData} />
-                    </div>
-                  )}
-                </section>
+                  );
+                })}
               </div>
-            </details>
-          </div>
+            </>
+          )}
         </section>
       </main>
     </div>
