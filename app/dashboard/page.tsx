@@ -115,30 +115,15 @@ export default function DashboardPage() {
   const [hasBackupFactor, setHasBackupFactor] = useState(false);
   const [lastCheckAt, setLastCheckAt] = useState<number | null>(null);
 
-  /**
-   * IMPORTANT (Next.js App Router hydration hardening):
-   * Client components are still pre-rendered on the server.
-   * Avoid using "new Date()" for initial state that must match between server + client.
-   * We seed with stable defaults and set the real values after mount.
-   */
-  const [hasMounted, setHasMounted] = useState(false);
-
   // --- Month selector state (0–11) ---
-  const [selectedYear, setSelectedYear] = useState<number>(1970);
-  const [selectedMonth, setSelectedMonth] = useState<number>(0); // 0-based
+  const today = new Date();
+  const [selectedYear, setSelectedYear] = useState(today.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(today.getMonth()); // 0-based
 
   // 🔥 Filters for charts (per wallet, per category, per year)
   const [walletFilter, setWalletFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [yearFilter, setYearFilter] = useState<string>("all");
-
-  useEffect(() => {
-    // Client-only initialization to prevent hydration mismatches.
-    setHasMounted(true);
-    const d = new Date();
-    setSelectedYear(d.getFullYear());
-    setSelectedMonth(d.getMonth());
-  }, []);
 
   function goToPreviousMonth() {
     setSelectedMonth((prev) => {
@@ -577,21 +562,19 @@ export default function DashboardPage() {
   })();
 
   // Calendar-year selection for the new bar chart:
-  // - if Year filter is "all", default to currently selected year (client-initialized)
-  // - else use the selected year from the filter
+  // - if Year filter is "all", default to current calendar year
+  // - else use the selected year
   const targetCalendarYear = (() => {
-    if (yearFilter === "all") return selectedYear;
+    if (yearFilter === "all") return new Date().getFullYear();
     const parsed = Number(yearFilter);
-    return Number.isFinite(parsed) ? parsed : selectedYear;
+    return Number.isFinite(parsed) ? parsed : new Date().getFullYear();
   })();
 
   const selectedDate = new Date(selectedYear, selectedMonth, 1);
-  const monthLabel = hasMounted
-    ? selectedDate.toLocaleString("en", {
-        month: "long",
-        year: "numeric",
-      })
-    : "Loading…";
+  const monthLabel = selectedDate.toLocaleString("en", {
+    month: "long",
+    year: "numeric",
+  });
 
   const lastSecurityLabel = lastCheckAt
     ? `${daysAgoFromMs(lastCheckAt)} day(s) ago`
@@ -711,7 +694,7 @@ export default function DashboardPage() {
             categories={categories}
             targetYear={targetCalendarYear}
             walletFilter={walletFilter}
-            yearSource={yearFilter === "all" ? "current" : "filter"}
+            yearSource={yearFilter === "all" ? "current" : "filter"} // ✅ NEW
           />
         )}
 
@@ -1015,8 +998,8 @@ export default function DashboardPage() {
               {/* Budgets health summary */}
               <div className="mb-3 flex flex-wrap gap-2 text-xs text-gray-300">
                 <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
-                  {totalBudgets} {totalBudgets === 1 ? "budget" : "budgets"} this
-                  month
+                  {totalBudgets}{" "}
+                  {totalBudgets === 1 ? "budget" : "budgets"} this month
                 </span>
                 <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
                   {budgetsOnTrack}{" "}
