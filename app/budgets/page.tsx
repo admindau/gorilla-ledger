@@ -355,71 +355,104 @@ export default function BudgetsPage() {
     setRowBusyId(null);
   }
 
+  const NavLink = ({
+    href,
+    label,
+    active,
+  }: {
+    href: string;
+    label: string;
+    active?: boolean;
+  }) => {
+    return (
+      <a
+        href={href}
+        className={[
+          "px-2.5 py-1.5 rounded-md border text-xs transition",
+          active
+            ? "border-white/30 bg-white/10 text-white"
+            : "border-gray-800 bg-black/40 text-gray-300 hover:bg-white/5 hover:text-white",
+        ].join(" ")}
+      >
+        {label}
+      </a>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      <header className="w-full px-6 py-4 border-b border-gray-800">
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="font-semibold">Gorilla Ledger™</div>
+      {/* Hardened header (tight app-shell) */}
+      <header className="w-full border-b border-gray-900 bg-black/80 backdrop-blur">
+        <div className="px-4 sm:px-6 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="font-semibold tracking-tight truncate">Gorilla Ledger™</div>
 
-            <nav className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-              <a href="/wallets" className="underline text-gray-300">
-                Wallets
-              </a>
-              <a href="/categories" className="underline text-gray-300">
-                Categories
-              </a>
-              <a href="/transactions" className="underline text-gray-300">
-                Transactions
-              </a>
-              <a href="/budgets" className="underline text-gray-300">
-                Budgets
-              </a>
-              <a href="/recurring" className="underline text-gray-300">
-                Recurring
-              </a>
-              <a href="/settings/security" className="underline text-gray-300">
-                Security
-              </a>
-              <a href="/dashboard" className="underline text-gray-300">
-                Dashboard
-              </a>
-            </nav>
+              <nav className="hidden md:flex items-center gap-2">
+                <NavLink href="/wallets" label="Wallets" />
+                <NavLink href="/categories" label="Categories" />
+                <NavLink href="/transactions" label="Transactions" />
+                <NavLink href="/budgets" label="Budgets" active />
+                <NavLink href="/recurring" label="Recurring" />
+                <NavLink href="/settings/security" label="Security" />
+                <NavLink href="/dashboard" label="Dashboard" />
+              </nav>
+            </div>
 
-            <div className="flex items-center gap-3">
-              <div className="text-sm text-gray-200 truncate max-w-[220px]">{userEmail}</div>
+            <div className="flex items-center gap-2">
+              {userEmail ? (
+                <div className="hidden sm:flex items-center gap-2 max-w-[260px]">
+                  <span className="text-[11px] text-gray-400">Signed in</span>
+                  <span className="text-xs text-gray-200 truncate">{userEmail}</span>
+                </div>
+              ) : null}
+
               <button
                 type="button"
                 onClick={handleLogout}
-                className="px-3 py-1.5 rounded border border-gray-700 text-sm text-gray-200"
+                className="px-3 py-1.5 rounded-md border border-gray-700 text-xs text-gray-200 hover:bg-white/5"
               >
                 Logout
               </button>
             </div>
           </div>
 
-          <div className="text-xs text-gray-300 flex flex-wrap gap-2">
-            <span>
-              MFA:{" "}
-              <span className={mfaEnabled ? "text-green-400" : "text-gray-300"}>
-                {mfaEnabled ? "Enabled" : "Not enabled"}
-              </span>
+          {/* Mobile nav */}
+          <nav className="md:hidden mt-2 flex flex-wrap gap-2">
+            <NavLink href="/wallets" label="Wallets" />
+            <NavLink href="/categories" label="Categories" />
+            <NavLink href="/transactions" label="Transactions" />
+            <NavLink href="/budgets" label="Budgets" active />
+            <NavLink href="/recurring" label="Recurring" />
+            <NavLink href="/settings/security" label="Security" />
+            <NavLink href="/dashboard" label="Dashboard" />
+          </nav>
+
+          {/* Security posture */}
+          <div className="mt-2 text-[11px] text-gray-300 flex flex-wrap gap-x-2 gap-y-1">
+            <span className="text-gray-400">MFA:</span>
+            <span className={mfaEnabled ? "text-emerald-400" : "text-gray-300"}>
+              {mfaEnabled ? "Enabled" : "Not enabled"}
             </span>
-            <span className="text-gray-500">•</span>
-            <span>
-              Last security check:{" "}
-              {lastSecurityCheckDays === null ? (
-                <span className="text-gray-400">—</span>
-              ) : (
-                <span className="text-gray-200">{formatDaysAgo(lastSecurityCheckDays)}</span>
-              )}
-            </span>
+            <span className="text-gray-600">•</span>
+            <span className="text-gray-400">Last security check:</span>
+            {lastSecurityCheckDays === null ? (
+              <span className="text-gray-500">—</span>
+            ) : (
+              <span className="text-gray-200">{formatDaysAgo(lastSecurityCheckDays)}</span>
+            )}
           </div>
         </div>
       </header>
 
       <main className="flex-1 px-4 py-6 max-w-5xl mx-auto w-full">
-        <h1 className="text-2xl font-semibold mb-4">Budgets</h1>
+        <div className="mb-4">
+          <div className="text-[10px] uppercase tracking-widest text-gray-500">Planning</div>
+          <h1 className="text-2xl font-semibold leading-tight">Budgets</h1>
+          <p className="text-sm text-gray-400 mt-1">
+            Define monthly budgets per wallet and category.
+          </p>
+        </div>
 
         {errorMsg && <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>}
 
@@ -542,7 +575,9 @@ export default function BudgetsPage() {
                     {!isEditing ? (
                       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                         <div>
-                          <div className="font-medium">{category ? category.name : "Unknown category"}</div>
+                          <div className="font-medium">
+                            {category ? category.name : "Unknown category"}
+                          </div>
                           <div className="text-xs text-gray-400">
                             {wallet ? wallet.name : "All wallets"} • {currency || "—"} • {year}-
                             {String(month).padStart(2, "0")}
@@ -575,8 +610,8 @@ export default function BudgetsPage() {
                       <div className="grid gap-3 md:grid-cols-3 items-end">
                         <div className="md:col-span-2">
                           <div className="text-xs text-gray-400 mb-1">
-                            {category ? category.name : "Unknown category"} • {wallet ? wallet.name : "All wallets"} •{" "}
-                            {currency || "—"}
+                            {category ? category.name : "Unknown category"} •{" "}
+                            {wallet ? wallet.name : "All wallets"} • {currency || "—"}
                           </div>
                           <label className="block text-xs mb-1 text-gray-400">Amount</label>
                           <input
