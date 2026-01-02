@@ -690,471 +690,521 @@ export default function TransactionsPage() {
     setToDate("");
   }
 
+  const headerLinkClass =
+    "px-2.5 py-1 rounded border border-gray-800 bg-black/40 text-xs text-gray-200 hover:bg-white hover:text-black transition";
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      <header className="w-full flex items-center justify-between px-6 py-4 border-b border-gray-800">
-        <div className="font-semibold">Gorilla Ledger™ – Transactions</div>
-        <div className="flex gap-4 text-sm">
-          <a href="/wallets" className="underline text-gray-300">
-            Wallets
-          </a>
-          <a href="/categories" className="underline text-gray-300">
-            Categories
-          </a>
-          <a href="/dashboard" className="underline text-gray-300">
-            Dashboard
-          </a>
+      {/* Tight, app-like header (less link-bar) */}
+      <header className="sticky top-0 z-40 w-full border-b border-gray-900 bg-black/80 backdrop-blur">
+        <div className="px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold leading-tight truncate">
+              Gorilla Ledger™
+            </div>
+            <div className="text-[11px] text-gray-400 leading-tight">
+              Transactions
+            </div>
+          </div>
+
+          <nav className="flex items-center gap-2 shrink-0">
+            <a href="/dashboard" className={headerLinkClass}>
+              Dashboard
+            </a>
+            <a href="/wallets" className={headerLinkClass}>
+              Wallets
+            </a>
+            <a href="/categories" className={headerLinkClass}>
+              Categories
+            </a>
+          </nav>
         </div>
       </header>
 
       <main className="flex-1 px-4 py-6 max-w-5xl mx-auto w-full">
-        <h1 className="text-2xl font-semibold mb-4">Transactions</h1>
+        {/* Tightened page title rhythm */}
+        <div className="mb-4">
+          <h1 className="text-xl sm:text-2xl font-semibold leading-tight">
+            Transactions
+          </h1>
+          <p className="text-xs text-gray-400 mt-1">
+            Add, search, edit, and attach receipts to your records.
+          </p>
+        </div>
 
         {errorMsg && <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>}
 
-        <section className="mb-8 border border-gray-800 rounded p-4">
-          <h2 className="text-lg font-semibold mb-3">Add Transaction</h2>
-
-          {wallets.length === 0 || categories.length === 0 ? (
-            <p className="text-sm text-yellow-300">
-              You need at least one wallet and one category to create a
-              transaction.
-            </p>
-          ) : (
-            <form
-              onSubmit={handleCreateTransaction}
-              className="grid gap-4 md:grid-cols-3"
-            >
-              <div>
-                <label className="block text-sm mb-1">Wallet</label>
-                <select
-                  className="w-full p-2 rounded bg-gray-900 border border-gray-700"
-                  value={walletId}
-                  onChange={(e) => setWalletId(e.target.value)}
-                >
-                  {wallets.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name} ({w.currency_code})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm mb-1">Category</label>
-                <select
-                  className="w-full p-2 rounded bg-gray-900 border border-gray-700"
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                >
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.type})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm mb-1">Type</label>
-                <select
-                  className="w-full p-2 rounded bg-gray-900 border border-gray-700"
-                  value={type}
-                  onChange={(e) => setType(e.target.value as TransactionType)}
-                >
-                  <option value="expense">Expense</option>
-                  <option value="income">Income</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm mb-1">Amount</label>
-                <input
-                  type="text"
-                  className="w-full p-2 rounded bg-gray-900 border border-gray-700"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm mb-1">Date</label>
-                <input
-                  type="date"
-                  className="w-full p-2 rounded bg-gray-900 border border-gray-700"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                />
-              </div>
-
-              <div className="md:col-span-3">
-                <label className="block text-sm mb-1">Description</label>
-                <input
-                  type="text"
-                  className="w-full p-2 rounded bg-gray-900 border border-gray-700"
-                  placeholder="Optional note (e.g. salary for Nov, rent for Juba house)"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
-              </div>
-
-              <ReceiptUploader
-                files={newReceiptFiles}
-                onAdd={handleAddReceiptFiles}
-                onRemoveAt={handleRemoveNewReceiptAt}
-                disabled={saving}
-              />
-
-              {receiptWarn && (
-                <div className="md:col-span-3 text-xs text-yellow-300 border border-yellow-500/30 bg-yellow-500/10 rounded p-2">
-                  Some files were rejected: {receiptWarn}
-                </div>
-              )}
-
-              <div className="md:col-span-3">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-4 py-2 rounded bg-white text-black font-semibold hover:bg-gray-200 transition"
-                >
-                  {saving ? "Saving..." : "Save Transaction"}
-                </button>
-              </div>
-            </form>
-          )}
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold mb-3">Recent Transactions</h2>
-
-          <div className="mb-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-            <p className="text-xs text-gray-400">
-              Filter by date range (optional).
-            </p>
-            <div className="flex gap-2 w-full md:w-auto">
-              <input
-                type="date"
-                className="p-2 rounded bg-gray-900 border border-gray-700 text-sm"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-              />
-              <span className="self-center text-xs text-gray-500">to</span>
-              <input
-                type="date"
-                className="p-2 rounded bg-gray-900 border border-gray-700 text-sm"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-              />
-              {(fromDate || toDate) && (
-                <button
-                  type="button"
-                  onClick={handleClearDates}
-                  className="px-3 py-2 rounded bg-gray-900 border border-gray-700 text-xs text-gray-200 hover:bg-gray-800 transition"
-                >
-                  Clear dates
-                </button>
-              )}
+        {/* Add Transaction */}
+        <section className="mb-8 border border-gray-800 rounded-lg bg-black/40">
+          <div className="px-4 py-3 border-b border-gray-800">
+            <div className="text-[11px] uppercase tracking-wider text-gray-400">
+              Operational
             </div>
+            <h2 className="text-sm font-semibold mt-1 leading-tight">
+              Add Transaction
+            </h2>
           </div>
 
-          <form
-            onSubmit={handleSearchSubmit}
-            className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2"
-          >
-            <p className="text-xs text-gray-400">
-              Search by description, category, wallet, currency, date or amount.
-            </p>
-            <div className="flex gap-2 w-full md:w-96">
-              <input
-                type="text"
-                className="flex-1 p-2 rounded bg-gray-900 border border-gray-700 text-sm"
-                placeholder="Search recent transactions..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-              />
-              <button
-                type="submit"
-                className="px-3 py-2 rounded bg-white text-black text-xs font-semibold hover:bg-gray-200 transition"
+          <div className="p-4">
+            {wallets.length === 0 || categories.length === 0 ? (
+              <p className="text-sm text-yellow-300">
+                You need at least one wallet and one category to create a
+                transaction.
+              </p>
+            ) : (
+              <form
+                onSubmit={handleCreateTransaction}
+                className="grid gap-4 md:grid-cols-3"
               >
-                Search
-              </button>
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={handleClearSearch}
-                  className="px-3 py-2 rounded bg-gray-900 border border-gray-700 text-xs text-gray-200 hover:bg-gray-800 transition"
-                >
-                  Clear
-                </button>
-              )}
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                    Wallet
+                  </label>
+                  <select
+                    className="w-full p-2 rounded bg-gray-900 border border-gray-700 text-sm"
+                    value={walletId}
+                    onChange={(e) => setWalletId(e.target.value)}
+                  >
+                    {wallets.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name} ({w.currency_code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                    Category
+                  </label>
+                  <select
+                    className="w-full p-2 rounded bg-gray-900 border border-gray-700 text-sm"
+                    value={categoryId}
+                    onChange={(e) => setCategoryId(e.target.value)}
+                  >
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.type})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                    Type
+                  </label>
+                  <select
+                    className="w-full p-2 rounded bg-gray-900 border border-gray-700 text-sm"
+                    value={type}
+                    onChange={(e) => setType(e.target.value as TransactionType)}
+                  >
+                    <option value="expense">Expense</option>
+                    <option value="income">Income</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                    Amount
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-2 rounded bg-gray-900 border border-gray-700 text-sm"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full p-2 rounded bg-gray-900 border border-gray-700 text-sm"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                  />
+                </div>
+
+                <div className="md:col-span-3">
+                  <label className="block text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                    Description
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-2 rounded bg-gray-900 border border-gray-700 text-sm"
+                    placeholder="Optional note (e.g. salary for Nov, rent for Juba house)"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                </div>
+
+                <ReceiptUploader
+                  files={newReceiptFiles}
+                  onAdd={handleAddReceiptFiles}
+                  onRemoveAt={handleRemoveNewReceiptAt}
+                  disabled={saving}
+                />
+
+                {receiptWarn && (
+                  <div className="md:col-span-3 text-xs text-yellow-300 border border-yellow-500/30 bg-yellow-500/10 rounded p-2">
+                    Some files were rejected: {receiptWarn}
+                  </div>
+                )}
+
+                <div className="md:col-span-3">
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="px-4 py-2 rounded bg-white text-black text-sm font-semibold hover:bg-gray-200 transition"
+                  >
+                    {saving ? "Saving..." : "Save Transaction"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </section>
+
+        {/* Recent Transactions */}
+        <section className="border border-gray-800 rounded-lg bg-black/40">
+          <div className="px-4 py-3 border-b border-gray-800">
+            <div className="text-[11px] uppercase tracking-wider text-gray-400">
+              Records
             </div>
-          </form>
+            <h2 className="text-sm font-semibold mt-1 leading-tight">
+              Recent Transactions
+            </h2>
+          </div>
 
-          {loading ? (
-            <p className="text-gray-400 text-sm">Loading...</p>
-          ) : transactions.length === 0 ? (
-            <p className="text-gray-500 text-sm">
-              You have no transactions yet.
-            </p>
-          ) : filteredTransactions.length === 0 ? (
-            <p className="text-gray-500 text-sm">
-              No transactions match your filters.
-            </p>
-          ) : (
-            <>
-              <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
-                {filteredTransactions.map((tx) => {
-                  const wallet = walletMap[tx.wallet_id];
-                  const category = tx.category_id
-                    ? categoryMap[tx.category_id]
-                    : null;
-                  const dateStr = tx.occurred_at.slice(0, 10);
-                  const isEditing = editingTxId === tx.id;
+          <div className="p-4">
+            <div className="mb-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+              <p className="text-xs text-gray-400">
+                Filter by date range (optional).
+              </p>
+              <div className="flex gap-2 w-full md:w-auto">
+                <input
+                  type="date"
+                  className="p-2 rounded bg-gray-900 border border-gray-700 text-sm"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                />
+                <span className="self-center text-xs text-gray-500">to</span>
+                <input
+                  type="date"
+                  className="p-2 rounded bg-gray-900 border border-gray-700 text-sm"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                />
+                {(fromDate || toDate) && (
+                  <button
+                    type="button"
+                    onClick={handleClearDates}
+                    className="px-3 py-2 rounded bg-gray-900 border border-gray-700 text-xs text-gray-200 hover:bg-gray-800 transition"
+                  >
+                    Clear dates
+                  </button>
+                )}
+              </div>
+            </div>
 
-                  if (isEditing) {
-                    return (
-                      <div
-                        key={tx.id}
-                        className="px-4 py-3 space-y-2 bg-black/60"
-                      >
-                        <div className="text-xs text-gray-400 mb-1">
-                          Editing transaction
-                        </div>
+            <form
+              onSubmit={handleSearchSubmit}
+              className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2"
+            >
+              <p className="text-xs text-gray-400">
+                Search by description, category, wallet, currency, date or amount.
+              </p>
+              <div className="flex gap-2 w-full md:w-96">
+                <input
+                  type="text"
+                  className="flex-1 p-2 rounded bg-gray-900 border border-gray-700 text-sm"
+                  placeholder="Search recent transactions..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                />
+                <button
+                  type="submit"
+                  className="px-3 py-2 rounded bg-white text-black text-xs font-semibold hover:bg-gray-200 transition"
+                >
+                  Search
+                </button>
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={handleClearSearch}
+                    className="px-3 py-2 rounded bg-gray-900 border border-gray-700 text-xs text-gray-200 hover:bg-gray-800 transition"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </form>
 
-                        <div className="grid gap-2 md:grid-cols-4">
-                          <div>
-                            <label className="block text-[11px] mb-1">
-                              Wallet
-                            </label>
-                            <select
-                              className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
-                              value={editWalletId}
-                              onChange={(e) => setEditWalletId(e.target.value)}
-                            >
-                              {wallets.map((w) => (
-                                <option key={w.id} value={w.id}>
-                                  {w.name} ({w.currency_code})
-                                </option>
-                              ))}
-                            </select>
+            {loading ? (
+              <p className="text-gray-400 text-sm">Loading...</p>
+            ) : transactions.length === 0 ? (
+              <p className="text-gray-500 text-sm">
+                You have no transactions yet.
+              </p>
+            ) : filteredTransactions.length === 0 ? (
+              <p className="text-gray-500 text-sm">
+                No transactions match your filters.
+              </p>
+            ) : (
+              <>
+                <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm overflow-hidden">
+                  {filteredTransactions.map((tx) => {
+                    const wallet = walletMap[tx.wallet_id];
+                    const category = tx.category_id
+                      ? categoryMap[tx.category_id]
+                      : null;
+                    const dateStr = tx.occurred_at.slice(0, 10);
+                    const isEditing = editingTxId === tx.id;
+
+                    if (isEditing) {
+                      return (
+                        <div
+                          key={tx.id}
+                          className="px-4 py-3 space-y-2 bg-black/60"
+                        >
+                          <div className="text-[11px] uppercase tracking-wider text-gray-400">
+                            Editing transaction
                           </div>
 
-                          <div>
-                            <label className="block text-[11px] mb-1">
-                              Category
-                            </label>
-                            <select
-                              className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
-                              value={editCategoryId}
-                              onChange={(e) =>
-                                setEditCategoryId(e.target.value)
-                              }
-                            >
-                              {categories.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                  {c.name} ({c.type})
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="block text-[11px] mb-1">
-                              Type
-                            </label>
-                            <select
-                              className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
-                              value={editType}
-                              onChange={(e) =>
-                                setEditType(e.target.value as TransactionType)
-                              }
-                            >
-                              <option value="expense">Expense</option>
-                              <option value="income">Income</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="block text-[11px] mb-1">
-                              Date
-                            </label>
-                            <input
-                              type="date"
-                              className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
-                              value={editDate}
-                              onChange={(e) => setEditDate(e.target.value)}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="grid gap-2 md:grid-cols-3">
-                          <div>
-                            <label className="block text-[11px] mb-1">
-                              Amount
-                            </label>
-                            <input
-                              type="text"
-                              className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
-                              value={editAmount}
-                              onChange={(e) => setEditAmount(e.target.value)}
-                            />
-                          </div>
-
-                          <div className="md:col-span-2">
-                            <label className="block text-[11px] mb-1">
-                              Description
-                            </label>
-                            <input
-                              type="text"
-                              className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
-                              value={editDescription}
-                              onChange={(e) =>
-                                setEditDescription(e.target.value)
-                              }
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex justify-end gap-2 pt-1">
-                          <button
-                            type="button"
-                            onClick={handleCancelInlineEdit}
-                            className="px-3 py-1 rounded border border-gray-700 text-[11px] text-gray-200 bg-gray-900 hover:bg-gray-800 transition"
-                            disabled={savingEdit || uploadingEditReceipts}
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleSaveInlineEdit}
-                            className="px-3 py-1 rounded border border-gray-700 text-[11px] bg-white text-black font-semibold hover:bg-gray-200 transition"
-                            disabled={savingEdit || uploadingEditReceipts}
-                          >
-                            {savingEdit ? "Saving..." : "Save"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteTransaction(tx)}
-                            className="px-3 py-1 rounded border border-red-500 text-[11px] text-red-300 bg-gray-900 hover:bg-gray-900/70 transition"
-                            disabled={savingEdit || uploadingEditReceipts}
-                          >
-                            Delete
-                          </button>
-                        </div>
-
-                        <div className="pt-2 border-t border-gray-800">
-                          <div className="text-xs text-gray-400 mb-2">
-                            Add receipts to this transaction
-                          </div>
-
-                          <ReceiptUploader
-                            files={editReceiptFiles}
-                            onAdd={handleAddEditReceiptFiles}
-                            onRemoveAt={handleRemoveEditReceiptAt}
-                            disabled={uploadingEditReceipts || savingEdit}
-                            label="Upload receipts (PDF or images, max 5 MB each)"
-                          />
-
-                          {editReceiptWarn && (
-                            <div className="mt-2 text-xs text-yellow-300 border border-yellow-500/30 bg-yellow-500/10 rounded p-2">
-                              {editReceiptWarn}
+                          <div className="grid gap-2 md:grid-cols-4">
+                            <div>
+                              <label className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
+                                Wallet
+                              </label>
+                              <select
+                                className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                                value={editWalletId}
+                                onChange={(e) => setEditWalletId(e.target.value)}
+                              >
+                                {wallets.map((w) => (
+                                  <option key={w.id} value={w.id}>
+                                    {w.name} ({w.currency_code})
+                                  </option>
+                                ))}
+                              </select>
                             </div>
-                          )}
 
-                          <div className="mt-2 flex justify-end">
+                            <div>
+                              <label className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
+                                Category
+                              </label>
+                              <select
+                                className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                                value={editCategoryId}
+                                onChange={(e) => setEditCategoryId(e.target.value)}
+                              >
+                                {categories.map((c) => (
+                                  <option key={c.id} value={c.id}>
+                                    {c.name} ({c.type})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
+                                Type
+                              </label>
+                              <select
+                                className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                                value={editType}
+                                onChange={(e) =>
+                                  setEditType(e.target.value as TransactionType)
+                                }
+                              >
+                                <option value="expense">Expense</option>
+                                <option value="income">Income</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
+                                Date
+                              </label>
+                              <input
+                                type="date"
+                                className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                                value={editDate}
+                                onChange={(e) => setEditDate(e.target.value)}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid gap-2 md:grid-cols-3">
+                            <div>
+                              <label className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
+                                Amount
+                              </label>
+                              <input
+                                type="text"
+                                className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                                value={editAmount}
+                                onChange={(e) => setEditAmount(e.target.value)}
+                              />
+                            </div>
+
+                            <div className="md:col-span-2">
+                              <label className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
+                                Description
+                              </label>
+                              <input
+                                type="text"
+                                className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                                value={editDescription}
+                                onChange={(e) => setEditDescription(e.target.value)}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex justify-end gap-2 pt-1">
                             <button
                               type="button"
-                              onClick={handleUploadReceiptsForEditingTx}
-                              disabled={
-                                uploadingEditReceipts ||
-                                editReceiptFiles.length === 0
-                              }
-                              className="px-4 py-2 rounded bg-white text-black text-xs font-semibold hover:bg-gray-200 transition disabled:opacity-50"
+                              onClick={handleCancelInlineEdit}
+                              className="px-3 py-1 rounded border border-gray-700 text-[11px] text-gray-200 bg-gray-900 hover:bg-gray-800 transition"
+                              disabled={savingEdit || uploadingEditReceipts}
                             >
-                              {uploadingEditReceipts
-                                ? "Uploading..."
-                                : "Upload receipts"}
+                              Cancel
                             </button>
-                          </div>
-                        </div>
-
-                        <div className="pt-2">
-                          <ReceiptList transactionId={tx.id} />
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div key={tx.id} className="px-4 py-2">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="font-medium">
-                            {category ? category.name : "Uncategorized"}{" "}
-                            <span className="text-xs text-gray-400">
-                              ({tx.type})
-                            </span>
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            {wallet ? wallet.name : "Unknown wallet"} • {dateStr}
-                            {tx.description ? ` • ${tx.description}` : null}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col items-end gap-1">
-                          <div
-                            className={
-                              tx.type === "income"
-                                ? "text-green-400"
-                                : "text-red-400"
-                            }
-                          >
-                            {tx.type === "income" ? "+" : "-"}
-                            {formatMinorToAmount(tx.amount_minor)}{" "}
-                            {tx.currency_code}
-                          </div>
-
-                          <div className="flex gap-2 text-[11px]">
                             <button
                               type="button"
-                              onClick={() => handleStartInlineEdit(tx)}
-                              className="px-2 py-1 rounded border border-gray-700 bg-gray-900 hover:bg-gray-800 transition"
+                              onClick={handleSaveInlineEdit}
+                              className="px-3 py-1 rounded border border-gray-700 text-[11px] bg-white text-black font-semibold hover:bg-gray-200 transition"
+                              disabled={savingEdit || uploadingEditReceipts}
                             >
-                              Edit
+                              {savingEdit ? "Saving..." : "Save"}
                             </button>
                             <button
                               type="button"
                               onClick={() => handleDeleteTransaction(tx)}
-                              className="px-2 py-1 rounded border border-red-500 text-red-300 bg-gray-900 hover:bg-gray-900/70 transition"
+                              className="px-3 py-1 rounded border border-red-500 text-[11px] text-red-300 bg-gray-900 hover:bg-gray-900/70 transition"
+                              disabled={savingEdit || uploadingEditReceipts}
                             >
                               Delete
                             </button>
                           </div>
+
+                          <div className="pt-2 border-t border-gray-800">
+                            <div className="text-[11px] uppercase tracking-wider text-gray-400 mb-2">
+                              Receipts
+                            </div>
+
+                            <ReceiptUploader
+                              files={editReceiptFiles}
+                              onAdd={handleAddEditReceiptFiles}
+                              onRemoveAt={handleRemoveEditReceiptAt}
+                              disabled={uploadingEditReceipts || savingEdit}
+                              label="Upload receipts (PDF or images, max 5 MB each)"
+                            />
+
+                            {editReceiptWarn && (
+                              <div className="mt-2 text-xs text-yellow-300 border border-yellow-500/30 bg-yellow-500/10 rounded p-2">
+                                {editReceiptWarn}
+                              </div>
+                            )}
+
+                            <div className="mt-2 flex justify-end">
+                              <button
+                                type="button"
+                                onClick={handleUploadReceiptsForEditingTx}
+                                disabled={
+                                  uploadingEditReceipts ||
+                                  editReceiptFiles.length === 0
+                                }
+                                className="px-4 py-2 rounded bg-white text-black text-xs font-semibold hover:bg-gray-200 transition disabled:opacity-50"
+                              >
+                                {uploadingEditReceipts
+                                  ? "Uploading..."
+                                  : "Upload receipts"}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="pt-2">
+                            <ReceiptList transactionId={tx.id} />
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={tx.id} className="px-4 py-2">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">
+                              {category ? category.name : "Uncategorized"}{" "}
+                              <span className="text-xs text-gray-400">
+                                ({tx.type})
+                              </span>
+                            </div>
+                            <div className="text-xs text-gray-400 truncate">
+                              {wallet ? wallet.name : "Unknown wallet"} • {dateStr}
+                              {tx.description ? ` • ${tx.description}` : null}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <div
+                              className={
+                                tx.type === "income"
+                                  ? "text-green-400"
+                                  : "text-red-400"
+                              }
+                            >
+                              {tx.type === "income" ? "+" : "-"}
+                              {formatMinorToAmount(tx.amount_minor)}{" "}
+                              {tx.currency_code}
+                            </div>
+
+                            <div className="flex gap-2 text-[11px]">
+                              <button
+                                type="button"
+                                onClick={() => handleStartInlineEdit(tx)}
+                                className="px-2 py-1 rounded border border-gray-700 bg-gray-900 hover:bg-gray-800 transition"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteTransaction(tx)}
+                                className="px-2 py-1 rounded border border-red-500 text-red-300 bg-gray-900 hover:bg-gray-900/70 transition"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-2">
+                          <ReceiptList transactionId={tx.id} />
                         </div>
                       </div>
-
-                      <div className="mt-2">
-                        <ReceiptList transactionId={tx.id} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {hasMore && (
-                <div className="flex justify-center mt-4">
-                  <button
-                    type="button"
-                    onClick={handleLoadMore}
-                    disabled={loadingMore}
-                    className="px-4 py-2 rounded border border-gray-700 text-sm bg-gray-900 hover:bg-gray-800 disabled:opacity-50 transition"
-                  >
-                    {loadingMore ? "Loading..." : "Load more"}
-                  </button>
+                    );
+                  })}
                 </div>
-              )}
-            </>
-          )}
+
+                {hasMore && (
+                  <div className="flex justify-center mt-4">
+                    <button
+                      type="button"
+                      onClick={handleLoadMore}
+                      disabled={loadingMore}
+                      className="px-4 py-2 rounded border border-gray-700 text-sm bg-gray-900 hover:bg-gray-800 disabled:opacity-50 transition"
+                    >
+                      {loadingMore ? "Loading..." : "Load more"}
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </section>
 
         {pendingDelete && (
