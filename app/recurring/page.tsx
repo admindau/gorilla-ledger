@@ -79,24 +79,28 @@ export default function RecurringPage() {
       const supabase = supabaseBrowserClient;
 
       try {
-        const [{ data: u }, { data: w, error: wErr }, { data: c, error: cErr }, { data: r, error: rErr }] =
-          await Promise.all([
-            supabase.auth.getUser(),
-            supabase
-              .from("wallets")
-              .select("id,name,currency_code")
-              .order("name", { ascending: true }),
-            supabase
-              .from("categories")
-              .select("id,name,type")
-              .order("name", { ascending: true }),
-            supabase
-              .from("recurring_rules")
-              .select(
-                "id,user_id,wallet_id,category_id,description,amount_minor,currency_code,day_of_month,start_date,next_run_at,is_active"
-              )
-              .order("created_at", { ascending: true }),
-          ]);
+        const [
+          { data: u },
+          { data: w, error: wErr },
+          { data: c, error: cErr },
+          { data: r, error: rErr },
+        ] = await Promise.all([
+          supabase.auth.getUser(),
+          supabase
+            .from("wallets")
+            .select("id,name,currency_code")
+            .order("name", { ascending: true }),
+          supabase
+            .from("categories")
+            .select("id,name,type")
+            .order("name", { ascending: true }),
+          supabase
+            .from("recurring_rules")
+            .select(
+              "id,user_id,wallet_id,category_id,description,amount_minor,currency_code,day_of_month,start_date,next_run_at,is_active"
+            )
+            .order("created_at", { ascending: true }),
+        ]);
 
         if (cancelled) return;
 
@@ -239,7 +243,11 @@ export default function RecurringPage() {
   }
 
   async function deleteRule(rule: RecurringRule) {
-    if (!window.confirm(`Delete recurring rule for ${rule.description || "rule"}?`)) {
+    if (
+      !window.confirm(
+        `Delete recurring rule for ${rule.description || "rule"}?`
+      )
+    ) {
       return;
     }
 
@@ -260,51 +268,84 @@ export default function RecurringPage() {
     setRules((prev) => prev.filter((r) => r.id !== rule.id));
   }
 
+  const NavLink = ({
+    href,
+    label,
+    active,
+  }: {
+    href: string;
+    label: string;
+    active?: boolean;
+  }) => {
+    return (
+      <Link
+        href={href}
+        className={[
+          "px-2.5 py-1.5 rounded-md border text-xs transition",
+          active
+            ? "border-white/30 bg-white/10 text-white"
+            : "border-gray-800 bg-black/40 text-gray-300 hover:bg-white/5 hover:text-white",
+        ].join(" ")}
+      >
+        {label}
+      </Link>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* ========================= Top Navigation ========================= */}
-      <header className="border-b border-gray-900">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <Link href="/dashboard" className="text-sm font-semibold hover:underline">
-              Gorilla Ledger™
-            </Link>
+      {/* ========================= Hardened Top Navigation ========================= */}
+      <header className="w-full border-b border-gray-900 bg-black/80 backdrop-blur">
+        <div className="max-w-6xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <Link
+                href="/dashboard"
+                className="font-semibold tracking-tight truncate"
+              >
+                Gorilla Ledger™
+              </Link>
+
+              <nav className="hidden md:flex items-center gap-2">
+                <NavLink href="/wallets" label="Wallets" />
+                <NavLink href="/categories" label="Categories" />
+                <NavLink href="/transactions" label="Transactions" />
+                <NavLink href="/budgets" label="Budgets" />
+                <NavLink href="/recurring" label="Recurring" active />
+                <NavLink href="/settings/security" label="Security" />
+              </nav>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {userEmail ? (
+                <div className="hidden sm:flex items-center gap-2 max-w-[260px]">
+                  <span className="text-[11px] text-gray-400">Signed in</span>
+                  <span className="text-xs text-gray-200 truncate">
+                    {userEmail}
+                  </span>
+                </div>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={signingOut}
+                className="px-3 py-1.5 rounded-md border border-gray-700 text-xs text-gray-200 hover:bg-white/5 transition disabled:opacity-60"
+              >
+                {signingOut ? "Logging out…" : "Logout"}
+              </button>
+            </div>
           </div>
 
-          <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm">
-            <Link href="/wallets" className="hover:underline">
-              Wallets
-            </Link>
-            <Link href="/categories" className="hover:underline">
-              Categories
-            </Link>
-            <Link href="/transactions" className="hover:underline">
-              Transactions
-            </Link>
-            <Link href="/budgets" className="hover:underline">
-              Budgets
-            </Link>
-            <Link href="/recurring" className="hover:underline">
-              Recurring
-            </Link>
-            <Link href="/settings/security" className="hover:underline">
-              Security
-            </Link>
+          {/* Mobile nav (compact) */}
+          <nav className="md:hidden mt-2 flex flex-wrap gap-2">
+            <NavLink href="/wallets" label="Wallets" />
+            <NavLink href="/categories" label="Categories" />
+            <NavLink href="/transactions" label="Transactions" />
+            <NavLink href="/budgets" label="Budgets" />
+            <NavLink href="/recurring" label="Recurring" active />
+            <NavLink href="/settings/security" label="Security" />
           </nav>
-
-          <div className="flex items-center gap-3">
-            <span className="hidden sm:inline text-xs text-gray-300 truncate max-w-[220px]">
-              {userEmail || ""}
-            </span>
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={signingOut}
-              className="bg-black border border-white/20 text-white px-3 py-1.5 rounded text-sm hover:bg-white hover:text-black transition disabled:opacity-60"
-            >
-              {signingOut ? "Logging out…" : "Logout"}
-            </button>
-          </div>
         </div>
       </header>
 
@@ -328,7 +369,9 @@ export default function RecurringPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block mb-1 text-xs text-gray-400">Wallet</label>
+                <label className="block mb-1 text-xs text-gray-400">
+                  Wallet
+                </label>
                 <select
                   value={walletId}
                   onChange={(e) => setWalletId(e.target.value)}
@@ -366,7 +409,9 @@ export default function RecurringPage() {
               </div>
 
               <div>
-                <label className="block mb-1 text-xs text-gray-400">Amount</label>
+                <label className="block mb-1 text-xs text-gray-400">
+                  Amount
+                </label>
                 <input
                   type="number"
                   step="0.01"
