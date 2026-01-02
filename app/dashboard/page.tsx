@@ -120,7 +120,7 @@ export default function DashboardPage() {
   const [selectedYear, setSelectedYear] = useState(today.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth()); // 0-based
 
-  // 🔥 Filters for charts (per wallet, per category, per year)
+  // Filters for charts (per wallet, per category, per year)
   const [walletFilter, setWalletFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [yearFilter, setYearFilter] = useState<string>("all");
@@ -580,6 +580,19 @@ export default function DashboardPage() {
     ? `${daysAgoFromMs(lastCheckAt)} day(s) ago`
     : "Not recorded";
 
+  // ---------- Visual system (layout-only; no data/logic changes) ----------
+  const CARD =
+    "border border-gray-800 bg-black/40 rounded-2xl p-5 " +
+    "shadow-[0_0_0_1px_rgba(255,255,255,0.03)]";
+  const CARD_TIGHT =
+    "border border-gray-800 bg-black/40 rounded-2xl p-4 " +
+    "shadow-[0_0_0_1px_rgba(255,255,255,0.03)]";
+  const KPI_CARD =
+    "border border-gray-800 bg-black/40 rounded-2xl p-4 " +
+    "shadow-[0_0_0_1px_rgba(255,255,255,0.03)]";
+  const SECTION_DIVIDER = "h-px bg-gray-800/80";
+  const SECTION_KICKER = "text-[11px] uppercase tracking-wide text-gray-500";
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
       {/* Top bar */}
@@ -622,7 +635,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Security posture row (mobile-first; stays neat on all screens) */}
+        {/* Security posture row */}
         <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
           <span className="text-gray-400">MFA:</span>
           <span className={mfaEnabled ? "text-emerald-400" : "text-gray-300"}>
@@ -642,45 +655,48 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <main className="flex-1 px-4 py-6 max-w-7xl mx-auto w-full">
-        {/* Page header + month selector */}
-        <section className="mb-6">
-          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-semibold">Overview</h1>
-              <p className="text-gray-400 text-sm">
-                High-level snapshot of your wallets, budgets, and activity.
-              </p>
-            </div>
-
-            {/* Month selector */}
-            <div className="inline-flex items-center gap-2 text-sm">
-              <button
-                type="button"
-                onClick={goToPreviousMonth}
-                className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
-              >
-                ◀
-              </button>
-              <div className="px-3 py-1 border border-gray-800 rounded-full bg-black/40 text-xs uppercase tracking-wide text-gray-300">
-                {monthLabel}
-              </div>
-              <button
-                type="button"
-                onClick={goToNextMonth}
-                className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
-              >
-                ▶
-              </button>
-            </div>
+      <main className="flex-1 px-4 py-6 max-w-6xl mx-auto w-full">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+          <div>
+            <h1 className="text-2xl font-semibold">Overview</h1>
+            <p className="text-gray-400 text-sm">
+              High-level snapshot of your wallets, budgets, and activity.
+            </p>
           </div>
 
-          {errorMsg && <p className="mt-4 text-red-400 text-sm">{errorMsg}</p>}
-        </section>
+          {/* Month selector */}
+          <div className="inline-flex items-center gap-2 text-sm">
+            <button
+              type="button"
+              onClick={goToPreviousMonth}
+              className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
+            >
+              ◀
+            </button>
+            <div className="px-3 py-1 border border-gray-800 rounded-full bg-black/40 text-xs uppercase tracking-wide text-gray-300">
+              {monthLabel}
+            </div>
+            <button
+              type="button"
+              onClick={goToNextMonth}
+              className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
+            >
+              ▶
+            </button>
+          </div>
+        </div>
+
+        {errorMsg && <p className="mb-6 text-red-400 text-sm">{errorMsg}</p>}
+
+        {/* Executive */}
+        <div className="mt-2 mb-4">
+          <div className={SECTION_KICKER}>Executive</div>
+          <div className={`${SECTION_DIVIDER} mt-2`} />
+        </div>
 
         {/* KPI strip (Executive summary) */}
-        <section className="grid gap-4 md:grid-cols-3 mb-8">
-          <div className="border border-gray-800 rounded p-4 bg-black/40">
+        <section className="grid gap-5 md:grid-cols-3 mb-8">
+          <div className={KPI_CARD}>
             <div className="text-xs text-gray-400 uppercase mb-1">Wallets</div>
             <div className="text-2xl font-semibold">{wallets.length}</div>
             <div className="text-xs text-gray-500 mt-1">
@@ -688,7 +704,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="border border-gray-800 rounded p-4 bg-black/40">
+          <div className={KPI_CARD}>
             <div className="text-xs text-gray-400 uppercase mb-1">
               Income – {monthLabel}
             </div>
@@ -709,7 +725,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="border border-gray-800 rounded p-4 bg-black/40">
+          <div className={KPI_CARD}>
             <div className="text-xs text-gray-400 uppercase mb-1">
               Expenses – {monthLabel}
             </div>
@@ -732,8 +748,8 @@ export default function DashboardPage() {
         </section>
 
         {/* Executive trend (Hero chart) */}
-        <section className="mb-8">
-          <div className="flex items-baseline justify-between gap-3 mb-2">
+        <section className="mb-10">
+          <div className="flex items-baseline justify-between gap-3 mb-3">
             <h2 className="text-lg font-semibold">
               Calendar-Year Income vs Expenses
             </h2>
@@ -745,7 +761,7 @@ export default function DashboardPage() {
           {loadingData ? (
             <p className="text-gray-400 text-sm">Loading...</p>
           ) : (
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
+            <div className={CARD}>
               <YearlyIncomeExpenseBarChart
                 transactions={transactions}
                 categories={categories}
@@ -757,11 +773,16 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Total Balance by currency (secondary KPI block) */}
+        {/* Total Balance by currency */}
         <section className="mb-10">
-          <h2 className="text-lg font-semibold mb-2">
-            Total Balance by Currency
-          </h2>
+          <div className="flex items-baseline justify-between gap-3 mb-3">
+            <h2 className="text-lg font-semibold">Total Balance by Currency</h2>
+            <div className="text-[11px] text-gray-400">
+              Wallet balances (starting balance + transactions). Transfers
+              included.
+            </div>
+          </div>
+
           {loadingData ? (
             <p className="text-gray-400 text-sm">Loading...</p>
           ) : Object.keys(totalsByCurrency).length === 0 ? (
@@ -769,11 +790,11 @@ export default function DashboardPage() {
               No balances yet – add a wallet and some transactions.
             </p>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {Object.entries(totalsByCurrency).map(([currency, minor]) => (
                 <div
                   key={currency}
-                  className="border border-gray-800 rounded px-4 py-3 bg-black/40"
+                  className="border border-gray-800 bg-black/40 rounded-2xl px-4 py-3 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]"
                 >
                   <div className="text-xs text-gray-400 uppercase">
                     {currency}
@@ -798,9 +819,9 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-5 lg:grid-cols-2">
             {/* Smart Insights */}
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
+            <div className={CARD}>
               {loadingData ? (
                 <p className="text-gray-400 text-sm">Loading...</p>
               ) : (
@@ -816,7 +837,7 @@ export default function DashboardPage() {
             </div>
 
             {/* AI Insights */}
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
+            <div className={CARD}>
               {loadingData ? (
                 <p className="text-gray-400 text-sm">Loading...</p>
               ) : (
@@ -834,8 +855,10 @@ export default function DashboardPage() {
         </section>
 
         {/* Chart filters (placed before the analytics it controls) */}
-        <section className="mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <section className="mb-10 sticky top-0 z-30 -mx-4 px-4 pt-4 pb-4 bg-black/80 backdrop-blur border-b border-gray-800">
+          <div
+            className={`${CARD_TIGHT} flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`}
+          >
             <div>
               <h2 className="text-sm font-semibold">Chart Filters</h2>
               <p className="text-[11px] text-gray-400">
@@ -895,10 +918,10 @@ export default function DashboardPage() {
 
         {/* Composition row: Spending donut + Top categories */}
         <section className="mb-10">
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-5 lg:grid-cols-2">
             {/* Spending by Category (donut) */}
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <h2 className="text-lg font-semibold mb-2">
+            <div className={CARD}>
+              <h2 className="text-lg font-semibold mb-3">
                 Spending by Category – {monthLabel}
               </h2>
               {loadingData ? (
@@ -916,8 +939,8 @@ export default function DashboardPage() {
             </div>
 
             {/* Top categories bar chart */}
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <h2 className="text-lg font-semibold mb-2">
+            <div className={CARD}>
+              <h2 className="text-lg font-semibold mb-3">
                 Top Spending Categories – This Year
               </h2>
               {loadingData ? (
@@ -951,21 +974,15 @@ export default function DashboardPage() {
 
           {/* Budget insights (above the table) */}
           {!loadingData && totalBudgets > 0 && (
-            <div className="mb-4">
-              <BudgetInsightsPanel
-                summaries={budgetSummaries as any}
-                riskThreshold={RISK_THRESHOLD}
-                monthLabel={monthLabel}
-              />
-            </div>
+            <BudgetInsightsPanel
+              summaries={budgetSummaries as any}
+              riskThreshold={RISK_THRESHOLD}
+              monthLabel={monthLabel}
+            />
           )}
 
           {/* Budgets vs Actual */}
-          <div className="border border-gray-800 rounded p-4 bg-black/40">
-            <h3 className="text-lg font-semibold mb-2">
-              Budgets vs Actual – {monthLabel}
-            </h3>
-
+          <div className={CARD}>
             {loadingData ? (
               <p className="text-gray-400 text-sm">Loading...</p>
             ) : totalBudgets === 0 ? (
@@ -995,7 +1012,9 @@ export default function DashboardPage() {
                   </span>
                 </div>
 
-                <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
+                <div
+                  className={`border border-gray-800 bg-black/30 rounded-2xl divide-y divide-gray-800 text-sm shadow-[0_0_0_1px_rgba(255,255,255,0.03)]`}
+                >
                   {budgetSummaries.map((item) => {
                     const { budget, wallet, category, actualMinor, usedRatio } =
                       item;
@@ -1005,7 +1024,10 @@ export default function DashboardPage() {
                     const labelVerb = isExpense ? "Spent" : "Received";
 
                     const usedPercent = Math.round(usedRatio * 100);
-                    const clampedPercent = Math.max(0, Math.min(usedPercent, 130));
+                    const clampedPercent = Math.max(
+                      0,
+                      Math.min(usedPercent, 130)
+                    );
 
                     const barFillPercent = Math.max(
                       0,
@@ -1078,11 +1100,13 @@ export default function DashboardPage() {
                               You&apos;ve exceeded this budget.
                             </div>
                           )}
-                          {usedPercent <= 100 && usedRatio > RISK_THRESHOLD && (
-                            <div className="mt-1 text-[11px] text-gray-400">
-                              You&apos;re approaching this budget&apos;s limit.
-                            </div>
-                          )}
+                          {usedPercent <= 100 &&
+                            usedRatio > RISK_THRESHOLD && (
+                              <div className="mt-1 text-[11px] text-gray-400">
+                                You&apos;re approaching this budget&apos;s
+                                limit.
+                              </div>
+                            )}
                         </div>
                       </div>
                     );
@@ -1093,7 +1117,7 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Advanced analytics (everything still present, just grouped more cleanly) */}
+        {/* Advanced analytics */}
         <section className="mb-12">
           <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-3">
             <div>
@@ -1105,12 +1129,9 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2 mb-4">
-            {/* Monthly income vs expenses (TRUE monthly, month-scoped + densified) */}
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <h5 className="text-lg font-semibold mb-2">
-                Monthly Budget Summary
-              </h5>
+          <div className="grid gap-5 lg:grid-cols-2 mb-5">
+            {/* Monthly income vs expenses */}
+            <div className={CARD}>
               {loadingData ? (
                 <p className="text-gray-400 text-sm">Loading...</p>
               ) : monthlyIncomeExpenseData.length === 0 ? (
@@ -1123,10 +1144,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Historical 12-month income vs expenses */}
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <h5 className="text-lg font-semibold mb-2">
-                Annual Performance
-              </h5>
+            <div className={CARD}>
               {loadingData ? (
                 <p className="text-gray-400 text-sm">Loading...</p>
               ) : incomeExpenseTrendLast12.length === 0 ? (
@@ -1139,12 +1157,9 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-5 lg:grid-cols-2">
             {/* All-Time Income vs Expenses */}
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <h5 className="text-lg font-semibold mb-2">
-                Lifetime Cash Flow
-              </h5>
+            <div className={CARD}>
               {loadingData ? (
                 <p className="text-gray-400 text-sm">Loading...</p>
               ) : incomeExpenseTrendData.length === 0 ? (
@@ -1157,10 +1172,12 @@ export default function DashboardPage() {
             </div>
 
             {/* Cumulative Net Flow — All Time */}
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <h5 className="text-lg font-semibold mb-2">
-                The Bottom Line
-              </h5>
+            <div className={CARD}>
+              <p className="text-[11px] text-gray-400 mb-2">
+                Income minus expenses accumulated over time (net flow). This
+                does not represent wallet balances and does not include starting
+                balances.
+              </p>
 
               {loadingData ? (
                 <p className="text-gray-400 text-sm">Loading...</p>
