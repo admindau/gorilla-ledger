@@ -1173,12 +1173,6 @@ export default function DashboardPage() {
 
             {/* Cumulative Net Flow — All Time */}
             <div className={CARD}>
-              <p className="text-[11px] text-gray-400 mb-2">
-                Income minus expenses accumulated over time (net flow). This
-                does not represent wallet balances and does not include starting
-                balances.
-              </p>
-
               {loadingData ? (
                 <p className="text-gray-400 text-sm">Loading...</p>
               ) : incomeExpenseTrendData.length === 0 ? (
