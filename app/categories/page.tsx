@@ -37,6 +37,10 @@ export default function CategoriesPage() {
   const [type, setType] = useState<CategoryType>("expense");
   const [saving, setSaving] = useState(false);
 
+  // create modal state
+  const [createOpen, setCreateOpen] = useState(false);
+  const createNameRef = useRef<HTMLInputElement | null>(null);
+
   // edit state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -51,8 +55,6 @@ export default function CategoriesPage() {
   // command bar state
   const [q, setQ] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | CategoryType>("all");
-
-  const addFormRef = useRef<HTMLDivElement | null>(null);
 
   const categoryById = useMemo(() => {
     return Object.fromEntries(categories.map((c) => [c.id, c] as const));
@@ -75,8 +77,7 @@ export default function CategoriesPage() {
 
         // "Last security check" heuristic:
         // If user is currently AAL2, we stamp/refresh a local marker.
-        const { data: aal } =
-          await supabaseBrowserClient.auth.mfa.getAuthenticatorAssuranceLevel();
+        const { data: aal } = await supabaseBrowserClient.auth.mfa.getAuthenticatorAssuranceLevel();
         const isAAL2 = aal?.currentLevel === "aal2";
 
         const key = "gl_last_security_check_at";
@@ -137,12 +138,49 @@ export default function CategoriesPage() {
     loadCategories();
   }, []);
 
+  useEffect(() => {
+    if (!createOpen) return;
+
+    // focus the name field when modal opens
+    const t = window.setTimeout(() => {
+      createNameRef.current?.focus();
+    }, 0);
+
+    // esc to close
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setCreateOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [createOpen]);
+
   async function handleLogout() {
     try {
       await supabaseBrowserClient.auth.signOut();
     } finally {
       window.location.href = "/";
     }
+  }
+
+  function openCreateModal() {
+    setErrorMsg("");
+    setCreateOpen(true);
+  }
+
+  function closeCreateModal() {
+    if (saving) return;
+    setCreateOpen(false);
+  }
+
+  function resetCreateForm() {
+    setName("");
+    setType("expense");
   }
 
   async function handleCreateCategory(e: React.FormEvent) {
@@ -161,11 +199,18 @@ export default function CategoriesPage() {
       return;
     }
 
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setErrorMsg("Category name is required.");
+      setSaving(false);
+      return;
+    }
+
     const { data, error } = await supabaseBrowserClient
       .from("categories")
       .insert({
         user_id: user.id,
-        name,
+        name: trimmed,
         type,
       })
       .select()
@@ -178,10 +223,15 @@ export default function CategoriesPage() {
       return;
     }
 
-    setCategories((prev) => [...prev, data as Category]);
-    setName("");
-    setType("expense");
+    setCategories((prev) => [...prev, data as Category].sort((a, b) => {
+      // keep UI stable: type asc then name asc
+      if (a.type !== b.type) return a.type.localeCompare(b.type);
+      return a.name.localeCompare(b.name);
+    }));
+
+    resetCreateForm();
     setSaving(false);
+    setCreateOpen(false);
   }
 
   function beginEdit(id: string) {
@@ -230,7 +280,14 @@ export default function CategoriesPage() {
       return;
     }
 
-    setCategories((prev) => prev.map((c) => (c.id === id ? (data as Category) : c)));
+    setCategories((prev) =>
+      prev
+        .map((c) => (c.id === id ? (data as Category) : c))
+        .sort((a, b) => {
+          if (a.type !== b.type) return a.type.localeCompare(b.type);
+          return a.name.localeCompare(b.name);
+        })
+    );
     setEditingId(null);
     setRowBusyId(null);
   }
@@ -390,10 +447,6 @@ export default function CategoriesPage() {
     );
   };
 
-  function scrollToAdd() {
-    addFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
   function clearCommandBar() {
     setQ("");
     setTypeFilter("all");
@@ -401,9 +454,9 @@ export default function CategoriesPage() {
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      {/* Tightened header (app-shell) — now sticky and aligned to content grid */}
-      <header className="sticky top-0 z-40 w-full border-b border-gray-900 bg-black/80 backdrop-blur">
-        <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 py-3">
+      {/* Tightened header (app-shell) */}
+      <header className="w-full border-b border-gray-900 bg-black/80 backdrop-blur">
+        <div className="px-4 sm:px-6 py-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div className="font-semibold tracking-tight truncate">Gorilla Ledger™</div>
@@ -462,15 +515,15 @@ export default function CategoriesPage() {
         </div>
       </header>
 
-      {/* Mini sticky command bar — now docked under the sticky header */}
-      <div className="sticky top-[56px] z-30 border-b border-gray-900 bg-black/85 backdrop-blur">
+      {/* Mini sticky command bar */}
+      <div className="sticky top-0 z-30 border-b border-gray-900 bg-black/85 backdrop-blur">
         <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 py-2.5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div className="flex items-baseline gap-2 min-w-0">
               <div className="text-[11px] uppercase tracking-widest text-gray-500">
                 Configuration
               </div>
-              <div className="text-xs text-gray-200 font-medium truncate">Categories</div>
+              <div className="text-xs text-gray-300 truncate">Categories</div>
               <span className="text-gray-700">•</span>
               <div className="text-[11px] text-gray-400">
                 Showing <span className="text-gray-200 font-medium">{visibleCount}</span>
@@ -500,7 +553,7 @@ export default function CategoriesPage() {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={scrollToAdd}
+                  onClick={openCreateModal}
                   className="px-3 py-1.5 rounded-md bg-white text-black text-xs font-semibold hover:bg-gray-200 transition"
                 >
                   Add Category
@@ -533,6 +586,90 @@ export default function CategoriesPage() {
         </div>
       </div>
 
+      {/* Create Category Modal (single source of "Add Category") */}
+      {createOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Add Category"
+        >
+          <button
+            type="button"
+            aria-label="Close modal"
+            onClick={closeCreateModal}
+            className="absolute inset-0 bg-black/70"
+          />
+          <div className="relative w-full max-w-lg border border-gray-800 rounded-xl bg-black/90 backdrop-blur p-4 sm:p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.06)]">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <div className="text-sm font-semibold leading-tight">Add Category</div>
+                <div className="text-[11px] text-gray-400 mt-0.5">
+                  Create a new income or expense category.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeCreateModal}
+                disabled={saving}
+                className="px-2.5 py-1.5 rounded-md border border-gray-800 text-xs text-gray-200 hover:bg-white/5"
+              >
+                Close
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateCategory} className="grid gap-3 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <label className="block text-xs mb-1 text-gray-400">Name</label>
+                <input
+                  ref={createNameRef}
+                  type="text"
+                  className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+                  placeholder="e.g. Salary, Rent, Food, Transport"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs mb-1 text-gray-400">Type</label>
+                <select
+                  className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+                  value={type}
+                  onChange={(e) => setType(e.target.value as CategoryType)}
+                >
+                  <option value="expense">Expense</option>
+                  <option value="income">Income</option>
+                </select>
+              </div>
+
+              <div className="sm:col-span-2 flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (saving) return;
+                    resetCreateForm();
+                    setCreateOpen(false);
+                  }}
+                  disabled={saving}
+                  className="px-3 py-2 rounded-md border border-gray-800 bg-black/40 text-xs text-gray-200 hover:bg-white/5"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-4 py-2 rounded-md bg-white text-black text-xs font-semibold hover:bg-gray-200 transition"
+                >
+                  {saving ? "Saving..." : "Create Category"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <main className="flex-1 px-4 py-6 max-w-4xl mx-auto w-full">
         <div className="mb-4">
           <h1 className="text-2xl font-semibold leading-tight">Categories</h1>
@@ -542,49 +679,6 @@ export default function CategoriesPage() {
         </div>
 
         {errorMsg && <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>}
-
-        {/* Add form anchor */}
-        <div ref={addFormRef} />
-
-        <section className="mb-8 border border-gray-800 rounded p-4 bg-black/40">
-          <h2 className="text-sm font-semibold mb-3">Add a Category</h2>
-
-          <form onSubmit={handleCreateCategory} className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="block text-xs mb-1 text-gray-400">Name</label>
-              <input
-                type="text"
-                className="w-full p-2 rounded bg-gray-900 border border-gray-700"
-                placeholder="e.g. Salary, Rent, Food, Transport"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs mb-1 text-gray-400">Type</label>
-              <select
-                className="w-full p-2 rounded bg-gray-900 border border-gray-700"
-                value={type}
-                onChange={(e) => setType(e.target.value as CategoryType)}
-              >
-                <option value="expense">Expense</option>
-                <option value="income">Income</option>
-              </select>
-            </div>
-
-            <div className="md:col-span-2">
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-4 py-2 rounded bg-white text-black font-semibold"
-              >
-                {saving ? "Saving..." : "Create Category"}
-              </button>
-            </div>
-          </form>
-        </section>
 
         <section className="grid md:grid-cols-2 gap-6">
           <div>
