@@ -16,6 +16,8 @@ import BudgetInsightsPanel from "@/components/dashboard/BudgetInsightsPanel";
 import AiInsightsSidebar from "@/components/dashboard/AiInsightsSidebar";
 import YearlyIncomeExpenseBarChart from "@/components/dashboard/YearlyIncomeExpenseBarChart";
 
+import Skeleton from "@/components/ui/Skeleton";
+
 type Wallet = {
   id: string;
   name: string;
@@ -280,7 +282,20 @@ export default function DashboardPage() {
   if (checkingSession) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <p className="text-gray-400">Checking your session.</p>
+        <div className="w-full max-w-md px-6">
+          <div className="border border-gray-800 bg-black/40 rounded-2xl p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-sm font-semibold">Gorilla Ledger™</div>
+              <Skeleton className="h-6 w-24" rounded="full" />
+            </div>
+            <Skeleton className="h-4 w-2/3 mb-2" />
+            <Skeleton className="h-4 w-1/2 mb-6" />
+            <Skeleton className="h-10 w-full rounded-xl" />
+            <div className="mt-4 text-xs text-gray-400">
+              Checking your session…
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -580,7 +595,7 @@ export default function DashboardPage() {
     ? `${daysAgoFromMs(lastCheckAt)} day(s) ago`
     : "Not recorded";
 
-  // ---------- Visual system (layout-only; no data/logic changes) ----------
+  // ---------- Visual system ----------
   const CARD =
     "border border-gray-800 bg-black/40 rounded-2xl p-5 " +
     "shadow-[0_0_0_1px_rgba(255,255,255,0.03)]";
@@ -592,6 +607,16 @@ export default function DashboardPage() {
     "shadow-[0_0_0_1px_rgba(255,255,255,0.03)]";
   const SECTION_DIVIDER = "h-px bg-gray-800/80";
   const SECTION_KICKER = "text-[11px] uppercase tracking-wide text-gray-500";
+
+  // KPI typography helpers
+  const KPI_VALUE = "font-semibold tracking-tight tabular-nums leading-none";
+  const KPI_VALUE_LG = `text-3xl sm:text-[34px] ${KPI_VALUE}`;
+  const KPI_VALUE_MD = `text-xl sm:text-2xl ${KPI_VALUE}`;
+
+  // Skeleton heights (stable layout, low CLS)
+  const SK_HERO = "h-[320px] sm:h-[360px]";
+  const SK_CHART = "h-[300px] sm:h-[320px]";
+  const SK_CHART_TALL = "h-[320px] sm:h-[360px]";
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
@@ -658,7 +683,7 @@ export default function DashboardPage() {
       <main className="flex-1 px-4 py-6 max-w-6xl mx-auto w-full">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <div>
-            <h1 className="text-2xl font-semibold">Overview</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
             <p className="text-gray-400 text-sm">
               High-level snapshot of your wallets, budgets, and activity.
             </p>
@@ -694,63 +719,103 @@ export default function DashboardPage() {
           <div className={`${SECTION_DIVIDER} mt-2`} />
         </div>
 
-        {/* KPI strip (Executive summary) */}
+        {/* KPI strip */}
         <section className="grid gap-5 md:grid-cols-3 mb-8">
           <div className={KPI_CARD}>
-            <div className="text-xs text-gray-400 uppercase mb-1">Wallets</div>
-            <div className="text-2xl font-semibold">{wallets.length}</div>
-            <div className="text-xs text-gray-500 mt-1">
-              Total number of wallets you&apos;re tracking.
+            <div className="text-[11px] text-gray-400 uppercase tracking-wide mb-2">
+              Wallets
             </div>
+
+            {loadingData ? (
+              <>
+                <Skeleton className="h-10 w-16 mb-2" />
+                <Skeleton className="h-3 w-3/4" />
+              </>
+            ) : (
+              <>
+                <div className={KPI_VALUE_LG}>{wallets.length}</div>
+                <div className="text-xs text-gray-500 mt-2">
+                  Total number of wallets you&apos;re tracking.
+                </div>
+              </>
+            )}
           </div>
 
           <div className={KPI_CARD}>
-            <div className="text-xs text-gray-400 uppercase mb-1">
+            <div className="text-[11px] text-gray-400 uppercase tracking-wide mb-2">
               Income – {monthLabel}
             </div>
-            <div className="text-lg font-semibold space-y-1">
-              {monthIncomeEntries.length === 0 ? (
-                <div>0.00</div>
-              ) : (
-                monthIncomeEntries.map(([currency, minor]) => (
-                  <div key={currency}>
-                    {formatMinorToAmount(minor)} {currency}
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="text-xs text-gray-500 mt-1">
-              Totals per currency. Internal transfers excluded. No FX conversion
-              applied.
-            </div>
+
+            {loadingData ? (
+              <>
+                <Skeleton className="h-8 w-44 mb-2" />
+                <Skeleton className="h-8 w-36 mb-2" />
+                <Skeleton className="h-3 w-5/6" />
+              </>
+            ) : (
+              <>
+                <div className={`space-y-1 ${KPI_VALUE_MD}`}>
+                  {monthIncomeEntries.length === 0 ? (
+                    <div className="tabular-nums">0.00</div>
+                  ) : (
+                    monthIncomeEntries.map(([currency, minor]) => (
+                      <div key={currency} className="tabular-nums">
+                        {formatMinorToAmount(minor)}{" "}
+                        <span className="text-sm text-gray-300">
+                          {currency}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="text-xs text-gray-500 mt-2">
+                  Totals per currency. Internal transfers excluded. No FX
+                  conversion applied.
+                </div>
+              </>
+            )}
           </div>
 
           <div className={KPI_CARD}>
-            <div className="text-xs text-gray-400 uppercase mb-1">
+            <div className="text-[11px] text-gray-400 uppercase tracking-wide mb-2">
               Expenses – {monthLabel}
             </div>
-            <div className="text-lg font-semibold space-y-1">
-              {monthExpenseEntries.length === 0 ? (
-                <div>0.00</div>
-              ) : (
-                monthExpenseEntries.map(([currency, minor]) => (
-                  <div key={currency}>
-                    {formatMinorToAmount(minor)} {currency}
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="text-xs text-gray-500 mt-1">
-              Totals per currency. Internal transfers excluded. No FX conversion
-              applied.
-            </div>
+
+            {loadingData ? (
+              <>
+                <Skeleton className="h-8 w-44 mb-2" />
+                <Skeleton className="h-8 w-36 mb-2" />
+                <Skeleton className="h-3 w-5/6" />
+              </>
+            ) : (
+              <>
+                <div className={`space-y-1 ${KPI_VALUE_MD}`}>
+                  {monthExpenseEntries.length === 0 ? (
+                    <div className="tabular-nums">0.00</div>
+                  ) : (
+                    monthExpenseEntries.map(([currency, minor]) => (
+                      <div key={currency} className="tabular-nums">
+                        {formatMinorToAmount(minor)}{" "}
+                        <span className="text-sm text-gray-300">
+                          {currency}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="text-xs text-gray-500 mt-2">
+                  Totals per currency. Internal transfers excluded. No FX
+                  conversion applied.
+                </div>
+              </>
+            )}
           </div>
         </section>
 
         {/* Executive trend (Hero chart) */}
         <section className="mb-10">
           <div className="flex items-baseline justify-between gap-3 mb-3">
-            <h2 className="text-lg font-semibold">
+            <h2 className="text-lg font-semibold tracking-tight">
               Calendar-Year Income vs Expenses
             </h2>
             <div className="text-[11px] text-gray-400">
@@ -759,7 +824,9 @@ export default function DashboardPage() {
           </div>
 
           {loadingData ? (
-            <p className="text-gray-400 text-sm">Loading...</p>
+            <div className={CARD}>
+              <Skeleton className={SK_HERO} rounded="2xl" />
+            </div>
           ) : (
             <div className={CARD}>
               <YearlyIncomeExpenseBarChart
@@ -776,7 +843,9 @@ export default function DashboardPage() {
         {/* Total Balance by currency */}
         <section className="mb-10">
           <div className="flex items-baseline justify-between gap-3 mb-3">
-            <h2 className="text-lg font-semibold">Total Balance by Currency</h2>
+            <h2 className="text-lg font-semibold tracking-tight">
+              Total Balance by Currency
+            </h2>
             <div className="text-[11px] text-gray-400">
               Wallet balances (starting balance + transactions). Transfers
               included.
@@ -784,7 +853,17 @@ export default function DashboardPage() {
           </div>
 
           {loadingData ? (
-            <p className="text-gray-400 text-sm">Loading...</p>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="border border-gray-800 bg-black/40 rounded-2xl px-4 py-3 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]"
+                >
+                  <Skeleton className="h-3 w-16 mb-3" />
+                  <Skeleton className="h-7 w-32" />
+                </div>
+              ))}
+            </div>
           ) : Object.keys(totalsByCurrency).length === 0 ? (
             <p className="text-gray-500 text-sm">
               No balances yet – add a wallet and some transactions.
@@ -796,11 +875,12 @@ export default function DashboardPage() {
                   key={currency}
                   className="border border-gray-800 bg-black/40 rounded-2xl px-4 py-3 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]"
                 >
-                  <div className="text-xs text-gray-400 uppercase">
+                  <div className="text-[11px] text-gray-400 uppercase tracking-wide">
                     {currency}
                   </div>
-                  <div className="text-lg font-semibold">
-                    {formatMinorToAmount(minor)} {currency}
+                  <div className={`mt-2 ${KPI_VALUE_MD} tabular-nums`}>
+                    {formatMinorToAmount(minor)}{" "}
+                    <span className="text-sm text-gray-300">{currency}</span>
                   </div>
                 </div>
               ))}
@@ -808,11 +888,13 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Intelligence section (Smart + AI) */}
+        {/* Intelligence */}
         <section className="mb-10">
           <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-3">
             <div>
-              <h2 className="text-lg font-semibold">Intelligence</h2>
+              <h2 className="text-lg font-semibold tracking-tight">
+                Intelligence
+              </h2>
               <p className="text-[11px] text-gray-400">
                 Actionable insights based on your recent activity.
               </p>
@@ -820,10 +902,14 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid gap-5 lg:grid-cols-2">
-            {/* Smart Insights */}
             <div className={CARD}>
               {loadingData ? (
-                <p className="text-gray-400 text-sm">Loading...</p>
+                <>
+                  <Skeleton className="h-5 w-40 mb-3" />
+                  <Skeleton className="h-4 w-5/6 mb-2" />
+                  <Skeleton className="h-4 w-2/3 mb-4" />
+                  <Skeleton className="h-24 w-full rounded-2xl" />
+                </>
               ) : (
                 <SmartInsightsPanel
                   transactions={transactions}
@@ -836,10 +922,14 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* AI Insights */}
             <div className={CARD}>
               {loadingData ? (
-                <p className="text-gray-400 text-sm">Loading...</p>
+                <>
+                  <Skeleton className="h-5 w-40 mb-3" />
+                  <Skeleton className="h-4 w-5/6 mb-2" />
+                  <Skeleton className="h-4 w-2/3 mb-4" />
+                  <Skeleton className="h-24 w-full rounded-2xl" />
+                </>
               ) : (
                 <AiInsightsSidebar
                   transactions={transactions}
@@ -854,13 +944,15 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Chart filters (placed before the analytics it controls) */}
+        {/* Chart filters */}
         <section className="mb-10 sticky top-0 z-30 -mx-4 px-4 pt-4 pb-4 bg-black/80 backdrop-blur border-b border-gray-800">
           <div
             className={`${CARD_TIGHT} flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`}
           >
             <div>
-              <h2 className="text-sm font-semibold">Chart Filters</h2>
+              <h2 className="text-sm font-semibold tracking-tight">
+                Chart Filters
+              </h2>
               <p className="text-[11px] text-gray-400">
                 Apply filters to the charts below, including spending and
                 income/expense trends.
@@ -916,16 +1008,15 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Composition row: Spending donut + Top categories */}
+        {/* Composition */}
         <section className="mb-10">
           <div className="grid gap-5 lg:grid-cols-2">
-            {/* Spending by Category (donut) */}
             <div className={CARD}>
-              <h2 className="text-lg font-semibold mb-3">
+              <h2 className="text-lg font-semibold tracking-tight mb-3">
                 Spending by Category – {monthLabel}
               </h2>
               {loadingData ? (
-                <p className="text-gray-400 text-sm">Loading...</p>
+                <Skeleton className={SK_CHART} rounded="2xl" />
               ) : (
                 <SpendingByCategoryChart
                   transactions={transactions}
@@ -938,13 +1029,12 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* Top categories bar chart */}
             <div className={CARD}>
-              <h2 className="text-lg font-semibold mb-3">
+              <h2 className="text-lg font-semibold tracking-tight mb-3">
                 Top Spending Categories – This Year
               </h2>
               {loadingData ? (
-                <p className="text-gray-400 text-sm">Loading...</p>
+                <Skeleton className={SK_CHART} rounded="2xl" />
               ) : (
                 <TopCategoriesBarChart
                   transactions={transactions}
@@ -958,11 +1048,11 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Budget control section */}
+        {/* Budget control */}
         <section className="mb-10">
           <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-2">
             <div>
-              <h2 className="text-lg font-semibold">
+              <h2 className="text-lg font-semibold tracking-tight">
                 Budget Control – {monthLabel}
               </h2>
               <p className="text-[11px] text-gray-400">
@@ -972,7 +1062,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Budget insights (above the table) */}
           {!loadingData && totalBudgets > 0 && (
             <BudgetInsightsPanel
               summaries={budgetSummaries as any}
@@ -981,10 +1070,15 @@ export default function DashboardPage() {
             />
           )}
 
-          {/* Budgets vs Actual */}
           <div className={CARD}>
             {loadingData ? (
-              <p className="text-gray-400 text-sm">Loading...</p>
+              <>
+                <Skeleton className="h-4 w-56 mb-3" />
+                <Skeleton className="h-4 w-2/3 mb-6" />
+                <Skeleton className="h-10 w-full rounded-2xl mb-3" />
+                <Skeleton className="h-10 w-full rounded-2xl mb-3" />
+                <Skeleton className="h-10 w-full rounded-2xl" />
+              </>
             ) : totalBudgets === 0 ? (
               <p className="text-gray-500 text-sm">
                 You don&apos;t have any budgets set for this month yet. Add some
@@ -992,7 +1086,6 @@ export default function DashboardPage() {
               </p>
             ) : (
               <>
-                {/* Budgets health summary */}
                 <div className="mb-4 flex flex-wrap gap-2 text-xs text-gray-300">
                   <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
                     {totalBudgets}{" "}
@@ -1075,17 +1168,16 @@ export default function DashboardPage() {
 
                         <div className="w-full md:w-1/2">
                           <div className="flex items-baseline justify-between mb-1">
-                            <div className="text-sm">
+                            <div className="text-sm tabular-nums">
                               {labelVerb} {formatMinorToAmount(actualMinor)} /{" "}
                               {formatMinorToAmount(budget.amount_minor)}{" "}
                               {currency}
                             </div>
-                            <div className="text-xs text-gray-400 ml-3 whitespace-nowrap">
+                            <div className="text-xs text-gray-400 ml-3 whitespace-nowrap tabular-nums">
                               {usedPercent}% of budget used
                             </div>
                           </div>
 
-                          {/* Progress bar */}
                           <div
                             className={`w-full h-2 rounded-full bg-black border ${barBorderClass} overflow-hidden`}
                           >
@@ -1121,7 +1213,9 @@ export default function DashboardPage() {
         <section className="mb-12">
           <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-3">
             <div>
-              <h2 className="text-lg font-semibold">Advanced Analytics</h2>
+              <h2 className="text-lg font-semibold tracking-tight">
+                Advanced Analytics
+              </h2>
               <p className="text-[11px] text-gray-400">
                 Trend charts to understand seasonality, long-term patterns, and
                 all-time net flow.
@@ -1130,10 +1224,9 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid gap-5 lg:grid-cols-2 mb-5">
-            {/* Monthly income vs expenses */}
             <div className={CARD}>
               {loadingData ? (
-                <p className="text-gray-400 text-sm">Loading...</p>
+                <Skeleton className={SK_CHART_TALL} rounded="2xl" />
               ) : monthlyIncomeExpenseData.length === 0 ? (
                 <p className="text-gray-500 text-sm">
                   No transactions yet to build a trend.
@@ -1143,10 +1236,9 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* Historical 12-month income vs expenses */}
             <div className={CARD}>
               {loadingData ? (
-                <p className="text-gray-400 text-sm">Loading...</p>
+                <Skeleton className={SK_CHART_TALL} rounded="2xl" />
               ) : incomeExpenseTrendLast12.length === 0 ? (
                 <p className="text-gray-500 text-sm">
                   Not enough history yet to show this trend.
@@ -1158,10 +1250,9 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid gap-5 lg:grid-cols-2">
-            {/* All-Time Income vs Expenses */}
             <div className={CARD}>
               {loadingData ? (
-                <p className="text-gray-400 text-sm">Loading...</p>
+                <Skeleton className={SK_CHART_TALL} rounded="2xl" />
               ) : incomeExpenseTrendData.length === 0 ? (
                 <p className="text-gray-500 text-sm">
                   No transactions yet to build an all-time trend.
@@ -1171,10 +1262,15 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* Cumulative Net Flow — All Time */}
             <div className={CARD}>
+              <p className="text-[11px] text-gray-400 mb-2">
+                Income minus expenses accumulated over time (net flow). This
+                does not represent wallet balances and does not include starting
+                balances.
+              </p>
+
               {loadingData ? (
-                <p className="text-gray-400 text-sm">Loading...</p>
+                <Skeleton className={SK_CHART_TALL} rounded="2xl" />
               ) : incomeExpenseTrendData.length === 0 ? (
                 <p className="text-gray-500 text-sm">
                   No transactions yet to build a cumulative net flow view.
