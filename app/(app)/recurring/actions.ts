@@ -36,7 +36,8 @@ export async function createRecurringRule(formData: FormData) {
 
   const dayOfMonth = firstDate.getUTCDate();
 
-  const supabase = createServerSupabaseClient();
+  // IMPORTANT: createServerSupabaseClient is async now -> MUST await
+  const supabase = await createServerSupabaseClient();
 
   const { error } = await supabase.from("recurring_rules").insert({
     wallet_id: walletId,
@@ -58,7 +59,7 @@ export async function createRecurringRule(formData: FormData) {
     return { success: false, error: "Database error while creating rule." };
   }
 
-  await revalidatePath("/recurring");
+  revalidatePath("/recurring");
   return { success: true };
 }
 
@@ -67,7 +68,7 @@ export async function pauseRecurringRule(formData: FormData) {
   const id = formData.get("id")?.toString();
   if (!id) return { success: false, error: "Missing rule id." };
 
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
 
   const { error } = await supabase
     .from("recurring_rules")
@@ -79,7 +80,7 @@ export async function pauseRecurringRule(formData: FormData) {
     return { success: false, error: "Database error while pausing rule." };
   }
 
-  await revalidatePath("/recurring");
+  revalidatePath("/recurring");
   return { success: true };
 }
 
@@ -88,7 +89,7 @@ export async function activateRecurringRule(formData: FormData) {
   const id = formData.get("id")?.toString();
   if (!id) return { success: false, error: "Missing rule id." };
 
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
 
   const { error } = await supabase
     .from("recurring_rules")
@@ -100,7 +101,7 @@ export async function activateRecurringRule(formData: FormData) {
     return { success: false, error: "Database error while activating rule." };
   }
 
-  await revalidatePath("/recurring");
+  revalidatePath("/recurring");
   return { success: true };
 }
 
@@ -109,18 +110,15 @@ export async function deleteRecurringRule(formData: FormData) {
   const id = formData.get("id")?.toString();
   if (!id) return { success: false, error: "Missing rule id." };
 
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
 
-  const { error } = await supabase
-    .from("recurring_rules")
-    .delete()
-    .eq("id", id);
+  const { error } = await supabase.from("recurring_rules").delete().eq("id", id);
 
   if (error) {
     console.error("Failed to delete recurring rule", error);
     return { success: false, error: "Database error while deleting rule." };
   }
 
-  await revalidatePath("/recurring");
+  revalidatePath("/recurring");
   return { success: true };
 }

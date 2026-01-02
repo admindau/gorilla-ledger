@@ -1,16 +1,36 @@
-import { createClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+/**
+ * Server-side Supabase client (Next.js App Router / Next 16 compatible).
+ * Uses cookie-based auth for reliable server auth + redirects.
+ */
+export async function createServerSupabaseClient() {
+  const cookieStore = await cookies();
 
-// Basic server-side Supabase client.
-// In future we’ll wire in auth cookies / RLS-aware headers.
-export function createServerSupabaseClient() {
-  return createClient(supabaseUrl, supabaseAnonKey, {
-    global: {
-      headers: {
-        // Placeholder for auth header if/when we add it:
-        // "X-Client-Info": "gorilla-ledger-server",
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error(
+      "Missing Supabase env vars: NEXT_PUBLIC_SUPABASE_URL and/or NEXT_PUBLIC_SUPABASE_ANON_KEY"
+    );
+  }
+
+  return createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options);
+          });
+        } catch {
+          // If called from a Server Component that cannot set cookies, ignore.
+          // This is a standard App Router pattern.
+        }
       },
     },
   });
