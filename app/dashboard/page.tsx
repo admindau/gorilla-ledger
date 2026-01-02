@@ -1263,12 +1263,6 @@ export default function DashboardPage() {
             </div>
 
             <div className={CARD}>
-              <p className="text-[11px] text-gray-400 mb-2">
-                Income minus expenses accumulated over time (net flow). This
-                does not represent wallet balances and does not include starting
-                balances.
-              </p>
-
               {loadingData ? (
                 <Skeleton className={SK_CHART_TALL} rounded="2xl" />
               ) : incomeExpenseTrendData.length === 0 ? (
