@@ -253,22 +253,47 @@ export default function WalletsPage() {
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      <header className="w-full flex items-center justify-between px-6 py-4 border-b border-gray-800">
-        <div className="font-semibold">Gorilla Ledger™ – Wallets</div>
-        <a href="/dashboard" className="text-sm text-gray-300 underline">
-          Back to Dashboard
-        </a>
+      {/* Tight, premium header (less “link-bar”) */}
+      <header className="w-full border-b border-gray-800 bg-black/60 backdrop-blur">
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold truncate">Gorilla Ledger™</div>
+            <div className="text-[11px] text-gray-400 tracking-wide uppercase">
+              Wallets
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <a
+              href="/dashboard"
+              className="px-3 py-1.5 rounded border border-gray-700 text-xs text-gray-200 hover:bg-white hover:text-black transition"
+            >
+              Back to Dashboard
+            </a>
+          </div>
+        </div>
       </header>
 
       <main className="flex-1 px-4 py-6 max-w-4xl mx-auto w-full">
-        <h1 className="text-2xl font-semibold mb-4">Your Wallets</h1>
+        {/* Tightened page heading rhythm */}
+        <div className="mb-4">
+          <h1 className="text-xl sm:text-2xl font-semibold leading-tight">
+            Your Wallets
+          </h1>
+          <p className="text-sm text-gray-400">
+            Create, edit, and manage wallet balances (starting balance + transactions).
+          </p>
+        </div>
 
         {errorMsg && <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>}
 
         <section className="mb-8 border border-gray-800 rounded p-4">
           <h2 className="text-lg font-semibold mb-3">Add a Wallet</h2>
 
-          <form onSubmit={handleCreateWallet} className="grid gap-4 md:grid-cols-2">
+          <form
+            onSubmit={handleCreateWallet}
+            className="grid gap-4 md:grid-cols-2"
+          >
             <div className="md:col-span-1">
               <label className="block text-sm mb-1">Name</label>
               <input
@@ -378,7 +403,9 @@ export default function WalletsPage() {
                     ) : (
                       <div className="grid gap-3 md:grid-cols-4">
                         <div className="md:col-span-2">
-                          <label className="block text-xs mb-1 text-gray-400">Name</label>
+                          <label className="block text-xs mb-1 text-gray-400">
+                            Name
+                          </label>
                           <input
                             type="text"
                             className="w-full p-2 rounded bg-gray-900 border border-gray-700"
@@ -388,11 +415,15 @@ export default function WalletsPage() {
                         </div>
 
                         <div>
-                          <label className="block text-xs mb-1 text-gray-400">Type</label>
+                          <label className="block text-xs mb-1 text-gray-400">
+                            Type
+                          </label>
                           <select
                             className="w-full p-2 rounded bg-gray-900 border border-gray-700"
                             value={editType}
-                            onChange={(e) => setEditType(e.target.value as Wallet["type"])}
+                            onChange={(e) =>
+                              setEditType(e.target.value as Wallet["type"])
+                            }
                           >
                             {WALLET_TYPES.map((t) => (
                               <option key={t.value} value={t.value}>
@@ -403,12 +434,16 @@ export default function WalletsPage() {
                         </div>
 
                         <div>
-                          <label className="block text-xs mb-1 text-gray-400">Currency</label>
+                          <label className="block text-xs mb-1 text-gray-400">
+                            Currency
+                          </label>
                           <input
                             type="text"
                             className="w-full p-2 rounded bg-gray-900 border border-gray-700"
                             value={editCurrencyCode}
-                            onChange={(e) => setEditCurrencyCode(e.target.value.toUpperCase())}
+                            onChange={(e) =>
+                              setEditCurrencyCode(e.target.value.toUpperCase())
+                            }
                           />
                         </div>
 
