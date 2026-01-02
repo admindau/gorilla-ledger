@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
 type CategoryType = "income" | "expense";
@@ -47,6 +47,12 @@ export default function CategoriesPage() {
   const [userEmail, setUserEmail] = useState<string>("");
   const [mfaEnabled, setMfaEnabled] = useState<boolean>(false);
   const [lastSecurityCheckDays, setLastSecurityCheckDays] = useState<number | null>(null);
+
+  // command bar state
+  const [q, setQ] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"all" | CategoryType>("all");
+
+  const addFormRef = useRef<HTMLDivElement | null>(null);
 
   const categoryById = useMemo(() => {
     return Object.fromEntries(categories.map((c) => [c.id, c] as const));
@@ -269,8 +275,20 @@ export default function CategoriesPage() {
     setRowBusyId(null);
   }
 
-  const incomeCategories = categories.filter((c) => c.type === "income");
-  const expenseCategories = categories.filter((c) => c.type === "expense");
+  const normalizedQ = q.trim().toLowerCase();
+
+  const filteredCategories = useMemo(() => {
+    return categories.filter((c) => {
+      if (typeFilter !== "all" && c.type !== typeFilter) return false;
+      if (normalizedQ && !c.name.toLowerCase().includes(normalizedQ)) return false;
+      return true;
+    });
+  }, [categories, typeFilter, normalizedQ]);
+
+  const incomeCategories = filteredCategories.filter((c) => c.type === "income");
+  const expenseCategories = filteredCategories.filter((c) => c.type === "expense");
+
+  const visibleCount = filteredCategories.length;
 
   function renderCategoryRow(cat: Category) {
     const isEditing = editingId === cat.id;
@@ -371,9 +389,18 @@ export default function CategoriesPage() {
     );
   };
 
+  function scrollToAdd() {
+    addFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function clearCommandBar() {
+    setQ("");
+    setTypeFilter("all");
+  }
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      {/* Tightened header (less link-bar, more app-shell) */}
+      {/* Tightened header (app-shell) */}
       <header className="w-full border-b border-gray-900 bg-black/80 backdrop-blur">
         <div className="px-4 sm:px-6 py-3">
           <div className="flex items-center justify-between gap-3">
@@ -407,7 +434,7 @@ export default function CategoriesPage() {
             </div>
           </div>
 
-          {/* Mobile nav (kept compact) */}
+          {/* Mobile nav (compact) */}
           <div className="md:hidden mt-2 flex flex-wrap gap-2">
             <NavLink href="/wallets" label="Wallets" />
             <NavLink href="/categories" label="Categories" active />
@@ -434,10 +461,82 @@ export default function CategoriesPage() {
         </div>
       </header>
 
+      {/* Mini sticky command bar */}
+      <div className="sticky top-0 z-30 border-b border-gray-900 bg-black/85 backdrop-blur">
+        <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 py-2.5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="flex items-baseline gap-2 min-w-0">
+              <div className="text-[11px] uppercase tracking-widest text-gray-500">
+                Configuration
+              </div>
+              <div className="text-xs text-gray-300 truncate">
+                Categories
+              </div>
+              <span className="text-gray-700">•</span>
+              <div className="text-[11px] text-gray-400">
+                Showing{" "}
+                <span className="text-gray-200 font-medium">{visibleCount}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <div className="flex items-center gap-2">
+                <input
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Search categories..."
+                  className="w-full sm:w-56 bg-black border border-gray-800 rounded-md px-3 py-1.5 text-xs text-gray-200 placeholder:text-gray-600"
+                />
+
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value as any)}
+                  className="bg-black border border-gray-800 rounded-md px-2.5 py-1.5 text-xs text-gray-200"
+                >
+                  <option value="all">All</option>
+                  <option value="income">Income</option>
+                  <option value="expense">Expense</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={scrollToAdd}
+                  className="px-3 py-1.5 rounded-md bg-white text-black text-xs font-semibold hover:bg-gray-200 transition"
+                >
+                  Add Category
+                </button>
+                <button
+                  type="button"
+                  onClick={clearCommandBar}
+                  className="px-3 py-1.5 rounded-md border border-gray-800 bg-black/40 text-xs text-gray-200 hover:bg-white/5 transition"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {(q.trim() || typeFilter !== "all") && (
+            <div className="mt-2 text-[11px] text-gray-400">
+              Filters active:{" "}
+              {q.trim() ? (
+                <span className="text-gray-200">Search “{q.trim()}”</span>
+              ) : (
+                <span className="text-gray-500">No search</span>
+              )}
+              <span className="text-gray-700"> • </span>
+              <span className="text-gray-200">
+                {typeFilter === "all" ? "All types" : typeFilter}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
       <main className="flex-1 px-4 py-6 max-w-4xl mx-auto w-full">
-        {/* Tightened page header */}
         <div className="mb-4">
-          <div className="text-[10px] uppercase tracking-widest text-gray-500">Configuration</div>
           <h1 className="text-2xl font-semibold leading-tight">Categories</h1>
           <p className="text-sm text-gray-400 mt-1">
             Organize your income and expenses by category.
@@ -445,6 +544,9 @@ export default function CategoriesPage() {
         </div>
 
         {errorMsg && <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>}
+
+        {/* Add form anchor */}
+        <div ref={addFormRef} />
 
         <section className="mb-8 border border-gray-800 rounded p-4 bg-black/40">
           <h2 className="text-sm font-semibold mb-3">Add a Category</h2>
@@ -496,7 +598,7 @@ export default function CategoriesPage() {
             {loading ? (
               <p className="text-gray-400 text-sm">Loading categories...</p>
             ) : incomeCategories.length === 0 ? (
-              <p className="text-gray-500 text-sm">You don&apos;t have any income categories yet.</p>
+              <p className="text-gray-500 text-sm">No income categories match your filters.</p>
             ) : (
               <ul className="border border-gray-800 rounded divide-y divide-gray-800 bg-black/40">
                 {incomeCategories.map(renderCategoryRow)}
@@ -513,7 +615,7 @@ export default function CategoriesPage() {
             {loading ? (
               <p className="text-gray-400 text-sm">Loading categories...</p>
             ) : expenseCategories.length === 0 ? (
-              <p className="text-gray-500 text-sm">You don&apos;t have any expense categories yet.</p>
+              <p className="text-gray-500 text-sm">No expense categories match your filters.</p>
             ) : (
               <ul className="border border-gray-800 rounded divide-y divide-gray-800 bg-black/40">
                 {expenseCategories.map(renderCategoryRow)}
