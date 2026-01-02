@@ -618,65 +618,115 @@ export default function DashboardPage() {
   const SK_CHART = "h-[300px] sm:h-[320px]";
   const SK_CHART_TALL = "h-[320px] sm:h-[360px]";
 
+  // Header UI helpers (tight, premium)
+  const NAV_SHELL =
+    "inline-flex items-center gap-1 rounded-full border border-gray-800 bg-black/40 " +
+    "px-1 py-1 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]";
+  const NAV_LINK =
+    "px-3 py-1.5 rounded-full text-xs text-gray-300 hover:text-white " +
+    "hover:bg-white/10 transition whitespace-nowrap";
+  const HEADER_BADGE =
+    "inline-flex items-center gap-2 rounded-full border border-gray-800 bg-black/40 " +
+    "px-3 py-1 text-[11px] text-gray-300 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]";
+  const HEADER_DOT = <span className="text-gray-600">•</span>;
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      {/* Top bar */}
-      <header className="w-full px-6 py-4 border-b border-gray-800">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="font-semibold text-lg">Gorilla Ledger™</div>
+      {/* Tight top header */}
+      <header className="w-full border-b border-gray-800 bg-black/60 backdrop-blur">
+        <div className="mx-auto max-w-6xl px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="font-semibold tracking-tight text-base">
+                Gorilla Ledger™
+              </div>
+              <div className="hidden sm:flex items-center gap-2">
+                <div className={NAV_SHELL} aria-label="Primary navigation">
+                  <a href="/wallets" className={NAV_LINK}>
+                    Wallets
+                  </a>
+                  <a href="/categories" className={NAV_LINK}>
+                    Categories
+                  </a>
+                  <a href="/transactions" className={NAV_LINK}>
+                    Transactions
+                  </a>
+                  <a href="/budgets" className={NAV_LINK}>
+                    Budgets
+                  </a>
+                  <a href="/recurring" className={NAV_LINK}>
+                    Recurring
+                  </a>
+                  <a href="/settings/security" className={NAV_LINK}>
+                    Security
+                  </a>
+                </div>
+              </div>
+            </div>
 
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-300">
-            <a href="/wallets" className="underline">
-              Wallets
-            </a>
-            <a href="/categories" className="underline">
-              Categories
-            </a>
-            <a href="/transactions" className="underline">
-              Transactions
-            </a>
-            <a href="/budgets" className="underline">
-              Budgets
-            </a>
-            <a href="/recurring" className="underline">
-              Recurring
-            </a>
-            <a href="/settings/security" className="underline">
-              Security
-            </a>
+            <div className="flex items-center gap-2 min-w-0">
+              {email && (
+                <span className="hidden md:inline text-xs text-gray-400 max-w-[240px] truncate">
+                  {email}
+                </span>
+              )}
+              <button
+                onClick={handleLogout}
+                className="px-3 py-1.5 rounded-full border border-gray-700 bg-black/40 text-xs text-gray-200 hover:bg-white hover:text-black transition"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
 
-            {email && (
-              <span className="hidden md:inline max-w-[220px] truncate">
-                {email}
+          {/* Mobile nav (compact, avoids “link bar” feel) */}
+          <div className="sm:hidden mt-3">
+            <div className={NAV_SHELL}>
+              <a href="/wallets" className={NAV_LINK}>
+                Wallets
+              </a>
+              <a href="/categories" className={NAV_LINK}>
+                Categories
+              </a>
+              <a href="/transactions" className={NAV_LINK}>
+                Tx
+              </a>
+              <a href="/budgets" className={NAV_LINK}>
+                Budgets
+              </a>
+              <a href="/recurring" className={NAV_LINK}>
+                Recurring
+              </a>
+              <a href="/settings/security" className={NAV_LINK}>
+                Security
+              </a>
+            </div>
+          </div>
+
+          {/* Security posture row as compact badges */}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className={HEADER_BADGE}>
+              <span className="text-gray-400">MFA</span>
+              {HEADER_DOT}
+              <span className={mfaEnabled ? "text-emerald-400" : "text-gray-200"}>
+                {mfaEnabled ? "Enabled" : "Disabled"}
+              </span>
+            </span>
+
+            <span className={HEADER_BADGE}>
+              <span className="text-gray-400">Last security check</span>
+              {HEADER_DOT}
+              <span className="text-gray-200">{lastSecurityLabel}</span>
+            </span>
+
+            {mfaEnabled && !hasBackupFactor && (
+              <span className={`${HEADER_BADGE} border-amber-500/40`}>
+                <span className="text-amber-300">
+                  Backup authenticator not configured
+                </span>
               </span>
             )}
-
-            <button
-              onClick={handleLogout}
-              className="px-3 py-1 rounded border border-gray-600 hover:bg-white hover:text-black transition"
-            >
-              Logout
-            </button>
           </div>
-        </div>
-
-        {/* Security posture row */}
-        <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-          <span className="text-gray-400">MFA:</span>
-          <span className={mfaEnabled ? "text-emerald-400" : "text-gray-300"}>
-            {mfaEnabled ? "Enabled" : "Disabled"}
-          </span>
-          <span className="text-gray-600">•</span>
-          <span className="text-gray-400">Last security check:</span>
-          <span className="text-gray-300">{lastSecurityLabel}</span>
-          {mfaEnabled && !hasBackupFactor && (
-            <>
-              <span className="text-gray-600">•</span>
-              <span className="text-amber-300">
-                Backup authenticator not configured
-              </span>
-            </>
-          )}
         </div>
       </header>
 
@@ -761,9 +811,7 @@ export default function DashboardPage() {
                     monthIncomeEntries.map(([currency, minor]) => (
                       <div key={currency} className="tabular-nums">
                         {formatMinorToAmount(minor)}{" "}
-                        <span className="text-sm text-gray-300">
-                          {currency}
-                        </span>
+                        <span className="text-sm text-gray-300">{currency}</span>
                       </div>
                     ))
                   )}
@@ -796,9 +844,7 @@ export default function DashboardPage() {
                     monthExpenseEntries.map(([currency, minor]) => (
                       <div key={currency} className="tabular-nums">
                         {formatMinorToAmount(minor)}{" "}
-                        <span className="text-sm text-gray-300">
-                          {currency}
-                        </span>
+                        <span className="text-sm text-gray-300">{currency}</span>
                       </div>
                     ))
                   )}
