@@ -36,7 +36,6 @@ export async function createRecurringRule(formData: FormData) {
 
   const dayOfMonth = firstDate.getUTCDate();
 
-  // IMPORTANT: createServerSupabaseClient is async now -> MUST await
   const supabase = await createServerSupabaseClient();
 
   const { error } = await supabase.from("recurring_rules").insert({
@@ -112,7 +111,10 @@ export async function deleteRecurringRule(formData: FormData) {
 
   const supabase = await createServerSupabaseClient();
 
-  const { error } = await supabase.from("recurring_rules").delete().eq("id", id);
+  const { error } = await supabase
+    .from("recurring_rules")
+    .delete()
+    .eq("id", id);
 
   if (error) {
     console.error("Failed to delete recurring rule", error);

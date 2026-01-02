@@ -1,21 +1,9 @@
-import { redirect } from "next/navigation";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import SessionGuard from "@/components/SessionGuard";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
-export default async function AppLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const supabase = await createServerSupabaseClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) redirect("/auth/login");
-
-  return <div className="min-h-screen bg-black text-white">{children}</div>;
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-black text-white">
+      <SessionGuard>{children}</SessionGuard>
+    </div>
+  );
 }

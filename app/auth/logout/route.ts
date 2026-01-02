@@ -1,10 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
-export async function POST(req: NextRequest) {
+export async function POST() {
   const supabase = await createServerSupabaseClient();
   await supabase.auth.signOut();
 
-  const url = new URL("/auth/login", req.url);
-  return NextResponse.redirect(url, { status: 303 });
+  const res = NextResponse.redirect(new URL("/auth/login", process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"));
+
+  // Prevent caching of the redirect response.
+  res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.headers.set("Pragma", "no-cache");
+  res.headers.set("Expires", "0");
+
+  return res;
 }
