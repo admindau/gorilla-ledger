@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -15,6 +15,8 @@ import SmartInsightsPanel from "@/components/dashboard/SmartInsightsPanel";
 import BudgetInsightsPanel from "@/components/dashboard/BudgetInsightsPanel";
 import AiInsightsSidebar from "@/components/dashboard/AiInsightsSidebar";
 import YearlyIncomeExpenseBarChart from "@/components/dashboard/YearlyIncomeExpenseBarChart";
+
+import Skeleton from "@/components/ui/Skeleton";
 
 type Wallet = {
   id: string;
@@ -93,49 +95,6 @@ function daysInMonth(year: number, month0: number) {
   // month0 is 0-based; day 0 of next month gives last day of current month
   return new Date(year, month0 + 1, 0).getDate();
 }
-
-/** Premium Terminal UI helpers */
-function cx(...parts: Array<string | false | null | undefined>) {
-  return parts.filter(Boolean).join(" ");
-}
-
-const shellPage =
-  "min-h-screen bg-black text-white flex flex-col relative overflow-hidden";
-
-const shellBackdrop =
-  "pointer-events-none absolute inset-0 -z-10 " +
-  // subtle terminal glow + vignette
-  "bg-[radial-gradient(1200px_600px_at_20%_20%,rgba(255,255,255,0.06),transparent_55%),radial-gradient(900px_500px_at_80%_30%,rgba(255,255,255,0.04),transparent_60%),radial-gradient(700px_500px_at_50%_95%,rgba(255,255,255,0.03),transparent_60%)]";
-
-const shellHeader =
-  "w-full px-6 py-4 border-b border-white/10 bg-black/60 backdrop-blur";
-
-const navLink =
-  "px-2 py-1 rounded-md text-gray-300 hover:text-white hover:bg-white/10 transition";
-
-const pillButton =
-  "px-3 py-1 rounded-md border border-white/15 bg-white/[0.02] hover:bg-white/[0.06] transition";
-
-const card =
-  "rounded-xl border border-white/10 bg-white/[0.02] " +
-  "shadow-[0_0_0_1px_rgba(255,255,255,0.05)] " +
-  "hover:bg-white/[0.035] transition";
-
-const cardPad = "p-4";
-
-const sectionKicker =
-  "text-[10px] uppercase tracking-[0.2em] text-gray-500";
-
-const sectionTitle =
-  "text-lg font-semibold tracking-tight text-white";
-
-const sectionSub =
-  "text-[11px] text-gray-400";
-
-const divider = "border-t border-white/10";
-
-const emptyState =
-  "rounded-xl border border-white/10 bg-white/[0.015] p-4 text-sm text-gray-400";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -223,6 +182,7 @@ export default function DashboardPage() {
         setMfaEnabled(verified.length > 0);
         setHasBackupFactor(verified.length >= 2);
       } catch {
+        // If MFA API errors for any reason, keep UI conservative.
         setMfaEnabled(false);
         setHasBackupFactor(false);
       }
@@ -289,6 +249,7 @@ export default function DashboardPage() {
       }
 
       if (dailyRes.error) {
+        // Not fatal – we can fall back to monthly derivation
         console.error("Error loading daily_income_expense view:", dailyRes.error);
       } else {
         setDailyIncomeExpense(dailyRes.data as DailyIncomeExpense[]);
@@ -318,24 +279,20 @@ export default function DashboardPage() {
     router.replace("/auth/login");
   }
 
-  // Premium terminal: session skeleton screen
   if (checkingSession) {
     return (
-      <div className={shellPage}>
-        <div className={shellBackdrop} />
-        <div className="min-h-screen flex items-center justify-center px-4">
-          <div className={cx(card, "w-full max-w-md", "p-6")}>
-            <div className="flex items-center justify-between">
-              <div className="font-semibold">Gorilla Ledger™</div>
-              <div className="h-6 w-24 rounded-full bg-white/10 animate-pulse" />
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <div className="w-full max-w-md px-6">
+          <div className="border border-gray-800 bg-black/40 rounded-2xl p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-sm font-semibold">Gorilla Ledger™</div>
+              <Skeleton className="h-6 w-24" rounded="full" />
             </div>
-            <div className="mt-4 space-y-2">
-              <div className="h-3 w-3/4 rounded bg-white/10 animate-pulse" />
-              <div className="h-3 w-1/2 rounded bg-white/10 animate-pulse" />
-              <div className="h-10 w-full rounded-lg bg-white/10 animate-pulse mt-3" />
-            </div>
-            <div className="mt-3 text-xs text-gray-400">
-              Checking your session...
+            <Skeleton className="h-4 w-2/3 mb-2" />
+            <Skeleton className="h-4 w-1/2 mb-6" />
+            <Skeleton className="h-10 w-full rounded-xl" />
+            <div className="mt-4 text-xs text-gray-400">
+              Checking your session…
             </div>
           </div>
         </div>
@@ -344,32 +301,34 @@ export default function DashboardPage() {
   }
 
   // ----- Derived data -----
-  const walletMap = useMemo(
-    () => Object.fromEntries(wallets.map((w) => [w.id, w] as const)),
-    [wallets]
-  );
-  const categoryMap = useMemo(
-    () => Object.fromEntries(categories.map((c) => [c.id, c] as const)),
-    [categories]
+
+  const walletMap = Object.fromEntries(wallets.map((w) => [w.id, w] as const));
+  const categoryMap = Object.fromEntries(
+    categories.map((c) => [c.id, c] as const)
   );
 
   // Per-wallet balance (transfers DO affect balances, so we include them)
-  const walletBalances = useMemo(() => {
-    return wallets.map((w) => {
-      const walletTxs = transactions.filter((tx) => tx.wallet_id === w.id);
-      const delta = walletTxs.reduce((sum, tx) => {
-        const sign = tx.type === "income" ? 1 : -1;
-        return sum + sign * tx.amount_minor;
-      }, 0);
-      const balanceMinor = w.starting_balance_minor + delta;
-      return { ...w, balanceMinor };
-    });
-  }, [wallets, transactions]);
+  const walletBalances = wallets.map((w) => {
+    const walletTxs = transactions.filter((tx) => tx.wallet_id === w.id);
+    const delta = walletTxs.reduce((sum, tx) => {
+      const sign = tx.type === "income" ? 1 : -1;
+      return sum + sign * tx.amount_minor;
+    }, 0);
+
+    const balanceMinor = w.starting_balance_minor + delta;
+
+    return {
+      ...w,
+      balanceMinor,
+    };
+  });
 
   // Totals per currency
   const totalsByCurrency: Record<string, number> = {};
   for (const wb of walletBalances) {
-    if (!totalsByCurrency[wb.currency_code]) totalsByCurrency[wb.currency_code] = 0;
+    if (!totalsByCurrency[wb.currency_code]) {
+      totalsByCurrency[wb.currency_code] = 0;
+    }
     totalsByCurrency[wb.currency_code] += wb.balanceMinor;
   }
 
@@ -378,7 +337,7 @@ export default function DashboardPage() {
     return d.getFullYear() === selectedYear && d.getMonth() === selectedMonth;
   }
 
-  // Current (selected) month income/expense totals — per currency
+  // Current (selected) month income/expense totals — per currency (pure multi-currency)
   const monthIncomeByCurrency: Record<string, number> = {};
   const monthExpenseByCurrency: Record<string, number> = {};
 
@@ -389,10 +348,14 @@ export default function DashboardPage() {
     if (isInternalTransferCategory(category)) continue;
 
     if (tx.type === "income") {
-      if (!monthIncomeByCurrency[tx.currency_code]) monthIncomeByCurrency[tx.currency_code] = 0;
+      if (!monthIncomeByCurrency[tx.currency_code]) {
+        monthIncomeByCurrency[tx.currency_code] = 0;
+      }
       monthIncomeByCurrency[tx.currency_code] += tx.amount_minor;
     } else if (tx.type === "expense") {
-      if (!monthExpenseByCurrency[tx.currency_code]) monthExpenseByCurrency[tx.currency_code] = 0;
+      if (!monthExpenseByCurrency[tx.currency_code]) {
+        monthExpenseByCurrency[tx.currency_code] = 0;
+      }
       monthExpenseByCurrency[tx.currency_code] += tx.amount_minor;
     }
   }
@@ -422,15 +385,26 @@ export default function DashboardPage() {
 
     const actualMinor = relevantTxs.reduce((sum, tx) => {
       if (!category) return sum;
-      if (category.type === "expense" && tx.type === "expense") return sum + tx.amount_minor;
-      if (category.type === "income" && tx.type === "income") return sum + tx.amount_minor;
+      if (category.type === "expense" && tx.type === "expense") {
+        return sum + tx.amount_minor;
+      }
+      if (category.type === "income" && tx.type === "income") {
+        return sum + tx.amount_minor;
+      }
       return sum;
     }, 0);
 
     const remainingMinor = b.amount_minor - actualMinor;
     const usedRatio = b.amount_minor > 0 ? actualMinor / b.amount_minor : 0;
 
-    return { budget: b, wallet, category, actualMinor, remainingMinor, usedRatio };
+    return {
+      budget: b,
+      wallet,
+      category,
+      actualMinor,
+      remainingMinor,
+      usedRatio,
+    };
   });
 
   // Budget health stats
@@ -445,6 +419,8 @@ export default function DashboardPage() {
     totalBudgets - budgetsAtRisk - budgetsOver >= 0
       ? totalBudgets - budgetsAtRisk - budgetsOver
       : 0;
+
+  // -------- Income vs expense trend for charts (with filters) --------
 
   type IncomeExpenseDailyPoint = {
     day: string;
@@ -472,7 +448,8 @@ export default function DashboardPage() {
     const category = tx.category_id ? categoryMap[tx.category_id] : null;
     if (isInternalTransferCategory(category)) return false;
 
-    if (categoryFilter !== "all" && tx.category_id !== categoryFilter) return false;
+    if (categoryFilter !== "all" && tx.category_id !== categoryFilter)
+      return false;
 
     if (yearFilter !== "all") {
       const d = new Date(tx.occurred_at);
@@ -494,7 +471,7 @@ export default function DashboardPage() {
     for (const tx of filteredTrendTransactions) {
       const d = new Date(tx.occurred_at);
       if (Number.isNaN(d.getTime())) continue;
-      const day = d.toISOString().slice(0, 10);
+      const day = d.toISOString().slice(0, 10); // YYYY-MM-DD
       const key = `${day}|${tx.currency_code}`;
 
       const existing =
@@ -505,8 +482,11 @@ export default function DashboardPage() {
           currencyCode: tx.currency_code,
         };
 
-      if (tx.type === "income") existing.income += tx.amount_minor / 100;
-      else if (tx.type === "expense") existing.expense += tx.amount_minor / 100;
+      if (tx.type === "income") {
+        existing.income += tx.amount_minor / 100;
+      } else if (tx.type === "expense") {
+        existing.expense += tx.amount_minor / 100;
+      }
 
       map.set(key, existing);
     }
@@ -516,7 +496,7 @@ export default function DashboardPage() {
     return points;
   })();
 
-  // Last 12 months slice
+  // Last 12 months slice for the historical chart
   const incomeExpenseTrendLast12: IncomeExpenseDailyPoint[] = (() => {
     if (incomeExpenseTrendData.length === 0) return [];
     const today2 = new Date();
@@ -525,28 +505,38 @@ export default function DashboardPage() {
       today2.getMonth(),
       today2.getDate()
     );
-    return incomeExpenseTrendData.filter((row) => new Date(row.day) >= cutoff);
+
+    return incomeExpenseTrendData.filter((row) => {
+      const d = new Date(row.day);
+      return d >= cutoff;
+    });
   })();
 
-  // TRUE monthly daily series
+  // -------- TRUE monthly daily series (Option A) --------
   const monthlyIncomeExpenseData: IncomeExpenseDailyPoint[] = (() => {
+    // 1) Filter to selected month + wallet/category filters + exclude internal transfers
     const monthTxs = transactions.filter((tx) => {
       if (!isSelectedMonth(tx.occurred_at)) return false;
+
       if (walletFilter !== "all" && tx.wallet_id !== walletFilter) return false;
 
       const category = tx.category_id ? categoryMap[tx.category_id] : null;
       if (isInternalTransferCategory(category)) return false;
 
-      if (categoryFilter !== "all" && tx.category_id !== categoryFilter) return false;
+      if (categoryFilter !== "all" && tx.category_id !== categoryFilter)
+        return false;
+
       return true;
     });
 
+    // 2) Currencies in this month slice
     const currencies = Array.from(
       new Set(monthTxs.map((tx) => tx.currency_code).filter(Boolean))
     ).sort();
 
     if (currencies.length === 0) return [];
 
+    // 3) Pre-seed all days of month for each currency (densification)
     const dim = daysInMonth(selectedYear, selectedMonth);
     const map = new Map<
       string,
@@ -556,13 +546,16 @@ export default function DashboardPage() {
     for (const ccy of currencies) {
       for (let day = 1; day <= dim; day++) {
         const d = isoDay(selectedYear, selectedMonth, day);
-        map.set(`${d}|${ccy}`, { day: d, income: 0, expense: 0, currencyCode: ccy });
+        const key = `${d}|${ccy}`;
+        map.set(key, { day: d, income: 0, expense: 0, currencyCode: ccy });
       }
     }
 
+    // 4) Accumulate
     for (const tx of monthTxs) {
       const d = new Date(tx.occurred_at);
       if (Number.isNaN(d.getTime())) continue;
+
       const day = d.toISOString().slice(0, 10);
       const key = `${day}|${tx.currency_code}`;
       const row = map.get(key);
@@ -573,6 +566,7 @@ export default function DashboardPage() {
       else if (tx.type === "expense") row.expense += amount;
     }
 
+    // 5) Sort and return
     const points = Array.from(map.values());
     points.sort((a, b) => {
       const d = a.day.localeCompare(b.day);
@@ -582,6 +576,9 @@ export default function DashboardPage() {
     return points;
   })();
 
+  // Calendar-year selection for the new bar chart:
+  // - if Year filter is "all", default to current calendar year
+  // - else use the selected year
   const targetCalendarYear = (() => {
     if (yearFilter === "all") return new Date().getFullYear();
     const parsed = Number(yearFilter);
@@ -598,32 +595,66 @@ export default function DashboardPage() {
     ? `${daysAgoFromMs(lastCheckAt)} day(s) ago`
     : "Not recorded";
 
+  // ---------- Visual system ----------
+  const CARD =
+    "border border-gray-800 bg-black/40 rounded-2xl p-5 " +
+    "shadow-[0_0_0_1px_rgba(255,255,255,0.03)]";
+  const CARD_TIGHT =
+    "border border-gray-800 bg-black/40 rounded-2xl p-4 " +
+    "shadow-[0_0_0_1px_rgba(255,255,255,0.03)]";
+  const KPI_CARD =
+    "border border-gray-800 bg-black/40 rounded-2xl p-4 " +
+    "shadow-[0_0_0_1px_rgba(255,255,255,0.03)]";
+  const SECTION_DIVIDER = "h-px bg-gray-800/80";
+  const SECTION_KICKER = "text-[11px] uppercase tracking-wide text-gray-500";
+
+  // KPI typography helpers
+  const KPI_VALUE = "font-semibold tracking-tight tabular-nums leading-none";
+  const KPI_VALUE_LG = `text-3xl sm:text-[34px] ${KPI_VALUE}`;
+  const KPI_VALUE_MD = `text-xl sm:text-2xl ${KPI_VALUE}`;
+
+  // Skeleton heights (stable layout, low CLS)
+  const SK_HERO = "h-[320px] sm:h-[360px]";
+  const SK_CHART = "h-[300px] sm:h-[320px]";
+  const SK_CHART_TALL = "h-[320px] sm:h-[360px]";
+
   return (
-    <div className={shellPage}>
-      <div className={shellBackdrop} />
-
+    <div className="min-h-screen bg-black text-white flex flex-col">
       {/* Top bar */}
-      <header className={shellHeader}>
+      <header className="w-full px-6 py-4 border-b border-gray-800">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="font-semibold text-lg tracking-tight">
-            Gorilla Ledger™
-          </div>
+          <div className="font-semibold text-lg">Gorilla Ledger™</div>
 
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-2 text-sm">
-            <a href="/wallets" className={navLink}>Wallets</a>
-            <a href="/categories" className={navLink}>Categories</a>
-            <a href="/transactions" className={navLink}>Transactions</a>
-            <a href="/budgets" className={navLink}>Budgets</a>
-            <a href="/recurring" className={navLink}>Recurring</a>
-            <a href="/settings/security" className={navLink}>Security</a>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-300">
+            <a href="/wallets" className="underline">
+              Wallets
+            </a>
+            <a href="/categories" className="underline">
+              Categories
+            </a>
+            <a href="/transactions" className="underline">
+              Transactions
+            </a>
+            <a href="/budgets" className="underline">
+              Budgets
+            </a>
+            <a href="/recurring" className="underline">
+              Recurring
+            </a>
+            <a href="/settings/security" className="underline">
+              Security
+            </a>
 
             {email && (
-              <span className="hidden md:inline max-w-[220px] truncate text-gray-400 ml-2">
+              <span className="hidden md:inline max-w-[220px] truncate">
                 {email}
               </span>
             )}
 
-            <button onClick={handleLogout} className={pillButton}>
+            <button
+              onClick={handleLogout}
+              className="px-3 py-1 rounded border border-gray-600 hover:bg-white hover:text-black transition"
+            >
               Logout
             </button>
           </div>
@@ -650,8 +681,7 @@ export default function DashboardPage() {
       </header>
 
       <main className="flex-1 px-4 py-6 max-w-6xl mx-auto w-full">
-        {/* Overview header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
             <p className="text-gray-400 text-sm">
@@ -661,154 +691,196 @@ export default function DashboardPage() {
 
           {/* Month selector */}
           <div className="inline-flex items-center gap-2 text-sm">
-            <button type="button" onClick={goToPreviousMonth} className={pillButton}>
+            <button
+              type="button"
+              onClick={goToPreviousMonth}
+              className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
+            >
               ◀
             </button>
-            <div className="px-3 py-1 border border-white/15 rounded-full bg-white/[0.02] text-xs uppercase tracking-wide text-gray-200">
+            <div className="px-3 py-1 border border-gray-800 rounded-full bg-black/40 text-xs uppercase tracking-wide text-gray-300">
               {monthLabel}
             </div>
-            <button type="button" onClick={goToNextMonth} className={pillButton}>
+            <button
+              type="button"
+              onClick={goToNextMonth}
+              className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
+            >
               ▶
             </button>
           </div>
         </div>
 
-        {errorMsg && <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>}
+        {errorMsg && <p className="mb-6 text-red-400 text-sm">{errorMsg}</p>}
 
-        {/* Smart Insights */}
-        {!loadingData && (
-          <SmartInsightsPanel
-            transactions={transactions}
-            categories={categories}
-            selectedYear={selectedYear}
-            selectedMonth={selectedMonth}
-            walletFilter={walletFilter}
-            categoryFilter={categoryFilter}
-          />
-        )}
-
-        {/* EXECUTIVE */}
-        <div className="mt-6 mb-3">
-          <div className="flex items-center justify-between">
-            <div className={sectionKicker}>EXECUTIVE</div>
-            <div className="text-[10px] uppercase tracking-[0.2em] text-gray-600">
-              snapshot
-            </div>
-          </div>
-          <div className={cx(divider, "mt-2")} />
+        {/* Executive */}
+        <div className="mt-2 mb-4">
+          <div className={SECTION_KICKER}>Executive</div>
+          <div className={`${SECTION_DIVIDER} mt-2`} />
         </div>
 
         {/* KPI strip */}
-        <section className="grid gap-4 md:grid-cols-3 mb-8">
-          <div className={cx(card, cardPad)}>
-            <div className="text-[10px] uppercase tracking-[0.2em] text-gray-400 mb-2">
+        <section className="grid gap-5 md:grid-cols-3 mb-8">
+          <div className={KPI_CARD}>
+            <div className="text-[11px] text-gray-400 uppercase tracking-wide mb-2">
               Wallets
             </div>
-            <div className="text-4xl font-semibold tabular-nums tracking-tight">
-              {wallets.length}
-            </div>
-            <div className="text-xs text-gray-500 mt-2">
-              Total number of wallets you&apos;re tracking.
-            </div>
+
+            {loadingData ? (
+              <>
+                <Skeleton className="h-10 w-16 mb-2" />
+                <Skeleton className="h-3 w-3/4" />
+              </>
+            ) : (
+              <>
+                <div className={KPI_VALUE_LG}>{wallets.length}</div>
+                <div className="text-xs text-gray-500 mt-2">
+                  Total number of wallets you&apos;re tracking.
+                </div>
+              </>
+            )}
           </div>
 
-          <div className={cx(card, cardPad)}>
-            <div className="text-[10px] uppercase tracking-[0.2em] text-gray-400 mb-2">
-              Income — {monthLabel}
+          <div className={KPI_CARD}>
+            <div className="text-[11px] text-gray-400 uppercase tracking-wide mb-2">
+              Income – {monthLabel}
             </div>
-            <div className="space-y-1">
-              {monthIncomeEntries.length === 0 ? (
-                <div className="text-2xl font-semibold tabular-nums">0.00</div>
-              ) : (
-                monthIncomeEntries.map(([currency, minor]) => (
-                  <div key={currency} className="flex items-baseline gap-2">
-                    <div className="text-3xl font-semibold tabular-nums tracking-tight">
-                      {formatMinorToAmount(minor)}
-                    </div>
-                    <div className="text-xs text-gray-400 uppercase tracking-wide">
-                      {currency}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="text-xs text-gray-500 mt-2">
-              Totals per currency. Internal transfers excluded. No FX conversion applied.
-            </div>
+
+            {loadingData ? (
+              <>
+                <Skeleton className="h-8 w-44 mb-2" />
+                <Skeleton className="h-8 w-36 mb-2" />
+                <Skeleton className="h-3 w-5/6" />
+              </>
+            ) : (
+              <>
+                <div className={`space-y-1 ${KPI_VALUE_MD}`}>
+                  {monthIncomeEntries.length === 0 ? (
+                    <div className="tabular-nums">0.00</div>
+                  ) : (
+                    monthIncomeEntries.map(([currency, minor]) => (
+                      <div key={currency} className="tabular-nums">
+                        {formatMinorToAmount(minor)}{" "}
+                        <span className="text-sm text-gray-300">
+                          {currency}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="text-xs text-gray-500 mt-2">
+                  Totals per currency. Internal transfers excluded. No FX
+                  conversion applied.
+                </div>
+              </>
+            )}
           </div>
 
-          <div className={cx(card, cardPad)}>
-            <div className="text-[10px] uppercase tracking-[0.2em] text-gray-400 mb-2">
-              Expenses — {monthLabel}
+          <div className={KPI_CARD}>
+            <div className="text-[11px] text-gray-400 uppercase tracking-wide mb-2">
+              Expenses – {monthLabel}
             </div>
-            <div className="space-y-1">
-              {monthExpenseEntries.length === 0 ? (
-                <div className="text-2xl font-semibold tabular-nums">0.00</div>
-              ) : (
-                monthExpenseEntries.map(([currency, minor]) => (
-                  <div key={currency} className="flex items-baseline gap-2">
-                    <div className="text-3xl font-semibold tabular-nums tracking-tight">
-                      {formatMinorToAmount(minor)}
-                    </div>
-                    <div className="text-xs text-gray-400 uppercase tracking-wide">
-                      {currency}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="text-xs text-gray-500 mt-2">
-              Totals per currency. Internal transfers excluded. No FX conversion applied.
-            </div>
+
+            {loadingData ? (
+              <>
+                <Skeleton className="h-8 w-44 mb-2" />
+                <Skeleton className="h-8 w-36 mb-2" />
+                <Skeleton className="h-3 w-5/6" />
+              </>
+            ) : (
+              <>
+                <div className={`space-y-1 ${KPI_VALUE_MD}`}>
+                  {monthExpenseEntries.length === 0 ? (
+                    <div className="tabular-nums">0.00</div>
+                  ) : (
+                    monthExpenseEntries.map(([currency, minor]) => (
+                      <div key={currency} className="tabular-nums">
+                        {formatMinorToAmount(minor)}{" "}
+                        <span className="text-sm text-gray-300">
+                          {currency}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="text-xs text-gray-500 mt-2">
+                  Totals per currency. Internal transfers excluded. No FX
+                  conversion applied.
+                </div>
+              </>
+            )}
           </div>
         </section>
 
-        {/* Hero: Calendar-year Income vs Expenses */}
-        <section className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className={sectionTitle}>Calendar-Year Income vs Expenses</h2>
-            <div className={sectionSub}>Executive monthly trend for {targetCalendarYear}.</div>
-          </div>
-          <div className={cx(card, "p-4")}>
-            <YearlyIncomeExpenseBarChart
-              transactions={transactions}
-              categories={categories}
-              targetYear={targetCalendarYear}
-              walletFilter={walletFilter}
-              yearSource={yearFilter === "all" ? "current" : "filter"}
-            />
-          </div>
-        </section>
-
-        {/* Total Balance by currency */}
+        {/* Executive trend (Hero chart) */}
         <section className="mb-10">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className={sectionTitle}>Total Balance by Currency</h2>
-            <div className={sectionSub}>
-              Wallet balances (starting balance + transactions). Transfers included.
+          <div className="flex items-baseline justify-between gap-3 mb-3">
+            <h2 className="text-lg font-semibold tracking-tight">
+              Calendar-Year Income vs Expenses
+            </h2>
+            <div className="text-[11px] text-gray-400">
+              Executive monthly trend for {targetCalendarYear}.
             </div>
           </div>
 
           {loadingData ? (
-            <div className={emptyState}>Loading balances...</div>
-          ) : Object.keys(totalsByCurrency).length === 0 ? (
-            <div className={emptyState}>
-              No balances yet — add a wallet and some transactions.
+            <div className={CARD}>
+              <Skeleton className={SK_HERO} rounded="2xl" />
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className={CARD}>
+              <YearlyIncomeExpenseBarChart
+                transactions={transactions}
+                categories={categories}
+                targetYear={targetCalendarYear}
+                walletFilter={walletFilter}
+                yearSource={yearFilter === "all" ? "current" : "filter"}
+              />
+            </div>
+          )}
+        </section>
+
+        {/* Total Balance by currency */}
+        <section className="mb-10">
+          <div className="flex items-baseline justify-between gap-3 mb-3">
+            <h2 className="text-lg font-semibold tracking-tight">
+              Total Balance by Currency
+            </h2>
+            <div className="text-[11px] text-gray-400">
+              Wallet balances (starting balance + transactions). Transfers
+              included.
+            </div>
+          </div>
+
+          {loadingData ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="border border-gray-800 bg-black/40 rounded-2xl px-4 py-3 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]"
+                >
+                  <Skeleton className="h-3 w-16 mb-3" />
+                  <Skeleton className="h-7 w-32" />
+                </div>
+              ))}
+            </div>
+          ) : Object.keys(totalsByCurrency).length === 0 ? (
+            <p className="text-gray-500 text-sm">
+              No balances yet – add a wallet and some transactions.
+            </p>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {Object.entries(totalsByCurrency).map(([currency, minor]) => (
-                <div key={currency} className={cx(card, "px-4 py-3")}>
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-gray-400">
+                <div
+                  key={currency}
+                  className="border border-gray-800 bg-black/40 rounded-2xl px-4 py-3 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]"
+                >
+                  <div className="text-[11px] text-gray-400 uppercase tracking-wide">
                     {currency}
                   </div>
-                  <div className="mt-1 flex items-baseline gap-2">
-                    <div className="text-2xl font-semibold tabular-nums tracking-tight">
-                      {formatMinorToAmount(minor)}
-                    </div>
-                    <div className="text-xs text-gray-400 uppercase tracking-wide">
-                      {currency}
-                    </div>
+                  <div className={`mt-2 ${KPI_VALUE_MD} tabular-nums`}>
+                    {formatMinorToAmount(minor)}{" "}
+                    <span className="text-sm text-gray-300">{currency}</span>
                   </div>
                 </div>
               ))}
@@ -816,93 +888,135 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* OPERATIONS */}
-        <div className="mt-2 mb-3">
-          <div className="flex items-center justify-between">
-            <div className={sectionKicker}>OPERATIONAL</div>
-            <div className="text-[10px] uppercase tracking-[0.2em] text-gray-600">
-              control & composition
+        {/* Intelligence */}
+        <section className="mb-10">
+          <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-3">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">
+                Intelligence
+              </h2>
+              <p className="text-[11px] text-gray-400">
+                Actionable insights based on your recent activity.
+              </p>
             </div>
           </div>
-          <div className={cx(divider, "mt-2")} />
-        </div>
 
-        {/* Sticky Filters bar (command bar) */}
-        <section className="mb-8 sticky top-0 z-20">
-          <div className={cx(card, "p-3 bg-black/70 backdrop-blur")}>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold">Chart Filters</div>
-                <p className="text-[11px] text-gray-400">
-                  Apply filters to the analytics below.
-                </p>
+          <div className="grid gap-5 lg:grid-cols-2">
+            <div className={CARD}>
+              {loadingData ? (
+                <>
+                  <Skeleton className="h-5 w-40 mb-3" />
+                  <Skeleton className="h-4 w-5/6 mb-2" />
+                  <Skeleton className="h-4 w-2/3 mb-4" />
+                  <Skeleton className="h-24 w-full rounded-2xl" />
+                </>
+              ) : (
+                <SmartInsightsPanel
+                  transactions={transactions}
+                  categories={categories}
+                  selectedYear={selectedYear}
+                  selectedMonth={selectedMonth}
+                  walletFilter={walletFilter}
+                  categoryFilter={categoryFilter}
+                />
+              )}
+            </div>
+
+            <div className={CARD}>
+              {loadingData ? (
+                <>
+                  <Skeleton className="h-5 w-40 mb-3" />
+                  <Skeleton className="h-4 w-5/6 mb-2" />
+                  <Skeleton className="h-4 w-2/3 mb-4" />
+                  <Skeleton className="h-24 w-full rounded-2xl" />
+                </>
+              ) : (
+                <AiInsightsSidebar
+                  transactions={transactions}
+                  categories={categories}
+                  selectedYear={selectedYear}
+                  selectedMonth={selectedMonth}
+                  walletFilter={walletFilter}
+                  categoryFilter={categoryFilter}
+                />
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Chart filters */}
+        <section className="mb-10 sticky top-0 z-30 -mx-4 px-4 pt-4 pb-4 bg-black/80 backdrop-blur border-b border-gray-800">
+          <div
+            className={`${CARD_TIGHT} flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`}
+          >
+            <div>
+              <h2 className="text-sm font-semibold tracking-tight">
+                Chart Filters
+              </h2>
+              <p className="text-[11px] text-gray-400">
+                Apply filters to the charts below, including spending and
+                income/expense trends.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs">
+              <div className="flex items-center gap-1">
+                <span className="text-gray-400">Wallet:</span>
+                <select
+                  value={walletFilter}
+                  onChange={(e) => setWalletFilter(e.target.value)}
+                  className="bg-black border border-gray-700 rounded px-2 py-1 text-xs"
+                >
+                  <option value="all">All wallets</option>
+                  {wallets.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name} ({w.currency_code})
+                    </option>
+                  ))}
+                </select>
               </div>
-
-              <div className="flex flex-wrap gap-2 text-xs">
-                <div className="flex items-center gap-1">
-                  <span className="text-gray-400">Wallet:</span>
-                  <select
-                    value={walletFilter}
-                    onChange={(e) => setWalletFilter(e.target.value)}
-                    className="bg-black border border-white/15 rounded px-2 py-1 text-xs"
-                  >
-                    <option value="all">All wallets</option>
-                    {wallets.map((w) => (
-                      <option key={w.id} value={w.id}>
-                        {w.name} ({w.currency_code})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex items-center gap-1">
-                  <span className="text-gray-400">Category:</span>
-                  <select
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
-                    className="bg-black border border-white/15 rounded px-2 py-1 text-xs"
-                  >
-                    <option value="all">All categories</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex items-center gap-1">
-                  <span className="text-gray-400">Year:</span>
-                  <select
-                    value={yearFilter}
-                    onChange={(e) => setYearFilter(e.target.value)}
-                    className="bg-black border border-white/15 rounded px-2 py-1 text-xs"
-                  >
-                    <option value="all">All years</option>
-                    {chartYearOptions.map((y) => (
-                      <option key={y} value={y}>
-                        {y}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div className="flex items-center gap-1">
+                <span className="text-gray-400">Category:</span>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="bg-black border border-gray-700 rounded px-2 py-1 text-xs"
+                >
+                  <option value="all">All categories</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-gray-400">Year:</span>
+                <select
+                  value={yearFilter}
+                  onChange={(e) => setYearFilter(e.target.value)}
+                  className="bg-black border border-gray-700 rounded px-2 py-1 text-xs"
+                >
+                  <option value="all">All years</option>
+                  {chartYearOptions.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Composition: donut + top categories */}
-        <section className="grid gap-4 md:grid-cols-2 mb-10">
-          <div className={cx(card, "p-4")}>
-            <h2 className={sectionTitle}>
-              Spending by Category — {monthLabel}
-            </h2>
-            <p className={sectionSub}>
-              This month&apos;s spending composition (internal transfers excluded).
-            </p>
-            <div className="mt-3">
+        {/* Composition */}
+        <section className="mb-10">
+          <div className="grid gap-5 lg:grid-cols-2">
+            <div className={CARD}>
+              <h2 className="text-lg font-semibold tracking-tight mb-3">
+                Spending by Category – {monthLabel}
+              </h2>
               {loadingData ? (
-                <div className={emptyState}>Loading chart...</div>
+                <Skeleton className={SK_CHART} rounded="2xl" />
               ) : (
                 <SpendingByCategoryChart
                   transactions={transactions}
@@ -914,16 +1028,13 @@ export default function DashboardPage() {
                 />
               )}
             </div>
-          </div>
 
-          <div className={cx(card, "p-4")}>
-            <h2 className={sectionTitle}>Top Spending Categories — This Year</h2>
-            <p className={sectionSub}>
-              Highest spend categories for selected filters (no FX conversion).
-            </p>
-            <div className="mt-3">
+            <div className={CARD}>
+              <h2 className="text-lg font-semibold tracking-tight mb-3">
+                Top Spending Categories – This Year
+              </h2>
               {loadingData ? (
-                <div className={emptyState}>Loading chart...</div>
+                <Skeleton className={SK_CHART} rounded="2xl" />
               ) : (
                 <TopCategoriesBarChart
                   transactions={transactions}
@@ -939,84 +1050,104 @@ export default function DashboardPage() {
 
         {/* Budget control */}
         <section className="mb-10">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className={sectionTitle}>Budget Control — {monthLabel}</h2>
-            <div className={sectionSub}>
-              Health, pressure, and budget vs actual performance.
+          <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-2">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">
+                Budget Control – {monthLabel}
+              </h2>
+              <p className="text-[11px] text-gray-400">
+                Your budget health and budget-vs-actual performance for the
+                selected month.
+              </p>
             </div>
           </div>
 
           {!loadingData && totalBudgets > 0 && (
-            <div className="mb-4">
-              <BudgetInsightsPanel
-                summaries={budgetSummaries as any}
-                riskThreshold={RISK_THRESHOLD}
-                monthLabel={monthLabel}
-              />
-            </div>
+            <BudgetInsightsPanel
+              summaries={budgetSummaries as any}
+              riskThreshold={RISK_THRESHOLD}
+              monthLabel={monthLabel}
+            />
           )}
 
-          <div className={cx(card, "p-4")}>
-            <h3 className="text-sm font-semibold tracking-tight">
-              Budgets vs Actual — {monthLabel}
-            </h3>
-
+          <div className={CARD}>
             {loadingData ? (
-              <div className="mt-3">
-                <div className="h-4 w-1/3 bg-white/10 rounded animate-pulse" />
-                <div className="mt-3 h-20 w-full bg-white/10 rounded animate-pulse" />
-              </div>
+              <>
+                <Skeleton className="h-4 w-56 mb-3" />
+                <Skeleton className="h-4 w-2/3 mb-6" />
+                <Skeleton className="h-10 w-full rounded-2xl mb-3" />
+                <Skeleton className="h-10 w-full rounded-2xl mb-3" />
+                <Skeleton className="h-10 w-full rounded-2xl" />
+              </>
             ) : totalBudgets === 0 ? (
-              <div className="mt-3 text-sm text-gray-400">
-                You don&apos;t have any budgets set for this month yet. Add some from the Budgets page.
-              </div>
+              <p className="text-gray-500 text-sm">
+                You don&apos;t have any budgets set for this month yet. Add some
+                from the Budgets page.
+              </p>
             ) : (
               <>
-                <div className="mt-3 mb-3 flex flex-wrap gap-2 text-xs text-gray-300">
-                  <span className="px-2 py-1 rounded-full border border-white/15 bg-white/[0.02]">
-                    {totalBudgets} {totalBudgets === 1 ? "budget" : "budgets"} this month
+                <div className="mb-4 flex flex-wrap gap-2 text-xs text-gray-300">
+                  <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
+                    {totalBudgets}{" "}
+                    {totalBudgets === 1 ? "budget" : "budgets"} this month
                   </span>
-                  <span className="px-2 py-1 rounded-full border border-white/15 bg-white/[0.02]">
-                    {budgetsOnTrack} {budgetsOnTrack === 1 ? "on track" : "on track budgets"}
+                  <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
+                    {budgetsOnTrack}{" "}
+                    {budgetsOnTrack === 1 ? "on track" : "on track budgets"}
                   </span>
-                  <span className="px-2 py-1 rounded-full border border-white/15 bg-white/[0.02]">
-                    {budgetsAtRisk} {budgetsAtRisk === 1 ? "at risk" : "at risk budgets"}
+                  <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
+                    {budgetsAtRisk}{" "}
+                    {budgetsAtRisk === 1 ? "at risk" : "at risk budgets"}
                   </span>
-                  <span className="px-2 py-1 rounded-full border border-white/15 bg-white/[0.02]">
-                    {budgetsOver} {budgetsOver === 1 ? "over budget" : "over-budget items"}
+                  <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
+                    {budgetsOver}{" "}
+                    {budgetsOver === 1 ? "over budget" : "over-budget items"}
                   </span>
                 </div>
 
-                <div className="border border-white/10 rounded-xl divide-y divide-white/10 text-sm overflow-hidden">
+                <div
+                  className={`border border-gray-800 bg-black/30 rounded-2xl divide-y divide-gray-800 text-sm shadow-[0_0_0_1px_rgba(255,255,255,0.03)]`}
+                >
                   {budgetSummaries.map((item) => {
-                    const { budget, wallet, category, actualMinor, usedRatio } = item;
+                    const { budget, wallet, category, actualMinor, usedRatio } =
+                      item;
 
                     const currency = wallet?.currency_code ?? "";
                     const isExpense = category && category.type === "expense";
                     const labelVerb = isExpense ? "Spent" : "Received";
 
                     const usedPercent = Math.round(usedRatio * 100);
-                    const clampedPercent = Math.max(0, Math.min(usedPercent, 130));
-                    const barFillPercent = Math.max(0, Math.min(clampedPercent, 100));
+                    const clampedPercent = Math.max(
+                      0,
+                      Math.min(usedPercent, 130)
+                    );
+
+                    const barFillPercent = Math.max(
+                      0,
+                      Math.min(clampedPercent, 100)
+                    );
+
+                    const barBorderClass =
+                      usedPercent > 100 ? "border-white/60" : "border-gray-700";
 
                     let statusLabel = "ON TRACK";
-                    let statusBorder = "border-white/15";
-                    let statusText = "text-gray-200";
+                    let statusBorder = "border-gray-700";
+                    let statusText = "text-gray-300";
 
                     if (usedRatio > 1) {
                       statusLabel = "OVER BUDGET";
-                      statusBorder = "border-white/40";
+                      statusBorder = "border-white/70";
                       statusText = "text-white";
                     } else if (usedRatio > RISK_THRESHOLD && usedRatio <= 1) {
                       statusLabel = "AT RISK";
-                      statusBorder = "border-white/25";
-                      statusText = "text-gray-100";
+                      statusBorder = "border-gray-500";
+                      statusText = "text-gray-200";
                     }
 
                     return (
                       <div
                         key={budget.id}
-                        className="flex flex-col md:flex-row md:items-center md:justify-between px-4 py-3 gap-3 bg-white/[0.01]"
+                        className="flex flex-col md:flex-row md:items-center md:justify-between px-4 py-3 gap-3"
                       >
                         <div>
                           <div className="flex items-center gap-2">
@@ -1040,16 +1171,16 @@ export default function DashboardPage() {
                             <div className="text-sm tabular-nums">
                               {labelVerb} {formatMinorToAmount(actualMinor)} /{" "}
                               {formatMinorToAmount(budget.amount_minor)}{" "}
-                              <span className="text-xs text-gray-400 uppercase tracking-wide">
-                                {currency}
-                              </span>
+                              {currency}
                             </div>
                             <div className="text-xs text-gray-400 ml-3 whitespace-nowrap tabular-nums">
-                              {usedPercent}% used
+                              {usedPercent}% of budget used
                             </div>
                           </div>
 
-                          <div className="w-full h-2 rounded-full bg-black border border-white/15 overflow-hidden">
+                          <div
+                            className={`w-full h-2 rounded-full bg-black border ${barBorderClass} overflow-hidden`}
+                          >
                             <div
                               className="h-full bg-white"
                               style={{ width: `${barFillPercent}%` }}
@@ -1061,11 +1192,13 @@ export default function DashboardPage() {
                               You&apos;ve exceeded this budget.
                             </div>
                           )}
-                          {usedPercent <= 100 && usedRatio > RISK_THRESHOLD && (
-                            <div className="mt-1 text-[11px] text-gray-400">
-                              You&apos;re approaching this budget&apos;s limit.
-                            </div>
-                          )}
+                          {usedPercent <= 100 &&
+                            usedRatio > RISK_THRESHOLD && (
+                              <div className="mt-1 text-[11px] text-gray-400">
+                                You&apos;re approaching this budget&apos;s
+                                limit.
+                              </div>
+                            )}
                         </div>
                       </div>
                     );
@@ -1076,101 +1209,66 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* INTELLIGENCE */}
-        <div className="mt-2 mb-3">
-          <div className="flex items-center justify-between">
-            <div className={sectionKicker}>INTELLIGENCE</div>
-            <div className="text-[10px] uppercase tracking-[0.2em] text-gray-600">
-              smart + ai
+        {/* Advanced analytics */}
+        <section className="mb-12">
+          <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-3">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">
+                Advanced Analytics
+              </h2>
+              <p className="text-[11px] text-gray-400">
+                Trend charts to understand seasonality, long-term patterns, and
+                all-time net flow.
+              </p>
             </div>
           </div>
-          <div className={cx(divider, "mt-2")} />
-        </div>
 
-        {!loadingData && (
-          <div className="mb-8">
-            <AiInsightsSidebar
-              transactions={transactions}
-              categories={categories}
-              selectedYear={selectedYear}
-              selectedMonth={selectedMonth}
-              walletFilter={walletFilter}
-              categoryFilter={categoryFilter}
-            />
-          </div>
-        )}
-
-        {/* ANALYTICS */}
-        <div className="mt-2 mb-3">
-          <div className="flex items-center justify-between">
-            <div className={sectionKicker}>ANALYTICS</div>
-            <div className="text-[10px] uppercase tracking-[0.2em] text-gray-600">
-              advanced
-            </div>
-          </div>
-          <div className={cx(divider, "mt-2")} />
-        </div>
-
-        {/* Advanced analytics grid (keeps all components) */}
-        <section className="grid gap-4 md:grid-cols-2 mb-10">
-          <div className={cx(card, "p-4")}>
-            <h2 className={sectionTitle}>Monthly Income vs Expenses</h2>
-            <p className={sectionSub}>
-              Daily totals in the selected month (densified series).
-            </p>
-            <div className="mt-3">
+          <div className="grid gap-5 lg:grid-cols-2 mb-5">
+            <div className={CARD}>
               {loadingData ? (
-                <div className={emptyState}>Loading chart...</div>
+                <Skeleton className={SK_CHART_TALL} rounded="2xl" />
               ) : monthlyIncomeExpenseData.length === 0 ? (
-                <div className={emptyState}>No transactions yet to build a trend.</div>
+                <p className="text-gray-500 text-sm">
+                  No transactions yet to build a trend.
+                </p>
               ) : (
                 <MonthlyIncomeExpenseChart data={monthlyIncomeExpenseData} />
               )}
             </div>
-          </div>
 
-          <div className={cx(card, "p-4")}>
-            <h2 className={sectionTitle}>Historical Income vs Expenses — Last 12 Months</h2>
-            <p className={sectionSub}>Daily totals across the last 12 months.</p>
-            <div className="mt-3">
+            <div className={CARD}>
               {loadingData ? (
-                <div className={emptyState}>Loading chart...</div>
+                <Skeleton className={SK_CHART_TALL} rounded="2xl" />
               ) : incomeExpenseTrendLast12.length === 0 ? (
-                <div className={emptyState}>
+                <p className="text-gray-500 text-sm">
                   Not enough history yet to show this trend.
-                </div>
+                </p>
               ) : (
                 <HistoricalIncomeExpenseChart data={incomeExpenseTrendLast12} />
               )}
             </div>
           </div>
 
-          <div className={cx(card, "p-4")}>
-            <h2 className={sectionTitle}>All-Time Income vs Expenses</h2>
-            <p className={sectionSub}>Full history trend (no FX conversion).</p>
-            <div className="mt-3">
+          <div className="grid gap-5 lg:grid-cols-2">
+            <div className={CARD}>
               {loadingData ? (
-                <div className={emptyState}>Loading chart...</div>
+                <Skeleton className={SK_CHART_TALL} rounded="2xl" />
               ) : incomeExpenseTrendData.length === 0 ? (
-                <div className={emptyState}>No transactions yet to build an all-time trend.</div>
+                <p className="text-gray-500 text-sm">
+                  No transactions yet to build an all-time trend.
+                </p>
               ) : (
                 <FullHistoryIncomeExpenseChart data={incomeExpenseTrendData} />
               )}
             </div>
-          </div>
 
-          <div className={cx(card, "p-4")}>
-            <h2 className={sectionTitle}>Cumulative Net Flow — All Time</h2>
-            <p className={sectionSub}>
-              Income minus expenses accumulated over time (net flow). Does not include starting balances.
-            </p>
-            <div className="mt-3">
+            <div className={CARD}>
               {loadingData ? (
-                <div className={emptyState}>Loading chart...</div>
+                <Skeleton className={SK_CHART_TALL} rounded="2xl" />
               ) : incomeExpenseTrendData.length === 0 ? (
-                <div className={emptyState}>
+                <p className="text-gray-500 text-sm">
                   No transactions yet to build a cumulative net flow view.
-                </div>
+                </p>
               ) : (
                 <CumulativeNetBalanceChart data={incomeExpenseTrendData} />
               )}
