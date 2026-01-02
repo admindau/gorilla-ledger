@@ -277,16 +277,16 @@ export default function CategoriesPage() {
     const isBusy = rowBusyId === cat.id;
 
     return (
-      <li key={cat.id} className="px-4 py-2 text-sm">
+      <li key={cat.id} className="px-4 py-2.5 text-sm">
         {!isEditing ? (
           <div className="flex items-center justify-between gap-3">
-            <div>{cat.name}</div>
+            <div className="truncate">{cat.name}</div>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => beginEdit(cat.id)}
                 disabled={isBusy}
-                className="px-3 py-1.5 rounded border border-gray-700 text-xs text-gray-200"
+                className="px-3 py-1.5 rounded border border-gray-700 text-xs text-gray-200 hover:bg-white/5"
               >
                 Edit
               </button>
@@ -294,7 +294,7 @@ export default function CategoriesPage() {
                 type="button"
                 onClick={() => handleDeleteCategory(cat.id)}
                 disabled={isBusy}
-                className="px-3 py-1.5 rounded border border-red-900 text-xs text-red-300"
+                className="px-3 py-1.5 rounded border border-red-900 text-xs text-red-300 hover:bg-red-500/10"
               >
                 {isBusy ? "Working..." : "Delete"}
               </button>
@@ -336,7 +336,7 @@ export default function CategoriesPage() {
                 type="button"
                 onClick={cancelEdit}
                 disabled={isBusy}
-                className="px-3 py-2 rounded border border-gray-700 text-gray-200"
+                className="px-3 py-2 rounded border border-gray-700 text-gray-200 hover:bg-white/5"
               >
                 Cancel
               </button>
@@ -347,77 +347,111 @@ export default function CategoriesPage() {
     );
   }
 
+  const NavLink = ({
+    href,
+    label,
+    active,
+  }: {
+    href: string;
+    label: string;
+    active?: boolean;
+  }) => {
+    return (
+      <a
+        href={href}
+        className={[
+          "px-2.5 py-1.5 rounded-md border text-xs transition",
+          active
+            ? "border-white/30 bg-white/10 text-white"
+            : "border-gray-800 bg-black/40 text-gray-300 hover:bg-white/5 hover:text-white",
+        ].join(" ")}
+      >
+        {label}
+      </a>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      <header className="w-full px-6 py-4 border-b border-gray-800">
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="font-semibold">Gorilla Ledger™</div>
+      {/* Tightened header (less link-bar, more app-shell) */}
+      <header className="w-full border-b border-gray-900 bg-black/80 backdrop-blur">
+        <div className="px-4 sm:px-6 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="font-semibold tracking-tight truncate">Gorilla Ledger™</div>
+              <div className="hidden md:flex items-center gap-2">
+                <NavLink href="/wallets" label="Wallets" />
+                <NavLink href="/categories" label="Categories" active />
+                <NavLink href="/transactions" label="Transactions" />
+                <NavLink href="/budgets" label="Budgets" />
+                <NavLink href="/recurring" label="Recurring" />
+                <NavLink href="/settings/security" label="Security" />
+              </div>
+            </div>
 
-            <nav className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-              <a href="/wallets" className="underline text-gray-300">
-                Wallets
-              </a>
-              <a href="/categories" className="underline text-gray-300">
-                Categories
-              </a>
-              <a href="/transactions" className="underline text-gray-300">
-                Transactions
-              </a>
-              <a href="/budgets" className="underline text-gray-300">
-                Budgets
-              </a>
-              <a href="/recurring" className="underline text-gray-300">
-                Recurring
-              </a>
-              <a href="/settings/security" className="underline text-gray-300">
-                Security
-              </a>
-            </nav>
+            <div className="flex items-center gap-2">
+              {userEmail ? (
+                <div className="hidden sm:flex items-center gap-2 max-w-[260px]">
+                  <span className="text-[11px] text-gray-400">Signed in</span>
+                  <span className="text-xs text-gray-200 truncate">{userEmail}</span>
+                </div>
+              ) : null}
 
-            <div className="flex items-center gap-3">
-              <div className="text-sm text-gray-200 truncate max-w-[220px]">{userEmail}</div>
               <button
                 type="button"
                 onClick={handleLogout}
-                className="px-3 py-1.5 rounded border border-gray-700 text-sm text-gray-200"
+                className="px-3 py-1.5 rounded-md border border-gray-700 text-xs text-gray-200 hover:bg-white/5"
               >
                 Logout
               </button>
             </div>
           </div>
 
-          <div className="text-xs text-gray-300 flex flex-wrap gap-2">
-            <span>
-              MFA:{" "}
-              <span className={mfaEnabled ? "text-green-400" : "text-gray-300"}>
-                {mfaEnabled ? "Enabled" : "Not enabled"}
-              </span>
+          {/* Mobile nav (kept compact) */}
+          <div className="md:hidden mt-2 flex flex-wrap gap-2">
+            <NavLink href="/wallets" label="Wallets" />
+            <NavLink href="/categories" label="Categories" active />
+            <NavLink href="/transactions" label="Transactions" />
+            <NavLink href="/budgets" label="Budgets" />
+            <NavLink href="/recurring" label="Recurring" />
+            <NavLink href="/settings/security" label="Security" />
+          </div>
+
+          {/* Security posture line (tight) */}
+          <div className="mt-2 text-[11px] text-gray-300 flex flex-wrap gap-x-2 gap-y-1">
+            <span className="text-gray-400">MFA:</span>
+            <span className={mfaEnabled ? "text-emerald-400" : "text-gray-300"}>
+              {mfaEnabled ? "Enabled" : "Not enabled"}
             </span>
-            <span className="text-gray-500">•</span>
-            <span>
-              Last security check:{" "}
-              {lastSecurityCheckDays === null ? (
-                <span className="text-gray-400">—</span>
-              ) : (
-                <span className="text-gray-200">{formatDaysAgo(lastSecurityCheckDays)}</span>
-              )}
-            </span>
+            <span className="text-gray-600">•</span>
+            <span className="text-gray-400">Last security check:</span>
+            {lastSecurityCheckDays === null ? (
+              <span className="text-gray-500">—</span>
+            ) : (
+              <span className="text-gray-200">{formatDaysAgo(lastSecurityCheckDays)}</span>
+            )}
           </div>
         </div>
       </header>
 
       <main className="flex-1 px-4 py-6 max-w-4xl mx-auto w-full">
-        <h1 className="text-2xl font-semibold mb-4">Your Categories</h1>
+        {/* Tightened page header */}
+        <div className="mb-4">
+          <div className="text-[10px] uppercase tracking-widest text-gray-500">Configuration</div>
+          <h1 className="text-2xl font-semibold leading-tight">Categories</h1>
+          <p className="text-sm text-gray-400 mt-1">
+            Organize your income and expenses by category.
+          </p>
+        </div>
 
         {errorMsg && <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>}
 
-        <section className="mb-8 border border-gray-800 rounded p-4">
-          <h2 className="text-lg font-semibold mb-3">Add a Category</h2>
+        <section className="mb-8 border border-gray-800 rounded p-4 bg-black/40">
+          <h2 className="text-sm font-semibold mb-3">Add a Category</h2>
 
           <form onSubmit={handleCreateCategory} className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="block text-sm mb-1">Name</label>
+              <label className="block text-xs mb-1 text-gray-400">Name</label>
               <input
                 type="text"
                 className="w-full p-2 rounded bg-gray-900 border border-gray-700"
@@ -429,7 +463,7 @@ export default function CategoriesPage() {
             </div>
 
             <div>
-              <label className="block text-sm mb-1">Type</label>
+              <label className="block text-xs mb-1 text-gray-400">Type</label>
               <select
                 className="w-full p-2 rounded bg-gray-900 border border-gray-700"
                 value={type}
@@ -454,26 +488,34 @@ export default function CategoriesPage() {
 
         <section className="grid md:grid-cols-2 gap-6">
           <div>
-            <h2 className="text-lg font-semibold mb-2">Income</h2>
+            <div className="flex items-baseline justify-between mb-2">
+              <h2 className="text-sm font-semibold">Income</h2>
+              <span className="text-[11px] text-gray-500">{incomeCategories.length}</span>
+            </div>
+
             {loading ? (
               <p className="text-gray-400 text-sm">Loading categories...</p>
             ) : incomeCategories.length === 0 ? (
               <p className="text-gray-500 text-sm">You don&apos;t have any income categories yet.</p>
             ) : (
-              <ul className="border border-gray-800 rounded divide-y divide-gray-800">
+              <ul className="border border-gray-800 rounded divide-y divide-gray-800 bg-black/40">
                 {incomeCategories.map(renderCategoryRow)}
               </ul>
             )}
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold mb-2">Expenses</h2>
+            <div className="flex items-baseline justify-between mb-2">
+              <h2 className="text-sm font-semibold">Expenses</h2>
+              <span className="text-[11px] text-gray-500">{expenseCategories.length}</span>
+            </div>
+
             {loading ? (
               <p className="text-gray-400 text-sm">Loading categories...</p>
             ) : expenseCategories.length === 0 ? (
               <p className="text-gray-500 text-sm">You don&apos;t have any expense categories yet.</p>
             ) : (
-              <ul className="border border-gray-800 rounded divide-y divide-gray-800">
+              <ul className="border border-gray-800 rounded divide-y divide-gray-800 bg-black/40">
                 {expenseCategories.map(renderCategoryRow)}
               </ul>
             )}
