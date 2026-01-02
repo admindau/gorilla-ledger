@@ -44,7 +44,8 @@ function shortToken(len = 6) {
     for (let i = 0; i < len; i++) out += chars[arr[i] % chars.length];
     return out;
   }
-  for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  for (let i = 0; i < len; i++)
+    out += chars[Math.floor(Math.random() * chars.length)];
   return out;
 }
 
@@ -264,7 +265,9 @@ export default function SecuritySettingsPage() {
           });
 
           if (retry.error || !retry.data) {
-            setErrorMsg(retry.error?.message ?? "Failed to start MFA enrollment.");
+            setErrorMsg(
+              retry.error?.message ?? "Failed to start MFA enrollment."
+            );
             return;
           }
 
@@ -376,52 +379,100 @@ export default function SecuritySettingsPage() {
   }
 
   // ---------------------------------------------------------------------------
+  // Header UI helpers (hardened)
+  // ---------------------------------------------------------------------------
+  const NavLink = ({
+    href,
+    label,
+    active,
+  }: {
+    href: string;
+    label: string;
+    active?: boolean;
+  }) => {
+    return (
+      <Link
+        href={href}
+        className={[
+          "px-2.5 py-1.5 rounded-md border text-xs transition",
+          active
+            ? "border-white/30 bg-white/10 text-white"
+            : "border-gray-800 bg-black/40 text-gray-300 hover:bg-white/5 hover:text-white",
+        ].join(" ")}
+      >
+        {label}
+      </Link>
+    );
+  };
+
+  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* ========================= Top Navigation ========================= */}
-      <header className="border-b border-gray-900">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <Link href="/dashboard" className="text-sm font-semibold hover:underline">
-              Gorilla Ledger™
-            </Link>
+      {/* ========================= Hardened Top Navigation ========================= */}
+      <header className="w-full border-b border-gray-900 bg-black/80 backdrop-blur">
+        <div className="max-w-6xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <Link href="/dashboard" className="font-semibold tracking-tight truncate">
+                Gorilla Ledger™
+              </Link>
+
+              <nav className="hidden md:flex items-center gap-2">
+                <NavLink href="/wallets" label="Wallets" />
+                <NavLink href="/categories" label="Categories" />
+                <NavLink href="/transactions" label="Transactions" />
+                <NavLink href="/budgets" label="Budgets" />
+                <NavLink href="/recurring" label="Recurring" />
+                <NavLink href="/settings/security" label="Security" active />
+              </nav>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {userEmail ? (
+                <div className="hidden sm:flex items-center gap-2 max-w-[260px]">
+                  <span className="text-[11px] text-gray-400">Signed in</span>
+                  <span className="text-xs text-gray-200 truncate">{userEmail}</span>
+                </div>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={signingOut}
+                className="px-3 py-1.5 rounded-md border border-gray-700 text-xs text-gray-200 hover:bg-white/5 transition disabled:opacity-60"
+              >
+                {signingOut ? "Logging out…" : "Logout"}
+              </button>
+            </div>
           </div>
 
-          <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm">
-            <Link href="/wallets" className="hover:underline">
-              Wallets
-            </Link>
-            <Link href="/categories" className="hover:underline">
-              Categories
-            </Link>
-            <Link href="/transactions" className="hover:underline">
-              Transactions
-            </Link>
-            <Link href="/budgets" className="hover:underline">
-              Budgets
-            </Link>
-            <Link href="/recurring" className="hover:underline">
-              Recurring
-            </Link>
-            <Link href="/settings/security" className="hover:underline">
-              Security
-            </Link>
+          {/* Mobile nav */}
+          <nav className="md:hidden mt-2 flex flex-wrap gap-2">
+            <NavLink href="/wallets" label="Wallets" />
+            <NavLink href="/categories" label="Categories" />
+            <NavLink href="/transactions" label="Transactions" />
+            <NavLink href="/budgets" label="Budgets" />
+            <NavLink href="/recurring" label="Recurring" />
+            <NavLink href="/settings/security" label="Security" active />
           </nav>
 
-          <div className="flex items-center gap-3">
-            <span className="hidden sm:inline text-xs text-gray-300 truncate max-w-[220px]">
-              {userEmail || ""}
+          {/* Security posture row (tight, consistent) */}
+          <div className="mt-2 text-[11px] text-gray-300 flex flex-wrap gap-x-2 gap-y-1">
+            <span className="text-gray-400">MFA:</span>
+            <span className={mfaEnabled ? "text-emerald-400" : "text-gray-300"}>
+              {mfaEnabled ? "Enabled" : "Not enabled"}
             </span>
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={signingOut}
-              className="bg-black border border-white/20 text-white px-3 py-1.5 rounded text-sm hover:bg-white hover:text-black transition disabled:opacity-60"
-            >
-              {signingOut ? "Logging out…" : "Logout"}
-            </button>
+            <span className="text-gray-600">•</span>
+            <span className="text-gray-400">Last security check:</span>
+            <span className="text-gray-200">{lastCheckLabel}</span>
+            {mfaEnabled && !backupConfigured && (
+              <>
+                <span className="text-gray-600">•</span>
+                <span className="text-amber-300">Backup authenticator not configured</span>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -475,7 +526,9 @@ export default function SecuritySettingsPage() {
 
                   <div className="text-gray-400">
                     Backup factor:{" "}
-                    <span className={backupConfigured ? "text-emerald-400" : "text-yellow-300"}>
+                    <span
+                      className={backupConfigured ? "text-emerald-400" : "text-yellow-300"}
+                    >
                       {backupConfigured ? "Configured" : "Not configured"}
                     </span>
                   </div>
@@ -528,8 +581,8 @@ export default function SecuritySettingsPage() {
             {/* ========================= Brand Warning (No Supabase mention) ========================= */}
             {!backupConfigured && (
               <div className="mt-4 text-xs text-yellow-200 border border-yellow-500/40 rounded px-3 py-2 bg-yellow-950/20">
-                Savvy Gorilla™ does not provide recovery codes. For account recovery, enroll a backup
-                authenticator factor on a different device or app.
+                Savvy Gorilla™ does not provide recovery codes. For account recovery, enroll a
+                backup authenticator factor on a different device or app.
               </div>
             )}
 
@@ -551,9 +604,7 @@ export default function SecuritySettingsPage() {
 
                   <form onSubmit={verifyEnroll} className="space-y-3">
                     <div>
-                      <label className="block text-xs text-gray-400 mb-1">
-                        6-digit code
-                      </label>
+                      <label className="block text-xs text-gray-400 mb-1">6-digit code</label>
                       <input
                         value={otp}
                         onChange={(e) => setOtp(e.target.value)}
@@ -581,9 +632,7 @@ export default function SecuritySettingsPage() {
             )}
 
             {/* ========================= Boot state hint ========================= */}
-            {booting && (
-              <p className="mt-4 text-xs text-gray-400">Loading security settings…</p>
-            )}
+            {booting && <p className="mt-4 text-xs text-gray-400">Loading security settings…</p>}
           </div>
         </div>
       </main>
