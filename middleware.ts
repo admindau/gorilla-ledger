@@ -1,33 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-/**
- * Routes that require an authenticated session.
- * Keep this list explicit to avoid accidentally gating public pages.
- */
-const PROTECTED_PREFIXES = [
-  "/dashboard",
-  "/wallets",
-  "/transactions",
-  "/budgets",
-  "/categories",
-  "/recurring",
-  "/settings",
-];
-
-/**
- * Public routes that should never be redirected by auth middleware.
- */
-const PUBLIC_PREFIXES = ["/auth", "/api", "/_next", "/favicon.ico", "/robots.txt", "/sitemap.xml"];
-
-function isProtectedPath(pathname: string) {
-  return PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
-}
-
-function isPublicPath(pathname: string) {
-  return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
-}
-
 function addSecurityHeaders(res: NextResponse): NextResponse {
   res.headers.set("X-Content-Type-Options", "nosniff");
   res.headers.set("X-Frame-Options", "DENY");
@@ -40,16 +13,6 @@ function addSecurityHeaders(res: NextResponse): NextResponse {
     "Strict-Transport-Security",
     "max-age=31536000; includeSubDomains; preload"
   );
-  return res;
-}
-
-/**
- * Prevent caching of authenticated pages (helps with back-button + intermediaries).
- */
-function addNoStore(res: NextResponse): NextResponse {
-  res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
-  res.headers.set("Pragma", "no-cache");
-  res.headers.set("Expires", "0");
   return res;
 }
 
@@ -66,11 +29,6 @@ async function sha256Bytes(input: string): Promise<Uint8Array> {
   return new Uint8Array(digest);
 }
 
-/**
- * Edge-safe constant-time-ish compare:
- * - Hash both strings with SHA-256
- * - Compare hashes in constant time (no early return)
- */
 async function constantTimeEquals(a: string, b: string): Promise<boolean> {
   const [aHash, bHash] = await Promise.all([sha256Bytes(a), sha256Bytes(b)]);
   if (aHash.length !== bHash.length) return false;
@@ -92,15 +50,28 @@ function extractSecretFromHeaders(req: NextRequest): string | null {
   return v.length > 0 ? v : null;
 }
 
+function isProtectedPath(pathname: string) {
+  // Everything in your app “logged-in area”
+  return (
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/wallets") ||
+    pathname.startsWith("/transactions") ||
+    pathname.startsWith("/budgets") ||
+    pathname.startsWith("/recurring") ||
+    pathname.startsWith("/categories") ||
+    pathname.startsWith("/settings")
+  );
+}
+
 export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
 
-  // Allow OPTIONS through (preflights / tooling)
+  // Allow OPTIONS through
   if (req.method === "OPTIONS") {
     return addSecurityHeaders(NextResponse.next());
   }
 
-  // 1) Protect cron endpoint (requires CRON_SECRET)
+  // 1) Protect cron endpoint
   if (pathname === "/api/cron/recurring") {
     const expected = process.env.CRON_SECRET;
     if (!expected) return unauthorized();
@@ -123,32 +94,16 @@ export async function middleware(req: NextRequest) {
     if (!h || !/^Bearer\s+.+$/i.test(h)) return unauthorized();
   }
 
-  // 3) Auth-gate protected PAGE routes at the edge
-  // - We do NOT gate /api/* here, because you likely have mixed public/private endpoints.
-  // - We DO gate the app pages that must be inaccessible without a session.
-  const shouldAuthGate =
-    !isPublicPath(pathname) &&
-    isProtectedPath(pathname);
+  // 3) Supabase SSR session refresh (critical for MFA + logout correctness)
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-  const res = NextResponse.next();
-  addSecurityHeaders(res);
+  let res = NextResponse.next({
+    request: {
+      headers: req.headers,
+    },
+  });
 
-  if (!shouldAuthGate) {
-    return res;
-  }
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    // Fail closed on protected routes if env is missing
-    const fail = NextResponse.redirect(new URL("/auth/login?error=missing_env", req.url));
-    addSecurityHeaders(fail);
-    addNoStore(fail);
-    return fail;
-  }
-
-  // Create an SSR client inside middleware so auth cookies are read/written correctly.
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
@@ -162,21 +117,18 @@ export async function middleware(req: NextRequest) {
     },
   });
 
-  const { data } = await supabase.auth.getUser();
+  // Touch auth to refresh cookies when needed (MFA, token refresh, etc.)
+  // If you don't do this, server layouts can think you're logged out.
+  await supabase.auth.getUser();
 
-  if (!data?.user) {
-    const login = new URL("/auth/login", req.url);
-    login.searchParams.set("next", pathname);
-    const redirect = NextResponse.redirect(login);
-
-    addSecurityHeaders(redirect);
-    addNoStore(redirect);
-    return redirect;
+  // 4) Prevent “back button shows private page” via cache
+  if (isProtectedPath(pathname)) {
+    res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.headers.set("Pragma", "no-cache");
+    res.headers.set("Expires", "0");
   }
 
-  // Authenticated: ensure protected pages are not cached.
-  addNoStore(res);
-  return res;
+  return addSecurityHeaders(res);
 }
 
 export const config = {
