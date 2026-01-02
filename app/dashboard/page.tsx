@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -94,8 +94,44 @@ function daysInMonth(year: number, month0: number) {
   return new Date(year, month0 + 1, 0).getDate();
 }
 
+function SectionHeader(props: {
+  title: string;
+  subtitle?: string;
+  rightSlot?: React.ReactNode;
+}) {
+  return (
+    <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h2 className="text-lg font-semibold">{props.title}</h2>
+        {props.subtitle ? (
+          <p className="text-[11px] text-gray-400 leading-relaxed">
+            {props.subtitle}
+          </p>
+        ) : null}
+      </div>
+      {props.rightSlot ? <div className="shrink-0">{props.rightSlot}</div> : null}
+    </div>
+  );
+}
+
+function DividerLabel(props: { label: string }) {
+  return (
+    <div className="mb-4 mt-10 flex items-center gap-3">
+      <div className="text-[10px] tracking-[0.18em] uppercase text-gray-400">
+        {props.label}
+      </div>
+      <div className="h-px flex-1 bg-gray-800" />
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
+
+  // Visual system (Items 1–3)
+  const CARD =
+    "rounded-2xl border border-gray-800 bg-black/40 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]";
+  const CARD_HOVER = "transition hover:border-gray-600";
 
   const [checkingSession, setCheckingSession] = useState(true);
   const [loadingData, setLoadingData] = useState(true);
@@ -287,26 +323,32 @@ export default function DashboardPage() {
 
   // ----- Derived data -----
 
-  const walletMap = Object.fromEntries(wallets.map((w) => [w.id, w] as const));
-  const categoryMap = Object.fromEntries(
-    categories.map((c) => [c.id, c] as const)
+  const walletMap = useMemo(
+    () => Object.fromEntries(wallets.map((w) => [w.id, w] as const)),
+    [wallets]
+  );
+  const categoryMap = useMemo(
+    () => Object.fromEntries(categories.map((c) => [c.id, c] as const)),
+    [categories]
   );
 
   // Per-wallet balance (transfers DO affect balances, so we include them)
-  const walletBalances = wallets.map((w) => {
-    const walletTxs = transactions.filter((tx) => tx.wallet_id === w.id);
-    const delta = walletTxs.reduce((sum, tx) => {
-      const sign = tx.type === "income" ? 1 : -1;
-      return sum + sign * tx.amount_minor;
-    }, 0);
+  const walletBalances = useMemo(() => {
+    return wallets.map((w) => {
+      const walletTxs = transactions.filter((tx) => tx.wallet_id === w.id);
+      const delta = walletTxs.reduce((sum, tx) => {
+        const sign = tx.type === "income" ? 1 : -1;
+        return sum + sign * tx.amount_minor;
+      }, 0);
 
-    const balanceMinor = w.starting_balance_minor + delta;
+      const balanceMinor = w.starting_balance_minor + delta;
 
-    return {
-      ...w,
-      balanceMinor,
-    };
-  });
+      return {
+        ...w,
+        balanceMinor,
+      };
+    });
+  }, [wallets, transactions]);
 
   // Totals per currency
   const totalsByCurrency: Record<string, number> = {};
@@ -580,6 +622,16 @@ export default function DashboardPage() {
     ? `${daysAgoFromMs(lastCheckAt)} day(s) ago`
     : "Not recorded";
 
+  const activeFiltersLabel = `Wallet: ${
+    walletFilter === "all"
+      ? "All"
+      : wallets.find((w) => w.id === walletFilter)?.name || "Selected"
+  } • Category: ${
+    categoryFilter === "all"
+      ? "All"
+      : categories.find((c) => c.id === categoryFilter)?.name || "Selected"
+  } • Year: ${yearFilter === "all" ? "All" : yearFilter}`;
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
       {/* Top bar */}
@@ -622,7 +674,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Security posture row (mobile-first; stays neat on all screens) */}
+        {/* Security posture row */}
         <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
           <span className="text-gray-400">MFA:</span>
           <span className={mfaEnabled ? "text-emerald-400" : "text-gray-300"}>
@@ -644,43 +696,44 @@ export default function DashboardPage() {
 
       <main className="flex-1 px-4 py-6 max-w-7xl mx-auto w-full">
         {/* Page header + month selector */}
-        <section className="mb-6">
-          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-semibold">Overview</h1>
-              <p className="text-gray-400 text-sm">
-                High-level snapshot of your wallets, budgets, and activity.
-              </p>
-            </div>
-
-            {/* Month selector */}
-            <div className="inline-flex items-center gap-2 text-sm">
-              <button
-                type="button"
-                onClick={goToPreviousMonth}
-                className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
-              >
-                ◀
-              </button>
-              <div className="px-3 py-1 border border-gray-800 rounded-full bg-black/40 text-xs uppercase tracking-wide text-gray-300">
-                {monthLabel}
-              </div>
-              <button
-                type="button"
-                onClick={goToNextMonth}
-                className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
-              >
-                ▶
-              </button>
-            </div>
+        <div className="mb-6 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold">Overview</h1>
+            <p className="text-gray-400 text-sm">
+              High-level snapshot of your wallets, budgets, and activity.
+            </p>
           </div>
 
-          {errorMsg && <p className="mt-4 text-red-400 text-sm">{errorMsg}</p>}
-        </section>
+          {/* Month selector */}
+          <div className="inline-flex items-center gap-2 text-sm">
+            <button
+              type="button"
+              onClick={goToPreviousMonth}
+              className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
+            >
+              ◀
+            </button>
+            <div className="px-3 py-1 border border-gray-800 rounded-full bg-black/40 text-xs uppercase tracking-wide text-gray-300">
+              {monthLabel}
+            </div>
+            <button
+              type="button"
+              onClick={goToNextMonth}
+              className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
+            >
+              ▶
+            </button>
+          </div>
+        </div>
 
-        {/* KPI strip (Executive summary) */}
-        <section className="grid gap-4 md:grid-cols-3 mb-8">
-          <div className="border border-gray-800 rounded p-4 bg-black/40">
+        {errorMsg && <p className="mb-6 text-red-400 text-sm">{errorMsg}</p>}
+
+        {/* EXECUTIVE SUMMARY */}
+        <DividerLabel label="Executive summary" />
+
+        {/* KPI strip */}
+        <section className="grid gap-5 md:grid-cols-3">
+          <div className={`${CARD} ${CARD_HOVER}`}>
             <div className="text-xs text-gray-400 uppercase mb-1">Wallets</div>
             <div className="text-2xl font-semibold">{wallets.length}</div>
             <div className="text-xs text-gray-500 mt-1">
@@ -688,7 +741,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="border border-gray-800 rounded p-4 bg-black/40">
+          <div className={`${CARD} ${CARD_HOVER}`}>
             <div className="text-xs text-gray-400 uppercase mb-1">
               Income – {monthLabel}
             </div>
@@ -709,7 +762,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="border border-gray-800 rounded p-4 bg-black/40">
+          <div className={`${CARD} ${CARD_HOVER}`}>
             <div className="text-xs text-gray-400 uppercase mb-1">
               Expenses – {monthLabel}
             </div>
@@ -732,20 +785,15 @@ export default function DashboardPage() {
         </section>
 
         {/* Executive trend (Hero chart) */}
-        <section className="mb-8">
-          <div className="flex items-baseline justify-between gap-3 mb-2">
-            <h2 className="text-lg font-semibold">
-              Calendar-Year Income vs Expenses
-            </h2>
-            <div className="text-[11px] text-gray-400">
-              Executive monthly trend for {targetCalendarYear}.
-            </div>
-          </div>
-
+        <section className="mt-8">
+          <SectionHeader
+            title="Calendar-Year Income vs Expenses"
+            subtitle={`Executive monthly trend for ${targetCalendarYear}.`}
+          />
           {loadingData ? (
             <p className="text-gray-400 text-sm">Loading...</p>
           ) : (
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
+            <div className={`${CARD} ${CARD_HOVER}`}>
               <YearlyIncomeExpenseBarChart
                 transactions={transactions}
                 categories={categories}
@@ -757,11 +805,12 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Total Balance by currency (secondary KPI block) */}
-        <section className="mb-10">
-          <h2 className="text-lg font-semibold mb-2">
-            Total Balance by Currency
-          </h2>
+        {/* Total Balance by currency */}
+        <section className="mt-10">
+          <SectionHeader
+            title="Total Balance by Currency"
+            subtitle="Balances include starting balances and all transaction activity."
+          />
           {loadingData ? (
             <p className="text-gray-400 text-sm">Loading...</p>
           ) : Object.keys(totalsByCurrency).length === 0 ? (
@@ -769,12 +818,9 @@ export default function DashboardPage() {
               No balances yet – add a wallet and some transactions.
             </p>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {Object.entries(totalsByCurrency).map(([currency, minor]) => (
-                <div
-                  key={currency}
-                  className="border border-gray-800 rounded px-4 py-3 bg-black/40"
-                >
+                <div key={currency} className={`${CARD} ${CARD_HOVER} p-4`}>
                   <div className="text-xs text-gray-400 uppercase">
                     {currency}
                   </div>
@@ -787,63 +833,61 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Intelligence section (Smart + AI) */}
-        <section className="mb-10">
-          <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-3">
-            <div>
-              <h2 className="text-lg font-semibold">Intelligence</h2>
-              <p className="text-[11px] text-gray-400">
-                Actionable insights based on your recent activity.
-              </p>
-            </div>
+        {/* INTELLIGENCE */}
+        <DividerLabel label="Intelligence" />
+
+        <section className="grid gap-5 lg:grid-cols-2">
+          <div className={`${CARD} ${CARD_HOVER}`}>
+            <SectionHeader
+              title="Smart Insights"
+              subtitle="Quick, practical insights derived from your activity."
+            />
+            {loadingData ? (
+              <p className="text-gray-400 text-sm">Loading...</p>
+            ) : (
+              <SmartInsightsPanel
+                transactions={transactions}
+                categories={categories}
+                selectedYear={selectedYear}
+                selectedMonth={selectedMonth}
+                walletFilter={walletFilter}
+                categoryFilter={categoryFilter}
+              />
+            )}
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            {/* Smart Insights */}
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
-              {loadingData ? (
-                <p className="text-gray-400 text-sm">Loading...</p>
-              ) : (
-                <SmartInsightsPanel
-                  transactions={transactions}
-                  categories={categories}
-                  selectedYear={selectedYear}
-                  selectedMonth={selectedMonth}
-                  walletFilter={walletFilter}
-                  categoryFilter={categoryFilter}
-                />
-              )}
-            </div>
-
-            {/* AI Insights */}
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
-              {loadingData ? (
-                <p className="text-gray-400 text-sm">Loading...</p>
-              ) : (
-                <AiInsightsSidebar
-                  transactions={transactions}
-                  categories={categories}
-                  selectedYear={selectedYear}
-                  selectedMonth={selectedMonth}
-                  walletFilter={walletFilter}
-                  categoryFilter={categoryFilter}
-                />
-              )}
-            </div>
+          <div className={`${CARD} ${CARD_HOVER}`}>
+            <SectionHeader
+              title="AI Insights"
+              subtitle="Contextual coaching to help you spot patterns and next actions."
+            />
+            {loadingData ? (
+              <p className="text-gray-400 text-sm">Loading...</p>
+            ) : (
+              <AiInsightsSidebar
+                transactions={transactions}
+                categories={categories}
+                selectedYear={selectedYear}
+                selectedMonth={selectedMonth}
+                walletFilter={walletFilter}
+                categoryFilter={categoryFilter}
+              />
+            )}
           </div>
         </section>
 
-        {/* Chart filters (placed before the analytics it controls) */}
-        <section className="mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        {/* ANALYTICS */}
+        <DividerLabel label="Analytics" />
+
+        {/* Sticky Filters Bar (Item 2) */}
+        <section className="sticky top-0 z-30 -mx-4 px-4 py-3 mb-6 border-b border-gray-800 bg-black/70 backdrop-blur">
+          <div className="max-w-7xl mx-auto w-full flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-sm font-semibold">Chart Filters</h2>
-              <p className="text-[11px] text-gray-400">
-                Apply filters to the charts below, including spending and
-                income/expense trends.
-              </p>
+              <div className="text-sm font-semibold">Chart Filters</div>
+              <div className="text-[11px] text-gray-400">{activeFiltersLabel}</div>
             </div>
-            <div className="flex flex-wrap gap-2 text-xs">
+
+            <div className="flex flex-wrap items-center gap-2 text-xs">
               <div className="flex items-center gap-1">
                 <span className="text-gray-400">Wallet:</span>
                 <select
@@ -859,6 +903,7 @@ export default function DashboardPage() {
                   ))}
                 </select>
               </div>
+
               <div className="flex items-center gap-1">
                 <span className="text-gray-400">Category:</span>
                 <select
@@ -874,6 +919,7 @@ export default function DashboardPage() {
                   ))}
                 </select>
               </div>
+
               <div className="flex items-center gap-1">
                 <span className="text-gray-400">Year:</span>
                 <select
@@ -889,67 +935,71 @@ export default function DashboardPage() {
                   ))}
                 </select>
               </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setWalletFilter("all");
+                  setCategoryFilter("all");
+                  setYearFilter("all");
+                }}
+                className="ml-0 sm:ml-2 px-2.5 py-1 rounded border border-gray-700 bg-black/40 hover:border-gray-500"
+              >
+                Reset
+              </button>
             </div>
           </div>
         </section>
 
-        {/* Composition row: Spending donut + Top categories */}
-        <section className="mb-10">
-          <div className="grid gap-4 lg:grid-cols-2">
-            {/* Spending by Category (donut) */}
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <h2 className="text-lg font-semibold mb-2">
-                Spending by Category – {monthLabel}
-              </h2>
-              {loadingData ? (
-                <p className="text-gray-400 text-sm">Loading...</p>
-              ) : (
-                <SpendingByCategoryChart
-                  transactions={transactions}
-                  categories={categories}
-                  selectedYear={selectedYear}
-                  selectedMonth={selectedMonth}
-                  walletFilter={walletFilter}
-                  categoryFilter={categoryFilter}
-                />
-              )}
-            </div>
+        {/* Composition row */}
+        <section className="grid gap-5 lg:grid-cols-2 mb-10">
+          <div className={`${CARD} ${CARD_HOVER}`}>
+            <SectionHeader
+              title={`Spending by Category — ${monthLabel}`}
+              subtitle="Internal transfers excluded. Totals shown by selected currency (no FX conversion)."
+            />
+            {loadingData ? (
+              <p className="text-gray-400 text-sm">Loading...</p>
+            ) : (
+              <SpendingByCategoryChart
+                transactions={transactions}
+                categories={categories}
+                selectedYear={selectedYear}
+                selectedMonth={selectedMonth}
+                walletFilter={walletFilter}
+                categoryFilter={categoryFilter}
+              />
+            )}
+          </div>
 
-            {/* Top categories bar chart */}
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <h2 className="text-lg font-semibold mb-2">
-                Top Spending Categories – This Year
-              </h2>
-              {loadingData ? (
-                <p className="text-gray-400 text-sm">Loading...</p>
-              ) : (
-                <TopCategoriesBarChart
-                  transactions={transactions}
-                  categories={categories}
-                  walletFilter={walletFilter}
-                  categoryFilter={categoryFilter}
-                  yearFilter={yearFilter}
-                />
-              )}
-            </div>
+          <div className={`${CARD} ${CARD_HOVER}`}>
+            <SectionHeader
+              title="Top Spending Categories — This Year"
+              subtitle="Highest expense categories for the selected year and filters."
+            />
+            {loadingData ? (
+              <p className="text-gray-400 text-sm">Loading...</p>
+            ) : (
+              <TopCategoriesBarChart
+                transactions={transactions}
+                categories={categories}
+                walletFilter={walletFilter}
+                categoryFilter={categoryFilter}
+                yearFilter={yearFilter}
+              />
+            )}
           </div>
         </section>
 
-        {/* Budget control section */}
-        <section className="mb-10">
-          <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-2">
-            <div>
-              <h2 className="text-lg font-semibold">
-                Budget Control – {monthLabel}
-              </h2>
-              <p className="text-[11px] text-gray-400">
-                Your budget health and budget-vs-actual performance for the
-                selected month.
-              </p>
-            </div>
-          </div>
+        {/* Budget control */}
+        <DividerLabel label="Budget control" />
 
-          {/* Budget insights (above the table) */}
+        <section className="mb-12">
+          <SectionHeader
+            title={`Budget Control — ${monthLabel}`}
+            subtitle="Budget health plus budget-vs-actual performance for the selected month."
+          />
+
           {!loadingData && totalBudgets > 0 && (
             <div className="mb-4">
               <BudgetInsightsPanel
@@ -960,12 +1010,8 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Budgets vs Actual */}
-          <div className="border border-gray-800 rounded p-4 bg-black/40">
-            <h3 className="text-lg font-semibold mb-2">
-              Budgets vs Actual – {monthLabel}
-            </h3>
-
+          <div className={`${CARD} ${CARD_HOVER}`}>
+            <SectionHeader title={`Budgets vs Actual — ${monthLabel}`} />
             {loadingData ? (
               <p className="text-gray-400 text-sm">Loading...</p>
             ) : totalBudgets === 0 ? (
@@ -975,30 +1021,24 @@ export default function DashboardPage() {
               </p>
             ) : (
               <>
-                {/* Budgets health summary */}
                 <div className="mb-4 flex flex-wrap gap-2 text-xs text-gray-300">
                   <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
-                    {totalBudgets}{" "}
-                    {totalBudgets === 1 ? "budget" : "budgets"} this month
+                    {totalBudgets} {totalBudgets === 1 ? "budget" : "budgets"} this month
                   </span>
                   <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
-                    {budgetsOnTrack}{" "}
-                    {budgetsOnTrack === 1 ? "on track" : "on track budgets"}
+                    {budgetsOnTrack} {budgetsOnTrack === 1 ? "on track" : "on track budgets"}
                   </span>
                   <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
-                    {budgetsAtRisk}{" "}
-                    {budgetsAtRisk === 1 ? "at risk" : "at risk budgets"}
+                    {budgetsAtRisk} {budgetsAtRisk === 1 ? "at risk" : "at risk budgets"}
                   </span>
                   <span className="px-2 py-1 rounded-full border border-gray-700 bg-black/40">
-                    {budgetsOver}{" "}
-                    {budgetsOver === 1 ? "over budget" : "over-budget items"}
+                    {budgetsOver} {budgetsOver === 1 ? "over budget" : "over-budget items"}
                   </span>
                 </div>
 
-                <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
+                <div className="border border-gray-800 rounded-xl divide-y divide-gray-800 text-sm overflow-hidden">
                   {budgetSummaries.map((item) => {
-                    const { budget, wallet, category, actualMinor, usedRatio } =
-                      item;
+                    const { budget, wallet, category, actualMinor, usedRatio } = item;
 
                     const currency = wallet?.currency_code ?? "";
                     const isExpense = category && category.type === "expense";
@@ -1007,11 +1047,7 @@ export default function DashboardPage() {
                     const usedPercent = Math.round(usedRatio * 100);
                     const clampedPercent = Math.max(0, Math.min(usedPercent, 130));
 
-                    const barFillPercent = Math.max(
-                      0,
-                      Math.min(clampedPercent, 100)
-                    );
-
+                    const barFillPercent = Math.max(0, Math.min(clampedPercent, 100));
                     const barBorderClass =
                       usedPercent > 100 ? "border-white/60" : "border-gray-700";
 
@@ -1055,15 +1091,13 @@ export default function DashboardPage() {
                           <div className="flex items-baseline justify-between mb-1">
                             <div className="text-sm">
                               {labelVerb} {formatMinorToAmount(actualMinor)} /{" "}
-                              {formatMinorToAmount(budget.amount_minor)}{" "}
-                              {currency}
+                              {formatMinorToAmount(budget.amount_minor)} {currency}
                             </div>
                             <div className="text-xs text-gray-400 ml-3 whitespace-nowrap">
                               {usedPercent}% of budget used
                             </div>
                           </div>
 
-                          {/* Progress bar */}
                           <div
                             className={`w-full h-2 rounded-full bg-black border ${barBorderClass} overflow-hidden`}
                           >
@@ -1093,24 +1127,21 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Advanced analytics (everything still present, just grouped more cleanly) */}
-        <section className="mb-12">
-          <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-3">
-            <div>
-              <h2 className="text-lg font-semibold">Advanced Analytics</h2>
-              <p className="text-[11px] text-gray-400">
-                Trend charts to understand seasonality, long-term patterns, and
-                all-time net flow.
-              </p>
-            </div>
-          </div>
+        {/* Advanced analytics */}
+        <DividerLabel label="Advanced analytics" />
 
-          <div className="grid gap-4 lg:grid-cols-2 mb-4">
-            {/* Monthly income vs expenses (TRUE monthly, month-scoped + densified) */}
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <h5 className="text-lg font-semibold mb-2">
-                Monthly Budget Summary
-              </h5>
+        <section className="mb-12">
+          <SectionHeader
+            title="Advanced Analytics"
+            subtitle="Trend charts to understand seasonality, long-term patterns, and all-time net flow."
+          />
+
+          <div className="grid gap-5 lg:grid-cols-2 mb-5">
+            <div className={`${CARD} ${CARD_HOVER}`}>
+              <SectionHeader
+                title="Monthly Income vs Expenses"
+                subtitle="Daily totals across the selected month (densified series)."
+              />
               {loadingData ? (
                 <p className="text-gray-400 text-sm">Loading...</p>
               ) : monthlyIncomeExpenseData.length === 0 ? (
@@ -1122,11 +1153,11 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* Historical 12-month income vs expenses */}
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <h5 className="text-lg font-semibold mb-2">
-                Annual Performance
-              </h5>
+            <div className={`${CARD} ${CARD_HOVER}`}>
+              <SectionHeader
+                title="Historical Income vs Expenses — Last 12 Months"
+                subtitle="Daily totals across the last 12 months."
+              />
               {loadingData ? (
                 <p className="text-gray-400 text-sm">Loading...</p>
               ) : incomeExpenseTrendLast12.length === 0 ? (
@@ -1139,12 +1170,12 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            {/* All-Time Income vs Expenses */}
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <h5 className="text-lg font-semibold mb-2">
-                Lifetime Cash Flow
-              </h5>
+          <div className="grid gap-5 lg:grid-cols-2">
+            <div className={`${CARD} ${CARD_HOVER}`}>
+              <SectionHeader
+                title="All-Time Income vs Expenses"
+                subtitle="Full transaction history (no FX conversion)."
+              />
               {loadingData ? (
                 <p className="text-gray-400 text-sm">Loading...</p>
               ) : incomeExpenseTrendData.length === 0 ? (
@@ -1156,12 +1187,11 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* Cumulative Net Flow — All Time */}
-            <div className="border border-gray-800 rounded p-4 bg-black/40">
-              <h5 className="text-lg font-semibold mb-2">
-                The Bottom Line
-              </h5>
-
+            <div className={`${CARD} ${CARD_HOVER}`}>
+              <SectionHeader
+                title="Cumulative Net Flow — All Time"
+                subtitle="Income minus expenses accumulated over time (net flow). Excludes starting balances."
+              />
               {loadingData ? (
                 <p className="text-gray-400 text-sm">Loading...</p>
               ) : incomeExpenseTrendData.length === 0 ? (
