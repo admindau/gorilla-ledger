@@ -1,58 +1,113 @@
 "use client";
 
+/* =============================================================================
+   Gorilla Ledger™ — Settings / Security
+   - MFA (TOTP) management
+   - Backup factor enrollment
+   - “Last security check” tracking
+   - Top navigation
+   ============================================================================= */
+
 import Link from "next/link";
-import { useEffect, useMemo, useState, FormEvent } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
-import { useToast } from "@/components/ui/ToastProvider";
 
-type Wallet = {
+/* =============================================================================
+   Constants & Helpers
+   ============================================================================= */
+
+const LAST_SECURITY_CHECK_AT_KEY = "gl_last_security_check_at_v1";
+
+function daysAgoFromMs(ms: number) {
+  const diff = Date.now() - ms;
+  if (diff < 0) return 0;
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
+}
+
+function isSixDigitCode(value: string) {
+  const trimmed = value.replace(/\s+/g, "");
+  return /^\d{6}$/.test(trimmed);
+}
+
+function ymd(d = new Date()) {
+  return d.toISOString().slice(0, 10);
+}
+
+function shortToken(len = 6) {
+  // client-safe, no dependencies
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let out = "";
+  const arr = new Uint8Array(len);
+  // crypto exists in modern browsers; fallback if not
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    crypto.getRandomValues(arr);
+    for (let i = 0; i < len; i++) out += chars[arr[i] % chars.length];
+    return out;
+  }
+  for (let i = 0; i < len; i++)
+    out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
+function looksLikeFriendlyNameExists(msg: string) {
+  const m = (msg || "").toLowerCase();
+  return m.includes("friendly name") && m.includes("already exists");
+}
+
+/* =============================================================================
+   Types
+   ============================================================================= */
+
+type EnrollState =
+  | { status: "idle" }
+  | { status: "enrolling"; qr: string; secret: string; factorId: string }
+  | { status: "enabled" };
+
+type TotpFactor = {
   id: string;
-  name: string;
-  currency_code: string;
+  status: string;
+  friendly_name?: string | null;
 };
 
-type Category = {
-  id: string;
-  name: string;
-  type: "income" | "expense";
-};
+/* =============================================================================
+   Page
+   ============================================================================= */
 
-type RecurringRule = {
-  id: string;
-  user_id: string;
-  wallet_id: string;
-  category_id: string | null;
-  description: string | null;
-  amount_minor: number;
-  currency_code: string;
-  day_of_month: number | null;
-  start_date: string | null;
-  next_run_at: string | null;
-  is_active: boolean;
-};
+export default function SecuritySettingsPage() {
+  // ---------------------------------------------------------------------------
+  // UI State
+  // ---------------------------------------------------------------------------
+  const [loading, setLoading] = useState(false);
+  const [booting, setBooting] = useState(true);
 
-export default function RecurringPage() {
-  const { showToast } = useToast();
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
+  const [enroll, setEnroll] = useState<EnrollState>({ status: "idle" });
+  const [otp, setOtp] = useState("");
+
+  // Factors
+  const [allTotp, setAllTotp] = useState<TotpFactor[]>([]);
+  const [verifiedTotp, setVerifiedTotp] = useState<TotpFactor[]>([]);
+  const [primaryFactorId, setPrimaryFactorId] = useState<string | null>(null);
+
+  // Last security check
+  const [lastCheckAt, setLastCheckAt] = useState<number | null>(null);
+
+  // Nav / auth
   const [userEmail, setUserEmail] = useState<string>("");
   const [signingOut, setSigningOut] = useState(false);
 
-  const [wallets, setWallets] = useState<Wallet[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [rules, setRules] = useState<RecurringRule[]>([]);
-  const [loadingPage, setLoadingPage] = useState(true);
-  const [saving, setSaving] = useState(false);
+  // ---------------------------------------------------------------------------
+  // Derived labels
+  // ---------------------------------------------------------------------------
+  const mfaEnabled = verifiedTotp.length >= 1;
+  const backupConfigured = verifiedTotp.length >= 2;
 
-  // form state
-  const [walletId, setWalletId] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [amount, setAmount] = useState("");
-  const [firstRunDate, setFirstRunDate] = useState("");
-  const [description, setDescription] = useState("");
-
-  const now = useMemo(() => new Date(), []);
-  const monthName = now.toLocaleString("en-US", { month: "long" });
-  const year = now.getFullYear();
+  const lastCheckLabel = useMemo(() => {
+    if (!lastCheckAt || lastCheckAt <= 0) return "Not recorded";
+    return `${daysAgoFromMs(lastCheckAt)} day(s) ago`;
+  }, [lastCheckAt]);
 
   async function handleLogout() {
     if (signingOut) return;
@@ -70,204 +125,262 @@ export default function RecurringPage() {
     }
   }
 
-  // Load wallets, categories, existing rules, and user email
+  // ---------------------------------------------------------------------------
+  // Data loaders
+  // ---------------------------------------------------------------------------
+  async function refreshFactors() {
+    const { data, error } = await supabaseBrowserClient.auth.mfa.listFactors();
+    if (error) throw error;
+
+    const totp = (data?.totp ?? []) as TotpFactor[];
+    setAllTotp(totp);
+
+    const verified = totp.filter((f) => f.status === "verified");
+    setVerifiedTotp(verified);
+
+    // Choose a “primary” deterministically (first verified)
+    setPrimaryFactorId(verified[0]?.id ?? null);
+
+    return totp;
+  }
+
+  function bumpLastSecurityCheck() {
+    try {
+      const now = Date.now();
+      localStorage.setItem(LAST_SECURITY_CHECK_AT_KEY, String(now));
+      setLastCheckAt(now);
+    } catch {
+      // ignore
+    }
+  }
+
+  function loadLastCheck() {
+    try {
+      const raw = localStorage.getItem(LAST_SECURITY_CHECK_AT_KEY);
+      if (!raw) return;
+      const ms = Number(raw);
+      if (!Number.isFinite(ms)) return;
+      setLastCheckAt(ms);
+    } catch {
+      // ignore
+    }
+  }
+
+  function nextFriendlyName(existing: TotpFactor[], kind: "primary" | "backup") {
+    // NOTE: We *always* ensure uniqueness to avoid conflicts with orphaned/unverified factors.
+    const base = kind === "backup" ? "Backup Authenticator" : "Authenticator";
+    const existingNames = new Set(
+      existing
+        .map((f) => (f.friendly_name ?? "").trim())
+        .filter(Boolean)
+    );
+
+    // Preferred format: human-readable + date, with a short unique suffix.
+    // Example: "Authenticator (2025-12-24) — K7P2QM"
+    // Keeps it professional while preventing collisions.
+    let attempt = 0;
+    while (attempt < 5) {
+      const name = `${base} (${ymd()}) — ${shortToken(6)}`;
+      if (!existingNames.has(name)) return name;
+      attempt++;
+    }
+
+    // Extreme fallback
+    return `${base} (${ymd()}) — ${Date.now()}`;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Boot
+  // ---------------------------------------------------------------------------
   useEffect(() => {
     let cancelled = false;
 
-    async function loadData() {
-      setLoadingPage(true);
-      const supabase = supabaseBrowserClient;
+    async function boot() {
+      setBooting(true);
+      setErrorMsg("");
+      setSuccessMsg("");
+
+      loadLastCheck();
 
       try {
-        const [
-          { data: u },
-          { data: w, error: wErr },
-          { data: c, error: cErr },
-          { data: r, error: rErr },
-        ] = await Promise.all([
-          supabase.auth.getUser(),
-          supabase
-            .from("wallets")
-            .select("id,name,currency_code")
-            .order("name", { ascending: true }),
-          supabase
-            .from("categories")
-            .select("id,name,type")
-            .order("name", { ascending: true }),
-          supabase
-            .from("recurring_rules")
-            .select(
-              "id,user_id,wallet_id,category_id,description,amount_minor,currency_code,day_of_month,start_date,next_run_at,is_active"
-            )
-            .order("created_at", { ascending: true }),
+        const [{ data: u }, _] = await Promise.all([
+          supabaseBrowserClient.auth.getUser(),
+          refreshFactors(),
         ]);
 
-        if (cancelled) return;
-
-        setUserEmail(u?.user?.email ?? "");
-
-        if (wErr) console.error("Error loading wallets", wErr);
-        if (cErr) console.error("Error loading categories", cErr);
-        if (rErr) console.error("Error loading recurring rules", rErr);
-
-        setWallets(w ?? []);
-        setCategories(c ?? []);
-        setRules((r as RecurringRule[]) ?? []);
+        if (!cancelled) setUserEmail(u?.user?.email ?? "");
+      } catch (e: any) {
+        if (!cancelled) {
+          setErrorMsg(e?.message ?? "Unable to load security settings.");
+        }
       } finally {
-        if (!cancelled) setLoadingPage(false);
+        if (!cancelled) setBooting(false);
       }
     }
 
-    loadData();
+    boot();
+
+    // Keep factors fresh if user just changed them in another tab / Supabase dashboard
+    const onFocus = () => {
+      refreshFactors().catch(() => void 0);
+    };
+    window.addEventListener("focus", onFocus);
+
     return () => {
       cancelled = true;
+      window.removeEventListener("focus", onFocus);
     };
   }, []);
 
-  // Create a new recurring rule
-  async function handleCreateRule(e: FormEvent) {
+  // ---------------------------------------------------------------------------
+  // Actions: Enroll / Verify / Disable
+  // ---------------------------------------------------------------------------
+  async function startEnroll() {
+    setErrorMsg("");
+    setSuccessMsg("");
+    setOtp("");
+    setLoading(true);
+
+    try {
+      // Always refresh first to avoid stale UI decisions
+      const current = await refreshFactors();
+
+      const kind: "primary" | "backup" = mfaEnabled ? "backup" : "primary";
+      const friendlyName = nextFriendlyName(current, kind);
+
+      const { data, error } = await supabaseBrowserClient.auth.mfa.enroll({
+        factorType: "totp",
+        friendlyName,
+      });
+
+      if (error || !data) {
+        // One automatic retry if Supabase complains about friendly-name collision
+        if (looksLikeFriendlyNameExists(error?.message ?? "")) {
+          const refreshed = await refreshFactors();
+          const retryName = nextFriendlyName(refreshed, kind);
+
+          const retry = await supabaseBrowserClient.auth.mfa.enroll({
+            factorType: "totp",
+            friendlyName: retryName,
+          });
+
+          if (retry.error || !retry.data) {
+            setErrorMsg(
+              retry.error?.message ?? "Failed to start MFA enrollment."
+            );
+            return;
+          }
+
+          setEnroll({
+            status: "enrolling",
+            factorId: retry.data.id,
+            secret: retry.data.totp.secret,
+            qr: retry.data.totp.qr_code,
+          });
+          return;
+        }
+
+        setErrorMsg(error?.message ?? "Failed to start MFA enrollment.");
+        return;
+      }
+
+      setEnroll({
+        status: "enrolling",
+        factorId: data.id,
+        secret: data.totp.secret,
+        qr: data.totp.qr_code,
+      });
+    } catch (e: any) {
+      setErrorMsg(e?.message ?? "Failed to start MFA enrollment.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function verifyEnroll(e: React.FormEvent) {
     e.preventDefault();
+    setErrorMsg("");
+    setSuccessMsg("");
 
-    if (!walletId || !categoryId || !amount || !firstRunDate) {
-      showToast("Please fill all required fields.", "error");
+    if (enroll.status !== "enrolling") return;
+
+    const trimmed = otp.replace(/\s+/g, "");
+    if (!isSixDigitCode(trimmed)) {
+      setErrorMsg("Enter the 6-digit code from your authenticator app.");
       return;
     }
 
-    const parsedAmount = Number(amount);
-    if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
-      showToast("Amount must be a positive number.", "error");
-      return;
-    }
+    setLoading(true);
+    try {
+      const { data: chData, error: chErr } =
+        await supabaseBrowserClient.auth.mfa.challenge({
+          factorId: enroll.factorId,
+        });
 
-    const supabase = supabaseBrowserClient;
+      if (chErr || !chData?.id) {
+        setErrorMsg(chErr?.message ?? "Failed to create a challenge.");
+        return;
+      }
 
-    // 🔐 Get current user for user_id / RLS
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+      const { error: vErr } = await supabaseBrowserClient.auth.mfa.verify({
+        factorId: enroll.factorId,
+        challengeId: chData.id,
+        code: trimmed,
+      });
 
-    if (userError) {
-      console.error("Error getting user:", userError);
-    }
+      if (vErr) {
+        setErrorMsg(vErr.message ?? "Verification failed.");
+        return;
+      }
 
-    if (!user) {
-      showToast("You must be logged in to create a recurring rule.", "error");
-      return;
-    }
+      await refreshFactors();
+      bumpLastSecurityCheck();
 
-    const amountMinor = Math.round(parsedAmount * 100);
-
-    const selectedWallet = wallets.find((w) => w.id === walletId);
-    const selectedCategory = categories.find((c) => c.id === categoryId);
-
-    const currencyCode = selectedWallet?.currency_code ?? "USD";
-    const type: "income" | "expense" = selectedCategory?.type ?? "expense";
-
-    const firstDate = new Date(firstRunDate);
-    const dayOfMonth = firstDate.getDate();
-    const nextRunAt = firstDate.toISOString(); // timestamptz-safe
-
-    setSaving(true);
-
-    const { error } = await supabase.from("recurring_rules").insert({
-      user_id: user.id, // 🔑 satisfy NOT NULL + RLS
-      wallet_id: walletId,
-      category_id: categoryId,
-      type, // 🔑 satisfy recurring_rules_type_check
-      amount_minor: amountMinor,
-      currency_code: currencyCode,
-      frequency: "monthly",
-      interval: 1,
-      day_of_month: dayOfMonth,
-      start_date: firstRunDate,
-      next_run_at: nextRunAt,
-      description: description || null,
-      is_active: true,
-    });
-
-    setSaving(false);
-
-    if (error) {
-      console.error("Failed to create recurring rule:", error);
-      showToast("Failed to create recurring rule.", "error");
-      return;
-    }
-
-    showToast("Recurring rule created.", "success");
-    setAmount("");
-    setDescription("");
-
-    // reload rules from base table
-    const { data: r, error: rErr } = await supabase
-      .from("recurring_rules")
-      .select(
-        "id,user_id,wallet_id,category_id,description,amount_minor,currency_code,day_of_month,start_date,next_run_at,is_active"
-      )
-      .order("created_at", { ascending: true });
-
-    if (rErr) {
-      console.error("Failed to reload recurring rules:", rErr);
-    } else {
-      setRules((r as RecurringRule[]) ?? []);
-    }
-  }
-
-  async function toggleRuleActive(rule: RecurringRule, isActive: boolean) {
-    const supabase = supabaseBrowserClient;
-
-    const { error } = await supabase
-      .from("recurring_rules")
-      .update({ is_active: isActive })
-      .eq("id", rule.id);
-
-    if (error) {
-      console.error(error);
-      showToast(
-        isActive
-          ? "Failed to activate recurring rule."
-          : "Failed to pause recurring rule.",
-        "error"
+      setSuccessMsg(
+        mfaEnabled
+          ? "Backup authenticator added successfully."
+          : "Multi-factor authentication enabled successfully."
       );
-      return;
+
+      setEnroll({ status: "enabled" });
+      setOtp("");
+    } catch (e: any) {
+      setErrorMsg(e?.message ?? "Verification failed.");
+    } finally {
+      setLoading(false);
     }
-
-    showToast(
-      isActive ? "Rule activated successfully." : "Rule paused successfully.",
-      "success"
-    );
-
-    setRules((prev) =>
-      prev.map((r) => (r.id === rule.id ? { ...r, is_active: isActive } : r))
-    );
   }
 
-  async function deleteRule(rule: RecurringRule) {
-    if (
-      !window.confirm(
-        `Delete recurring rule for ${rule.description || "rule"}?`
-      )
-    ) {
-      return;
+  async function disableMfa() {
+    if (!primaryFactorId) return;
+
+    setErrorMsg("");
+    setSuccessMsg("");
+    setLoading(true);
+
+    try {
+      const { error } = await supabaseBrowserClient.auth.mfa.unenroll({
+        factorId: primaryFactorId,
+      });
+
+      if (error) {
+        setErrorMsg(error.message ?? "Failed to disable MFA.");
+        return;
+      }
+
+      await refreshFactors();
+      bumpLastSecurityCheck();
+
+      setSuccessMsg("Multi-factor authentication disabled.");
+      setEnroll({ status: "idle" });
+    } finally {
+      setLoading(false);
     }
-
-    const supabase = supabaseBrowserClient;
-
-    const { error } = await supabase
-      .from("recurring_rules")
-      .delete()
-      .eq("id", rule.id);
-
-    if (error) {
-      console.error(error);
-      showToast("Failed to delete recurring rule.", "error");
-      return;
-    }
-
-    showToast("Recurring rule deleted.", "success");
-    setRules((prev) => prev.filter((r) => r.id !== rule.id));
   }
 
+  // ---------------------------------------------------------------------------
+  // Header UI helpers (hardened)
+  // ---------------------------------------------------------------------------
   const NavLink = ({
     href,
     label,
@@ -292,6 +405,9 @@ export default function RecurringPage() {
     );
   };
 
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
   return (
     <div className="min-h-screen bg-black text-white">
       {/* ========================= Hardened Top Navigation ========================= */}
@@ -299,10 +415,7 @@ export default function RecurringPage() {
         <div className="max-w-6xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <Link
-                href="/dashboard"
-                className="font-semibold tracking-tight truncate"
-              >
+              <Link href="/dashboard" className="font-semibold tracking-tight truncate">
                 Gorilla Ledger™
               </Link>
 
@@ -311,8 +424,8 @@ export default function RecurringPage() {
                 <NavLink href="/categories" label="Categories" />
                 <NavLink href="/transactions" label="Transactions" />
                 <NavLink href="/budgets" label="Budgets" />
-                <NavLink href="/recurring" label="Recurring" active />
-                <NavLink href="/settings/security" label="Security" />
+                <NavLink href="/recurring" label="Recurring" />
+                <NavLink href="/settings/security" label="Security" active />
               </nav>
             </div>
 
@@ -320,9 +433,7 @@ export default function RecurringPage() {
               {userEmail ? (
                 <div className="hidden sm:flex items-center gap-2 max-w-[260px]">
                   <span className="text-[11px] text-gray-400">Signed in</span>
-                  <span className="text-xs text-gray-200 truncate">
-                    {userEmail}
-                  </span>
+                  <span className="text-xs text-gray-200 truncate">{userEmail}</span>
                 </div>
               ) : null}
 
@@ -337,209 +448,192 @@ export default function RecurringPage() {
             </div>
           </div>
 
-          {/* Mobile nav (compact) */}
+          {/* Mobile nav */}
           <nav className="md:hidden mt-2 flex flex-wrap gap-2">
             <NavLink href="/wallets" label="Wallets" />
             <NavLink href="/categories" label="Categories" />
             <NavLink href="/transactions" label="Transactions" />
             <NavLink href="/budgets" label="Budgets" />
-            <NavLink href="/recurring" label="Recurring" active />
-            <NavLink href="/settings/security" label="Security" />
+            <NavLink href="/recurring" label="Recurring" />
+            <NavLink href="/settings/security" label="Security" active />
           </nav>
+
+          {/* Security posture row (tight, consistent) */}
+          <div className="mt-2 text-[11px] text-gray-300 flex flex-wrap gap-x-2 gap-y-1">
+            <span className="text-gray-400">MFA:</span>
+            <span className={mfaEnabled ? "text-emerald-400" : "text-gray-300"}>
+              {mfaEnabled ? "Enabled" : "Not enabled"}
+            </span>
+            <span className="text-gray-600">•</span>
+            <span className="text-gray-400">Last security check:</span>
+            <span className="text-gray-200">{lastCheckLabel}</span>
+            {mfaEnabled && !backupConfigured && (
+              <>
+                <span className="text-gray-600">•</span>
+                <span className="text-amber-300">Backup authenticator not configured</span>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
       {/* ========================= Page Content ========================= */}
-      <main className="px-4 py-10">
-        <div className="max-w-5xl mx-auto">
-          <h1 className="text-2xl font-semibold mb-2">
-            Recurring Rules – {monthName} {year}
-          </h1>
-          <p className="text-xs text-gray-400 mb-6">
-            Define automatic monthly transactions like salary, rent, and
-            subscriptions. Gorilla Ledger will materialize them using the cron
-            engine we wired up.
-          </p>
-
-          <form
-            onSubmit={handleCreateRule}
-            className="border border-gray-800 rounded-lg p-4 mb-8 bg-black/40 space-y-4 text-sm"
-          >
-            <h2 className="text-sm font-semibold mb-2">Add a Recurring Rule</h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block mb-1 text-xs text-gray-400">
-                  Wallet
-                </label>
-                <select
-                  value={walletId}
-                  onChange={(e) => setWalletId(e.target.value)}
-                  className="w-full bg-black border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-white"
-                  required
-                >
-                  <option value="">Select wallet</option>
-                  {wallets.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name} ({w.currency_code})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block mb-1 text-xs text-gray-400">
-                  Category
-                </label>
-                <select
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full bg-black border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-white"
-                  required
-                >
-                  <option value="">Select category</option>
-                  {categories
-                    .filter((c) => c.type === "expense")
-                    .map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} ({c.type})
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block mb-1 text-xs text-gray-400">
-                  Amount
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="w-full bg-black border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-white"
-                  placeholder="e.g. 50.00"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block mb-1 text-xs text-gray-400">
-                  First run date
-                </label>
-                <input
-                  type="date"
-                  value={firstRunDate}
-                  onChange={(e) => setFirstRunDate(e.target.value)}
-                  className="w-full bg-black border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-white"
-                  required
-                />
-              </div>
-            </div>
-
+      <main className="flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-xl border border-gray-800 rounded-lg p-6 bg-black/60">
+          {/* ========================= Header ========================= */}
+          <div className="flex items-start justify-between gap-4">
             <div>
-              <label className="block mb-1 text-xs text-gray-400">
-                Description (optional)
-              </label>
-              <input
-                type="text"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full bg-black border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-white"
-                placeholder="e.g. Starlink subscription"
-              />
+              <h1 className="text-2xl font-semibold mb-1">Security</h1>
+              <p className="text-gray-400 text-xs">
+                MFA status and account protection controls.
+              </p>
             </div>
 
-            <button
-              type="submit"
-              disabled={saving}
-              className="mt-2 inline-flex items-center justify-center px-4 py-2 bg-white text-black rounded text-sm font-semibold hover:bg-gray-200 disabled:opacity-60"
-            >
-              {saving ? "Saving..." : "Save Rule"}
-            </button>
-          </form>
+            <div className="text-right text-xs">
+              <div className="text-gray-400">Last security check</div>
+              <div className="text-white">{lastCheckLabel}</div>
+            </div>
+          </div>
 
-          {/* Existing rules */}
-          <section className="border border-gray-800 rounded-lg p-4 bg-black/40 text-sm">
-            <h2 className="text-sm font-semibold mb-4">Existing Rules</h2>
+          {/* ========================= Alerts ========================= */}
+          {errorMsg && (
+            <p className="mt-4 text-xs text-red-400 border border-red-500/40 rounded px-3 py-2 bg-red-950/30">
+              {errorMsg}
+            </p>
+          )}
+          {successMsg && (
+            <p className="mt-4 text-xs text-emerald-400 border border-emerald-500/40 rounded px-3 py-2 bg-emerald-950/30">
+              {successMsg}
+            </p>
+          )}
 
-            {loadingPage ? (
-              <p className="text-xs text-gray-500">Loading…</p>
-            ) : rules.length === 0 ? (
-              <p className="text-xs text-gray-500">
-                No recurring rules yet. Add one above.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {rules.map((rule) => {
-                  const wallet = wallets.find((w) => w.id === rule.wallet_id);
-                  const category = categories.find(
-                    (c) => c.id === rule.category_id
-                  );
-                  const amt = (rule.amount_minor ?? 0) / 100;
+          {/* ========================= MFA Card ========================= */}
+          <div className="mt-6 border border-gray-800 rounded-lg p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="font-semibold">Multi-factor authentication (TOTP)</h2>
+                <p className="text-xs text-gray-400 mt-1">
+                  Use Google Authenticator, Microsoft Authenticator, Authy, or 1Password.
+                </p>
 
-                  return (
-                    <div
-                      key={rule.id}
-                      className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 border border-gray-800 rounded px-3 py-2"
+                <div className="mt-3 space-y-1 text-xs">
+                  <div className="text-gray-400">
+                    Status:{" "}
+                    <span className={mfaEnabled ? "text-emerald-400" : "text-gray-300"}>
+                      {mfaEnabled ? "Enabled" : "Not enabled"}
+                    </span>
+                  </div>
+
+                  <div className="text-gray-400">
+                    Backup factor:{" "}
+                    <span
+                      className={backupConfigured ? "text-emerald-400" : "text-yellow-300"}
                     >
-                      <div>
-                        <p className="text-xs font-semibold">
-                          {rule.description || category?.name || "Recurring rule"}
-                        </p>
-                        <p className="text-[11px] text-gray-400">
-                          {wallet
-                            ? `${wallet.name} • ${wallet.currency_code}`
-                            : rule.currency_code}
-                          {" • "}
-                          Every month on day {rule.day_of_month ?? "?"} • Next
-                          run:{" "}
-                          {rule.next_run_at
-                            ? new Date(rule.next_run_at).toLocaleDateString()
-                            : "—"}{" "}
-                          • Amount: {amt.toLocaleString()} {rule.currency_code}
-                        </p>
-                      </div>
+                      {backupConfigured ? "Configured" : "Not configured"}
+                    </span>
+                  </div>
+                </div>
 
-                      <div className="flex items-center gap-2 text-[11px]">
-                        <span
-                          className={`px-2 py-0.5 rounded-full border ${
-                            rule.is_active
-                              ? "border-emerald-500/70 text-emerald-300"
-                              : "border-gray-600 text-gray-400"
-                          }`}
-                        >
-                          {rule.is_active ? "ACTIVE" : "PAUSED"}
-                        </span>
-                        {rule.is_active ? (
-                          <button
-                            onClick={() => toggleRuleActive(rule, false)}
-                            className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
-                          >
-                            Pause
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => toggleRuleActive(rule, true)}
-                            className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
-                          >
-                            Activate
-                          </button>
-                        )}
-                        <button
-                          onClick={() => deleteRule(rule)}
-                          className="px-2 py-1 border border-red-700 text-red-300 rounded hover:bg-red-950/40"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                {/* Optional: show total factors for troubleshooting without exposing Supabase */}
+                {allTotp.length > 0 && (
+                  <div className="mt-2 text-[11px] text-gray-500">
+                    Authenticator factors on this account: {allTotp.length}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                {mfaEnabled ? (
+                  <>
+                    {!backupConfigured && (
+                      <button
+                        type="button"
+                        onClick={startEnroll}
+                        disabled={loading || booting}
+                        className="bg-white text-black px-4 py-2 rounded text-sm font-semibold hover:bg-gray-200 disabled:opacity-60"
+                      >
+                        Add backup factor
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={disableMfa}
+                      disabled={loading || booting}
+                      className="bg-black border border-white/20 text-white px-4 py-2 rounded text-sm hover:bg-white hover:text-black transition disabled:opacity-60"
+                    >
+                      Disable
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={startEnroll}
+                    disabled={loading || booting}
+                    className="bg-white text-black px-4 py-2 rounded text-sm font-semibold hover:bg-gray-200 disabled:opacity-60"
+                  >
+                    Enable
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* ========================= Brand Warning (No Supabase mention) ========================= */}
+            {!backupConfigured && (
+              <div className="mt-4 text-xs text-yellow-200 border border-yellow-500/40 rounded px-3 py-2 bg-yellow-950/20">
+                Savvy Gorilla™ does not provide recovery codes. For account recovery, enroll a
+                backup authenticator factor on a different device or app.
               </div>
             )}
-          </section>
+
+            {/* ========================= Enrollment UI ========================= */}
+            {enroll.status === "enrolling" && (
+              <div className="mt-6 border-t border-gray-800 pt-5">
+                <h3 className="text-sm font-semibold">Complete enrollment</h3>
+                <p className="text-xs text-gray-400 mt-1">
+                  Scan the QR code in your authenticator app, then enter the 6-digit code.
+                </p>
+
+                <div className="mt-4 flex flex-col gap-4">
+                  <div className="border border-gray-800 rounded p-3 bg-black/40">
+                    <div
+                      className="w-full overflow-hidden"
+                      dangerouslySetInnerHTML={{ __html: enroll.qr }}
+                    />
+                  </div>
+
+                  <form onSubmit={verifyEnroll} className="space-y-3">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">6-digit code</label>
+                      <input
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value)}
+                        inputMode="numeric"
+                        placeholder="123456"
+                        className="w-full bg-black border border-gray-800 rounded px-3 py-2 text-sm"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full bg-white text-black px-4 py-2 rounded text-sm font-semibold hover:bg-gray-200 disabled:opacity-60"
+                    >
+                      Verify & enable
+                    </button>
+                  </form>
+
+                  <div className="text-[11px] text-gray-400">
+                    Secret (store securely if needed):{" "}
+                    <span className="text-gray-200">{enroll.secret}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ========================= Boot state hint ========================= */}
+            {booting && <p className="mt-4 text-xs text-gray-400">Loading security settings…</p>}
+          </div>
         </div>
       </main>
     </div>
