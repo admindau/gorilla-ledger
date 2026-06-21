@@ -15,6 +15,9 @@ import SmartInsightsPanel from "@/components/dashboard/SmartInsightsPanel";
 import BudgetInsightsPanel from "@/components/dashboard/BudgetInsightsPanel";
 import AiInsightsSidebar from "@/components/dashboard/AiInsightsSidebar";
 import YearlyIncomeExpenseBarChart from "@/components/dashboard/YearlyIncomeExpenseBarChart";
+import ExecutiveKpiCards from "@/components/dashboard/ExecutiveKpiCards";
+import SpendingTrendChart from "@/components/dashboard/SpendingTrendChart";
+import FinancialHealthSummary from "@/components/dashboard/FinancialHealthSummary";
 
 import Skeleton from "@/components/ui/Skeleton";
 
@@ -362,6 +365,18 @@ export default function DashboardPage() {
 
   const monthIncomeEntries = Object.entries(monthIncomeByCurrency);
   const monthExpenseEntries = Object.entries(monthExpenseByCurrency);
+  const monthNetEntries = Array.from(
+    new Set([
+      ...Object.keys(monthIncomeByCurrency),
+      ...Object.keys(monthExpenseByCurrency),
+    ])
+  )
+    .sort()
+    .map((currency) => [
+      currency,
+      (monthIncomeByCurrency[currency] ?? 0) -
+        (monthExpenseByCurrency[currency] ?? 0),
+    ] as const);
 
   // Budget vs Actual for selected month
   const budgetsThisMonth = budgets.filter(
@@ -769,91 +784,41 @@ export default function DashboardPage() {
           <div className={`${SECTION_DIVIDER} mt-2`} />
         </div>
 
-        {/* KPI strip */}
-        <section className="grid gap-5 md:grid-cols-3 mb-8">
-          <div className={KPI_CARD}>
-            <div className="text-[11px] text-gray-400 uppercase tracking-wide mb-2">
-              Wallets
-            </div>
+        {/* Executive KPI cards */}
+        <section className="mb-8">
+          <ExecutiveKpiCards
+            loading={loadingData}
+            walletsCount={wallets.length}
+            totalsByCurrency={totalsByCurrency}
+            incomeEntries={monthIncomeEntries}
+            expenseEntries={monthExpenseEntries}
+            netEntries={monthNetEntries}
+            monthLabel={monthLabel}
+          />
+        </section>
 
-            {loadingData ? (
-              <>
-                <Skeleton className="h-10 w-16 mb-2" />
-                <Skeleton className="h-3 w-3/4" />
-              </>
-            ) : (
-              <>
-                <div className={KPI_VALUE_LG}>{wallets.length}</div>
-                <div className="text-xs text-gray-500 mt-2">
-                  Total number of wallets you&apos;re tracking.
-                </div>
-              </>
-            )}
+        {/* Spending trend */}
+        <section className="mb-10">
+          <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-3">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">
+                Spending Trend – {monthLabel}
+              </h2>
+              <p className="text-[11px] text-gray-400">
+                Daily expense movement for the selected month. Internal transfers excluded.
+              </p>
+            </div>
           </div>
 
-          <div className={KPI_CARD}>
-            <div className="text-[11px] text-gray-400 uppercase tracking-wide mb-2">
-              Income – {monthLabel}
-            </div>
-
+          <div className={CARD}>
             {loadingData ? (
-              <>
-                <Skeleton className="h-8 w-44 mb-2" />
-                <Skeleton className="h-8 w-36 mb-2" />
-                <Skeleton className="h-3 w-5/6" />
-              </>
+              <Skeleton className={SK_CHART} rounded="2xl" />
+            ) : monthlyIncomeExpenseData.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-gray-800 bg-black/30 p-6 text-sm text-gray-400">
+                No spending trend yet. Add transactions for {monthLabel} to see daily movement.
+              </div>
             ) : (
-              <>
-                <div className={`space-y-1 ${KPI_VALUE_MD}`}>
-                  {monthIncomeEntries.length === 0 ? (
-                    <div className="tabular-nums">0.00</div>
-                  ) : (
-                    monthIncomeEntries.map(([currency, minor]) => (
-                      <div key={currency} className="tabular-nums">
-                        {formatMinorToAmount(minor)}{" "}
-                        <span className="text-sm text-gray-300">{currency}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
-                <div className="text-xs text-gray-500 mt-2">
-                  Totals per currency. Internal transfers excluded. No FX
-                  conversion applied.
-                </div>
-              </>
-            )}
-          </div>
-
-          <div className={KPI_CARD}>
-            <div className="text-[11px] text-gray-400 uppercase tracking-wide mb-2">
-              Expenses – {monthLabel}
-            </div>
-
-            {loadingData ? (
-              <>
-                <Skeleton className="h-8 w-44 mb-2" />
-                <Skeleton className="h-8 w-36 mb-2" />
-                <Skeleton className="h-3 w-5/6" />
-              </>
-            ) : (
-              <>
-                <div className={`space-y-1 ${KPI_VALUE_MD}`}>
-                  {monthExpenseEntries.length === 0 ? (
-                    <div className="tabular-nums">0.00</div>
-                  ) : (
-                    monthExpenseEntries.map(([currency, minor]) => (
-                      <div key={currency} className="tabular-nums">
-                        {formatMinorToAmount(minor)}{" "}
-                        <span className="text-sm text-gray-300">{currency}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
-                <div className="text-xs text-gray-500 mt-2">
-                  Totals per currency. Internal transfers excluded. No FX
-                  conversion applied.
-                </div>
-              </>
+              <SpendingTrendChart data={monthlyIncomeExpenseData} />
             )}
           </div>
         </section>
@@ -947,7 +912,29 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid gap-5 xl:grid-cols-3">
+            <div className={CARD}>
+              {loadingData ? (
+                <>
+                  <Skeleton className="h-5 w-40 mb-3" />
+                  <Skeleton className="h-4 w-5/6 mb-2" />
+                  <Skeleton className="h-4 w-2/3 mb-4" />
+                  <Skeleton className="h-24 w-full rounded-2xl" />
+                </>
+              ) : (
+                <FinancialHealthSummary
+                  incomeEntries={monthIncomeEntries}
+                  expenseEntries={monthExpenseEntries}
+                  netEntries={monthNetEntries}
+                  totalBudgets={totalBudgets}
+                  budgetsOnTrack={budgetsOnTrack}
+                  budgetsAtRisk={budgetsAtRisk}
+                  budgetsOver={budgetsOver}
+                  monthLabel={monthLabel}
+                />
+              )}
+            </div>
+
             <div className={CARD}>
               {loadingData ? (
                 <>
