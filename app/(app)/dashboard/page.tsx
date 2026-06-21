@@ -978,15 +978,9 @@ export default function DashboardPage() {
     : "Not recorded";
 
   // ---------- Visual system ----------
-  const CARD =
-    "border border-gray-800 bg-black/40 rounded-2xl p-5 " +
-    "shadow-[0_0_0_1px_rgba(255,255,255,0.03)]";
-  const CARD_TIGHT =
-    "border border-gray-800 bg-black/40 rounded-2xl p-4 " +
-    "shadow-[0_0_0_1px_rgba(255,255,255,0.03)]";
-  const KPI_CARD =
-    "border border-gray-800 bg-black/40 rounded-2xl p-4 " +
-    "shadow-[0_0_0_1px_rgba(255,255,255,0.03)]";
+  const CARD = "gl-premium-card rounded-[1.35rem] p-5";
+  const CARD_TIGHT = "gl-premium-card rounded-[1.2rem] p-4";
+  const KPI_CARD = "gl-premium-card rounded-[1.2rem] p-4";
   const SECTION_DIVIDER = "h-px bg-gray-800/80";
   const SECTION_KICKER = "text-[11px] uppercase tracking-wide text-gray-500";
 
@@ -1002,21 +996,21 @@ export default function DashboardPage() {
 
   // Header UI helpers (tight, premium)
   const NAV_SHELL =
-    "inline-flex items-center gap-1 rounded-full border border-gray-800 bg-black/40 " +
-    "px-1 py-1 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]";
+    "inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.035] " +
+    "px-1 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_50px_rgba(0,0,0,0.35)]";
   const NAV_LINK =
     "px-3 py-1.5 rounded-full text-xs text-gray-300 hover:text-white " +
-    "hover:bg-white/10 transition whitespace-nowrap";
+    "hover:bg-white/[0.09] transition whitespace-nowrap";
   const HEADER_BADGE =
-    "inline-flex items-center gap-2 rounded-full border border-gray-800 bg-black/40 " +
-    "px-3 py-1 text-[11px] text-gray-300 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]";
+    "inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.035] " +
+    "px-3 py-1 text-[11px] text-gray-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]";
   const HEADER_DOT = <span className="text-gray-600">•</span>;
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
+    <div className="min-h-screen gl-dashboard-shell text-white flex flex-col">
       {/* Tight top header */}
-      <header className="w-full border-b border-gray-800 bg-black/60 backdrop-blur">
-        <div className="mx-auto max-w-6xl px-4 py-3">
+      <header className="w-full gl-topbar border-b border-white/10 backdrop-blur-xl">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div className="font-semibold tracking-tight text-base">
@@ -1112,12 +1106,12 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <main className="flex-1 px-4 py-6 max-w-6xl mx-auto w-full">
+      <main className="flex-1 px-4 sm:px-6 py-8 max-w-7xl mx-auto w-full">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Command Center</h1>
             <p className="text-gray-400 text-sm">
-              High-level snapshot of your wallets, budgets, and activity.
+              Premium financial intelligence across wallets, budgets, recurring flows, and activity.
             </p>
           </div>
 

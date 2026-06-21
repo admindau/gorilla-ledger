@@ -71,11 +71,11 @@ function KpiCard({
   helper: string;
 }) {
   return (
-    <div className="border border-gray-800 bg-black/40 rounded-2xl p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.03)] min-w-0">
-      <div className="text-[11px] text-gray-400 uppercase tracking-wide mb-2">
+    <div className="gl-premium-card rounded-[1.25rem] p-4 min-w-0">
+      <div className="text-[10px] text-gray-500 uppercase tracking-[0.18em] mb-3">
         {label}
       </div>
-      <div className="text-xl sm:text-2xl font-semibold tracking-tight tabular-nums leading-tight break-words">
+      <div className="text-2xl sm:text-[1.7rem] font-semibold tracking-[-0.035em] tabular-nums leading-tight break-words text-white">
         {value}
       </div>
       <div className="text-xs text-gray-500 mt-2 leading-relaxed">{helper}</div>
@@ -100,7 +100,7 @@ export default function ExecutiveKpiCards({
         {Array.from({ length: 4 }).map((_, index) => (
           <div
             key={index}
-            className="border border-gray-800 bg-black/40 rounded-2xl p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]"
+            className="gl-premium-card rounded-[1.25rem] p-4"
           >
             <div className="h-3 w-24 rounded bg-gray-900 animate-pulse mb-4" />
             <LoadingLine wide={index === 0} />

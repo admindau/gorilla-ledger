@@ -95,7 +95,7 @@ export default function BudgetHealthWidget({
       </div>
 
       {totalBudgets === 0 ? (
-        <div className="mt-5 rounded-2xl border border-dashed border-gray-800 bg-black/30 p-4 text-sm text-gray-400">
+        <div className="mt-5 gl-empty-state rounded-2xl p-4 text-sm text-gray-400">
           No budgets set for this month yet. Add budgets to monitor financial limits.
         </div>
       ) : (
@@ -109,7 +109,7 @@ export default function BudgetHealthWidget({
             return (
               <div
                 key={item.budget.id}
-                className="rounded-2xl border border-gray-800 bg-black/30 p-4"
+                className="gl-inner-card rounded-2xl p-4"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">

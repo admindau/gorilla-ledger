@@ -85,7 +85,7 @@ export default function FinancialHealthSummary({
       </div>
 
       <div className="grid gap-2 text-sm">
-        <div className="rounded-2xl border border-gray-800 bg-black/30 p-3">
+        <div className="gl-inner-card rounded-2xl p-3">
           <div className="text-xs text-gray-500">Net cash flow snapshot</div>
           <div className="mt-1 text-lg font-semibold tabular-nums">
             {netEntries.length === 0
@@ -99,7 +99,7 @@ export default function FinancialHealthSummary({
           </p>
         </div>
 
-        <div className="rounded-2xl border border-gray-800 bg-black/30 p-3">
+        <div className="gl-inner-card rounded-2xl p-3">
           <div className="mb-2 flex items-center justify-between text-xs">
             <span className="text-gray-500">Budget pressure</span>
             <span className="text-gray-300 tabular-nums">

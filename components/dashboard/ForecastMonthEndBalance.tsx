@@ -51,7 +51,7 @@ export default function ForecastMonthEndBalance({
         </span>
       </div>
 
-      <div className="mt-5 rounded-2xl border border-gray-800 bg-black/30 p-3">
+      <div className="mt-5 gl-inner-card rounded-2xl p-3">
         <div className="flex items-center justify-between gap-3">
           <div className="text-[10px] uppercase tracking-wide text-gray-500">
             Forecast Confidence
@@ -64,7 +64,7 @@ export default function ForecastMonthEndBalance({
       </div>
 
       {visibleEntries.length === 0 ? (
-        <div className="mt-3 rounded-2xl border border-dashed border-gray-800 bg-black/30 p-4 text-sm text-gray-400">
+        <div className="mt-3 gl-empty-state rounded-2xl p-4 text-sm text-gray-400">
           No wallet balances available yet. Create a wallet to unlock forecasting.
         </div>
       ) : (
@@ -76,7 +76,7 @@ export default function ForecastMonthEndBalance({
             return (
               <div
                 key={entry.currencyCode}
-                className="rounded-2xl border border-gray-800 bg-black/30 p-3 transition hover:bg-white/[0.03]"
+                className="gl-inner-card rounded-2xl p-3 transition hover:bg-white/[0.035]"
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-[10px] uppercase tracking-wide text-gray-500">

@@ -22,5 +22,156 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+
+/* Gorilla Ledger Luxury Polish P.1 */
+:root {
+  color-scheme: dark;
+}
+
+html {
+  background: #020202;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255,255,255,0.12), transparent 30rem),
+    radial-gradient(circle at 85% 12%, rgba(255,255,255,0.07), transparent 28rem),
+    linear-gradient(180deg, #050505 0%, #000000 48%, #050505 100%);
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "tnum" 1, "cv02" 1, "cv03" 1, "cv04" 1;
+}
+
+::selection {
+  background: rgba(255,255,255,0.18);
+  color: #ffffff;
+}
+
+.gl-dashboard-shell {
+  position: relative;
+  isolation: isolate;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.035), transparent 18rem),
+    radial-gradient(circle at 50% -10%, rgba(255,255,255,0.10), transparent 34rem),
+    #020202;
+}
+
+.gl-dashboard-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,0.45), transparent 55%);
+}
+
+.gl-topbar {
+  background:
+    linear-gradient(180deg, rgba(12,12,12,0.92), rgba(0,0,0,0.72));
+  box-shadow: 0 1px 0 rgba(255,255,255,0.05), 0 24px 80px rgba(0,0,0,0.45);
+}
+
+.gl-premium-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.095);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.070), rgba(255,255,255,0.026)),
+    radial-gradient(circle at top left, rgba(255,255,255,0.085), transparent 18rem),
+    rgba(0,0,0,0.62);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.080),
+    inset 0 -1px 0 rgba(255,255,255,0.030),
+    0 24px 80px rgba(0,0,0,0.36);
+  backdrop-filter: blur(16px);
+}
+
+.gl-premium-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.36), transparent);
+  opacity: 0.55;
+}
+
+.gl-premium-card:hover {
+  border-color: rgba(255,255,255,0.16);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.10),
+    0 28px 92px rgba(0,0,0,0.44);
+  transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.gl-hero-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.16);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255,255,255,0.20), transparent 18rem),
+    radial-gradient(circle at 90% 20%, rgba(255,255,255,0.10), transparent 20rem),
+    linear-gradient(135deg, rgba(255,255,255,0.11), rgba(255,255,255,0.035) 42%, rgba(0,0,0,0.72));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.14),
+    0 34px 110px rgba(0,0,0,0.52);
+  backdrop-filter: blur(18px);
+}
+
+.gl-hero-card::after {
+  content: "";
+  position: absolute;
+  width: 22rem;
+  height: 22rem;
+  right: -8rem;
+  top: -10rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255,255,255,0.14), transparent 62%);
+  pointer-events: none;
+}
+
+.gl-inner-card {
+  border: 1px solid rgba(255,255,255,0.09);
+  background: linear-gradient(180deg, rgba(255,255,255,0.050), rgba(255,255,255,0.018));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.gl-empty-state {
+  border: 1px dashed rgba(255,255,255,0.14);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.015));
+  color: rgb(156 163 175);
+}
+
+.gl-section-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.035);
+  color: rgb(209 213 219);
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.gl-luxury-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+}
+
+@media (max-width: 640px) {
+  .gl-premium-card {
+    border-radius: 1.1rem;
+  }
 }

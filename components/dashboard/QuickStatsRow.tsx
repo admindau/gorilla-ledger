@@ -43,12 +43,12 @@ export default function QuickStatsRow({
       {stats.map((stat) => (
         <div
           key={stat.label}
-          className="rounded-2xl border border-gray-800 bg-black/40 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]"
+          className="gl-premium-card rounded-[1.25rem] p-4"
         >
-          <div className="text-[11px] uppercase tracking-wide text-gray-500">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-gray-500">
             {stat.label}
           </div>
-          <div className="mt-3 text-3xl font-semibold leading-none tracking-tight tabular-nums text-white">
+          <div className="mt-3 text-3xl font-semibold leading-none tracking-[-0.04em] tabular-nums text-white">
             {stat.value}
           </div>
           <div className="mt-2 text-xs text-gray-400">{stat.helper}</div>

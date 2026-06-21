@@ -52,11 +52,11 @@ export default function RecentTransactionsWidget({
       </div>
 
       {transactions.length === 0 ? (
-        <div className="mt-5 rounded-2xl border border-dashed border-gray-800 bg-black/30 p-4 text-sm text-gray-400">
+        <div className="mt-5 gl-empty-state rounded-2xl p-4 text-sm text-gray-400">
           No recent transactions for this month yet.
         </div>
       ) : (
-        <div className="mt-5 divide-y divide-gray-800 rounded-2xl border border-gray-800 bg-black/30">
+        <div className="mt-5 divide-y divide-white/10 gl-inner-card rounded-2xl">
           {transactions.map((tx) => {
             const isIncome = tx.type === "income";
             const sign = isIncome ? "+" : "-";

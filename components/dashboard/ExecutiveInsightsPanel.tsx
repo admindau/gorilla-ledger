@@ -36,7 +36,7 @@ export default function ExecutiveInsightsPanel({
         {insights.map((insight) => (
           <div
             key={insight.id}
-            className="rounded-2xl border border-gray-800 bg-black/30 p-3 transition hover:bg-white/[0.03]"
+            className="gl-inner-card rounded-2xl p-3 transition hover:bg-white/[0.035]"
           >
             <div className="text-[10px] uppercase tracking-wide text-gray-500">
               {insight.label}

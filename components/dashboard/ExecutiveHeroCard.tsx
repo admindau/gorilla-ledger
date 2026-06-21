@@ -67,21 +67,21 @@ export default function ExecutiveHeroCard({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-[1.75rem] border ${classes.border} bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.12),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.35))] p-5 sm:p-6 ${classes.glow}`}
+      className={`gl-hero-card rounded-[1.9rem] p-5 sm:p-7 ${classes.glow}`}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/40" />
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-3xl">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-gray-700 bg-black/40 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-gray-300">
+            <span className="gl-section-eyebrow">
               Financial Command Center
             </span>
-            <span className={`rounded-full border bg-black/40 px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${classes.pill}`}>
+            <span className={`rounded-full border bg-white/[0.035] px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${classes.pill}`}>
               {riskLevel}
             </span>
           </div>
 
-          <h1 className="mt-5 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+          <h1 className="mt-5 text-4xl font-semibold tracking-[-0.04em] text-white sm:text-5xl">
             {monthLabel}
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-300">
@@ -90,7 +90,7 @@ export default function ExecutiveHeroCard({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[420px]">
-          <div className="rounded-2xl border border-gray-800 bg-black/45 p-4">
+          <div className="gl-inner-card rounded-2xl p-4">
             <div className="text-[10px] uppercase tracking-wide text-gray-500">
               Health Score
             </div>
@@ -104,7 +104,7 @@ export default function ExecutiveHeroCard({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-gray-800 bg-black/45 p-4">
+          <div className="gl-inner-card rounded-2xl p-4">
             <div className="text-[10px] uppercase tracking-wide text-gray-500">
               Forecast Confidence
             </div>

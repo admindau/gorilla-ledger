@@ -49,7 +49,7 @@ export default function LargestExpenseWidget({
       </div>
 
       {!item ? (
-        <div className="mt-5 rounded-2xl border border-dashed border-gray-800 bg-black/30 p-4 text-sm text-gray-400">
+        <div className="mt-5 gl-empty-state rounded-2xl p-4 text-sm text-gray-400">
           No expenses recorded for this month yet.
         </div>
       ) : (
@@ -62,11 +62,11 @@ export default function LargestExpenseWidget({
             <span className="text-base text-gray-300">{item.currencyCode}</span>
           </div>
           <div className="mt-4 grid gap-2 text-xs text-gray-400">
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-800 bg-black/30 px-3 py-2">
+            <div className="flex items-center justify-between gap-3 gl-inner-card rounded-xl px-3 py-2">
               <span>Wallet</span>
               <span className="text-gray-200">{item.walletName}</span>
             </div>
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-800 bg-black/30 px-3 py-2">
+            <div className="flex items-center justify-between gap-3 gl-inner-card rounded-xl px-3 py-2">
               <span>Date</span>
               <span className="text-gray-200">{formatDate(item.occurredAt)}</span>
             </div>

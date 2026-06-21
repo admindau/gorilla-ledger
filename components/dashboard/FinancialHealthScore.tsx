@@ -93,7 +93,7 @@ export default function FinancialHealthScore({
         </div>
 
         <div className="grid min-w-0 flex-1 gap-3 text-xs sm:grid-cols-1">
-          <div className="rounded-2xl border border-gray-800 bg-black/30 p-3">
+          <div className="gl-inner-card rounded-2xl p-3">
             <div className="text-[10px] uppercase tracking-wide text-gray-500">
               Cash flow
             </div>
@@ -102,7 +102,7 @@ export default function FinancialHealthScore({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-gray-800 bg-black/30 p-3">
+          <div className="gl-inner-card rounded-2xl p-3">
             <div className="text-[10px] uppercase tracking-wide text-gray-500">
               Budget pressure
             </div>
