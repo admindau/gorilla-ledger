@@ -474,6 +474,61 @@ export type Database = {
           },
         ]
       }
+      recurring_run_logs: {
+        Row: {
+          created_at: string
+          details: string | null
+          id: string
+          rule_id: string
+          run_at: string
+          status: string
+          transaction_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          details?: string | null
+          id?: string
+          rule_id: string
+          run_at?: string
+          status: string
+          transaction_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          details?: string | null
+          id?: string
+          rule_id?: string
+          run_at?: string
+          status?: string
+          transaction_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_run_logs_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_run_logs_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_run_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recurring_rules: {
         Row: {
           amount_minor: number

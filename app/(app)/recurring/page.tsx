@@ -39,6 +39,18 @@ type RecurringRule = {
   is_active: boolean;
 };
 
+type RecurringRunLog = {
+  id: string;
+  rule_id: string;
+  user_id: string;
+  transaction_id: string | null;
+  run_at: string;
+  status: "success" | "failed" | "skipped" | string;
+  details: string | null;
+  created_at: string;
+};
+
+
 export default function RecurringPage() {
   const { showToast } = useToast();
 
@@ -48,6 +60,7 @@ export default function RecurringPage() {
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [rules, setRules] = useState<RecurringRule[]>([]);
+  const [runLogs, setRunLogs] = useState<RecurringRunLog[]>([]);
   const [loadingPage, setLoadingPage] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -93,6 +106,7 @@ export default function RecurringPage() {
           { data: w, error: wErr },
           { data: c, error: cErr },
           { data: r, error: rErr },
+          { data: logs, error: logsErr },
         ] = await Promise.all([
           supabase.auth.getUser(),
           supabase
@@ -109,6 +123,11 @@ export default function RecurringPage() {
               "id,user_id,wallet_id,category_id,description,amount_minor,currency_code,type,frequency,interval,day_of_month,day_of_week,start_date,next_run_at,last_run_at,total_runs,is_active"
             )
             .order("created_at", { ascending: true }),
+          supabase
+            .from("recurring_run_logs")
+            .select("id,rule_id,user_id,transaction_id,run_at,status,details,created_at")
+            .order("run_at", { ascending: false })
+            .limit(12),
         ]);
 
         if (cancelled) return;
@@ -118,10 +137,12 @@ export default function RecurringPage() {
         if (wErr) console.error("Error loading wallets", wErr);
         if (cErr) console.error("Error loading categories", cErr);
         if (rErr) console.error("Error loading recurring rules", rErr);
+        if (logsErr) console.error("Error loading recurring run logs", logsErr);
 
         setWallets(w ?? []);
         setCategories(c ?? []);
         setRules((r as RecurringRule[]) ?? []);
+        setRunLogs((logs as RecurringRunLog[]) ?? []);
       } finally {
         if (!cancelled) setLoadingPage(false);
       }
@@ -318,6 +339,54 @@ export default function RecurringPage() {
     }
     return `Runs monthly${rule.day_of_month != null ? ` on day ${rule.day_of_month}` : ""}`;
   }
+
+  function formatDateTimeWithTime(value: string | null) {
+    if (!value) return "—";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  function getRunLogTone(status: string) {
+    if (status === "success") {
+      return "border-emerald-500/60 text-emerald-300 bg-emerald-950/20";
+    }
+
+    if (status === "failed") {
+      return "border-red-500/60 text-red-300 bg-red-950/20";
+    }
+
+    return "border-amber-500/60 text-amber-300 bg-amber-950/20";
+  }
+
+  function getRuleLabel(ruleId: string) {
+    const rule = rules.find((r) => r.id === ruleId);
+    if (!rule) return "Recurring rule";
+
+    const category = categories.find((c) => c.id === rule.category_id);
+    return rule.description || category?.name || "Recurring rule";
+  }
+
+  function getRunLogSummary() {
+    return runLogs.reduce(
+      (acc, log) => {
+        if (log.status === "success") acc.success += 1;
+        else if (log.status === "failed") acc.failed += 1;
+        else acc.skipped += 1;
+        return acc;
+      },
+      { success: 0, failed: 0, skipped: 0 }
+    );
+  }
+
+  const runLogSummary = getRunLogSummary();
+
 
   const NavLink = ({
     href,
@@ -633,6 +702,79 @@ export default function RecurringPage() {
               </div>
             )}
           </section>
+
+          {/* Recurring run audit logs */}
+          <section className="mt-8 border border-gray-800 rounded-lg p-4 bg-black/40 text-sm">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-sm font-semibold">Recurring Run Audit</h2>
+                <p className="mt-1 text-xs text-gray-500">
+                  Recent cron execution history for recurring rules. Failed and skipped runs are tracked for visibility.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em]">
+                <span className="rounded-full border border-emerald-500/50 px-2 py-1 text-emerald-300">
+                  {runLogSummary.success} success
+                </span>
+                <span className="rounded-full border border-amber-500/50 px-2 py-1 text-amber-300">
+                  {runLogSummary.skipped} skipped
+                </span>
+                <span className="rounded-full border border-red-500/50 px-2 py-1 text-red-300">
+                  {runLogSummary.failed} failed
+                </span>
+              </div>
+            </div>
+
+            {loadingPage ? (
+              <p className="text-xs text-gray-500">Loading audit logs…</p>
+            ) : runLogs.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-gray-800 bg-black/30 p-4 text-xs text-gray-500">
+                No recurring run logs yet. Logs will appear after the recurring cron endpoint processes due rules.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {runLogs.map((log) => (
+                  <div
+                    key={log.id}
+                    className="rounded-lg border border-gray-800 bg-black/30 px-3 py-3"
+                  >
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-xs font-semibold text-gray-100">
+                            {getRuleLabel(log.rule_id)}
+                          </p>
+                          <span
+                            className={[
+                              "rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.16em]",
+                              getRunLogTone(log.status),
+                            ].join(" ")}
+                          >
+                            {log.status}
+                          </span>
+                        </div>
+
+                        <p className="mt-1 text-[11px] text-gray-500">
+                          Run at {formatDateTimeWithTime(log.run_at)}
+                          {log.transaction_id
+                            ? ` • Transaction ${log.transaction_id.slice(0, 8)}`
+                            : ""}
+                        </p>
+
+                        {log.details ? (
+                          <p className="mt-2 text-[11px] leading-relaxed text-gray-400">
+                            {log.details}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
         </div>
       </main>
     </div>

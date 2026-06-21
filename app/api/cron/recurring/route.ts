@@ -5,7 +5,7 @@ import { timingSafeEqual } from "crypto";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
 
 /**
- * Match your recurring_rules schema
+ * Match your recurring_rules schema.
  */
 type RecurringRule = {
   id: string;
@@ -35,6 +35,7 @@ type RecurringRule = {
 };
 
 type Frequency = RecurringRule["frequency"];
+type RunLogStatus = "success" | "failed" | "skipped";
 
 export const dynamic = "force-dynamic";
 
@@ -92,6 +93,30 @@ function advanceNextRunAt(
   return d.toISOString();
 }
 
+async function writeRunLog(input: {
+  ruleId: string;
+  userId: string;
+  transactionId?: string | null;
+  status: RunLogStatus;
+  details?: string | null;
+}) {
+  const { error } = await supabaseAdminClient.from("recurring_run_logs").insert({
+    rule_id: input.ruleId,
+    user_id: input.userId,
+    transaction_id: input.transactionId ?? null,
+    status: input.status,
+    details: input.details ?? null,
+  });
+
+  if (error) {
+    // Logging must never break the cron worker itself.
+    console.error(
+      `[cron/recurring] Failed to write run log for rule ${input.ruleId}:`,
+      error
+    );
+  }
+}
+
 async function handler(req: NextRequest) {
   if (!isAuthorizedCron(req)) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
@@ -125,23 +150,45 @@ async function handler(req: NextRequest) {
         processed: 0,
         created: 0,
         updated: 0,
+        skipped: 0,
+        failed: 0,
         message: "No recurring rules due at this time",
       },
       { headers: { "Cache-Control": "no-store" } }
     );
   }
 
-  const activeWindowRules = (rules as RecurringRule[]).filter((r) => {
-    const today = todayStr;
-    if (r.start_date && today < r.start_date) return false;
-    if (r.end_date && today > r.end_date) return false;
-    return true;
-  });
-
   let createdCount = 0;
   let updatedCount = 0;
+  let skippedCount = 0;
+  let failedCount = 0;
+  let processedCount = 0;
 
-  for (const rule of activeWindowRules) {
+  for (const rule of rules as RecurringRule[]) {
+    processedCount += 1;
+
+    if (rule.start_date && todayStr < rule.start_date) {
+      skippedCount += 1;
+      await writeRunLog({
+        ruleId: rule.id,
+        userId: rule.user_id,
+        status: "skipped",
+        details: `Rule skipped because start date ${rule.start_date} is in the future.`,
+      });
+      continue;
+    }
+
+    if (rule.end_date && todayStr > rule.end_date) {
+      skippedCount += 1;
+      await writeRunLog({
+        ruleId: rule.id,
+        userId: rule.user_id,
+        status: "skipped",
+        details: `Rule skipped because end date ${rule.end_date} has passed.`,
+      });
+      continue;
+    }
+
     const dueAtIso = new Date(rule.next_run_at).toISOString();
 
     const { data: existingTx, error: exErr } = await supabase
@@ -156,34 +203,61 @@ async function handler(req: NextRequest) {
       .maybeSingle();
 
     if (exErr) {
+      failedCount += 1;
       console.error(
         `[cron/recurring] Idempotency check failed for rule ${rule.id}:`,
         exErr
       );
+      await writeRunLog({
+        ruleId: rule.id,
+        userId: rule.user_id,
+        status: "failed",
+        details: `Idempotency check failed: ${exErr.message}`,
+      });
       continue;
     }
 
+    let transactionId: string | null = existingTx?.id ?? null;
+    let logStatus: RunLogStatus = existingTx?.id ? "skipped" : "success";
+    let logDetails = existingTx?.id
+      ? `Transaction already existed for scheduled run ${dueAtIso}. Rule advanced without creating a duplicate.`
+      : `Transaction created for scheduled run ${dueAtIso}.`;
+
     if (!existingTx?.id) {
-      const { error: insertError } = await supabase.from("transactions").insert({
-        user_id: rule.user_id,
-        wallet_id: rule.wallet_id,
-        category_id: rule.category_id,
-        amount_minor: rule.amount_minor,
-        currency_code: rule.currency_code,
-        type: rule.type,
-        description: rule.description,
-        occurred_at: dueAtIso,
-      });
+      const { data: insertedTx, error: insertError } = await supabase
+        .from("transactions")
+        .insert({
+          user_id: rule.user_id,
+          wallet_id: rule.wallet_id,
+          category_id: rule.category_id,
+          amount_minor: rule.amount_minor,
+          currency_code: rule.currency_code,
+          type: rule.type,
+          description: rule.description,
+          occurred_at: dueAtIso,
+        })
+        .select("id")
+        .single();
 
       if (insertError) {
+        failedCount += 1;
         console.error(
           `[cron/recurring] Failed to create tx for rule ${rule.id}:`,
           insertError
         );
+        await writeRunLog({
+          ruleId: rule.id,
+          userId: rule.user_id,
+          status: "failed",
+          details: `Transaction insert failed: ${insertError.message}`,
+        });
         continue;
       }
 
+      transactionId = insertedTx?.id ?? null;
       createdCount += 1;
+    } else {
+      skippedCount += 1;
     }
 
     const nextRunAt = advanceNextRunAt(
@@ -202,22 +276,42 @@ async function handler(req: NextRequest) {
       .eq("id", rule.id);
 
     if (updateError) {
+      failedCount += 1;
+      logStatus = "failed";
+      logDetails = `Rule update failed after transaction handling: ${updateError.message}`;
       console.error(
         `[cron/recurring] Failed to update next_run_at for rule ${rule.id}:`,
         updateError
       );
+      await writeRunLog({
+        ruleId: rule.id,
+        userId: rule.user_id,
+        transactionId,
+        status: logStatus,
+        details: logDetails,
+      });
       continue;
     }
 
     updatedCount += 1;
+
+    await writeRunLog({
+      ruleId: rule.id,
+      userId: rule.user_id,
+      transactionId,
+      status: logStatus,
+      details: logDetails,
+    });
   }
 
   return NextResponse.json(
     {
       date: todayStr,
-      processed: activeWindowRules.length,
+      processed: processedCount,
       created: createdCount,
       updated: updatedCount,
+      skipped: skippedCount,
+      failed: failedCount,
     },
     { headers: { "Cache-Control": "no-store" } }
   );
