@@ -17,7 +17,6 @@ import AiInsightsSidebar from "@/components/dashboard/AiInsightsSidebar";
 import YearlyIncomeExpenseBarChart from "@/components/dashboard/YearlyIncomeExpenseBarChart";
 import ExecutiveKpiCards from "@/components/dashboard/ExecutiveKpiCards";
 import SpendingTrendChart from "@/components/dashboard/SpendingTrendChart";
-import FinancialHealthSummary from "@/components/dashboard/FinancialHealthSummary";
 import QuickStatsRow from "@/components/dashboard/QuickStatsRow";
 import RecentTransactionsWidget from "@/components/dashboard/RecentTransactionsWidget";
 import LargestExpenseWidget from "@/components/dashboard/LargestExpenseWidget";
@@ -27,7 +26,6 @@ import SmartAlertsPanel from "@/components/dashboard/SmartAlertsPanel";
 import ExecutiveInsightsPanel from "@/components/dashboard/ExecutiveInsightsPanel";
 import ForecastMonthEndBalance from "@/components/dashboard/ForecastMonthEndBalance";
 import ExecutiveHeroCard from "@/components/dashboard/ExecutiveHeroCard";
-import ExecutiveScorecardRow from "@/components/dashboard/ExecutiveScorecardRow";
 
 import Skeleton from "@/components/ui/Skeleton";
 
@@ -979,6 +977,7 @@ export default function DashboardPage() {
 
   // ---------- Visual system ----------
   const CARD = "gl-premium-card rounded-[1.35rem] p-5";
+  const CHART_CARD = "gl-premium-card gl-chart-card rounded-[1.45rem] p-5 sm:p-6";
   const CARD_TIGHT = "gl-premium-card rounded-[1.2rem] p-4";
   const KPI_CARD = "gl-premium-card rounded-[1.2rem] p-4";
   const SECTION_DIVIDER = "h-px bg-gray-800/80";
@@ -1162,29 +1161,6 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Executive scorecard */}
-        <section className="mb-8">
-          {loadingData ? (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-28 w-full" rounded="2xl" />
-              ))}
-            </div>
-          ) : (
-            <ExecutiveScorecardRow
-              healthScore={financialHealthScore}
-              riskLevel={executiveRiskLevel}
-              forecastConfidence={forecastConfidence}
-              forecastSummary={forecastSummary}
-              budgetsOnTrack={budgetsOnTrack}
-              budgetsAtRisk={budgetsAtRisk}
-              budgetsOver={budgetsOver}
-              alertsCount={smartAlerts.length}
-              criticalAlertsCount={criticalAlertsCount}
-            />
-          )}
-        </section>
-
         {/* Executive KPI cards */}
         <section className="mb-8">
           <ExecutiveKpiCards
@@ -1257,28 +1233,40 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Intelligence */}
-        <section className="mb-10">
-          <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-3">
+        {/* Gorilla Intelligence */}
+        <section className="mb-12 gl-intelligence-suite rounded-[1.75rem] p-4 sm:p-6">
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-lg font-semibold tracking-tight">
+              <span className="gl-section-eyebrow">Premium intelligence layer</span>
+              <h2 className="mt-3 text-2xl font-semibold tracking-tight">
                 Gorilla Intelligence™ – {monthLabel}
               </h2>
-              <p className="text-[11px] text-gray-400">
-                Alerts, executive guidance, and projected month-end position.
+              <p className="mt-1 max-w-2xl text-sm text-gray-400">
+                The brain of Gorilla Ledger: health scoring, alerts, executive guidance, AI coaching, and projected month-end position.
               </p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-[11px] text-gray-300">
+              <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1 uppercase tracking-[0.16em]">
+                {executiveRiskLevel}
+              </span>
+              <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1 uppercase tracking-[0.16em]">
+                {forecastConfidence} confidence
+              </span>
+              <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1 uppercase tracking-[0.16em]">
+                {smartAlerts.length} alerts
+              </span>
             </div>
           </div>
 
           {loadingData ? (
-            <div className="grid gap-5 xl:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-48 w-full" rounded="2xl" />
+            <div className="grid gap-5 xl:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-56 w-full" rounded="2xl" />
               ))}
             </div>
           ) : (
-            <div className="grid gap-5 xl:grid-cols-4">
-              <div className={CARD}>
+            <div className="grid gap-5 xl:grid-cols-12">
+              <div className={`${CARD} xl:col-span-4`}>
                 <FinancialHealthScore
                   score={financialHealthScore}
                   label={financialHealthLabel}
@@ -1290,15 +1278,11 @@ export default function DashboardPage() {
                 />
               </div>
 
-              <div className={CARD}>
+              <div className={`${CARD} xl:col-span-4`}>
                 <SmartAlertsPanel alerts={smartAlerts} riskLevel={executiveRiskLevel} />
               </div>
 
-              <div className={CARD}>
-                <ExecutiveInsightsPanel insights={executiveInsights} riskLevel={executiveRiskLevel} />
-              </div>
-
-              <div className={CARD}>
+              <div className={`${CARD} xl:col-span-4`}>
                 <ForecastMonthEndBalance
                   entries={forecastEntries}
                   scheduledRulesCount={scheduledRecurringThisMonth.length}
@@ -1306,24 +1290,51 @@ export default function DashboardPage() {
                   confidence={forecastConfidence}
                 />
               </div>
+
+              <div className={`${CARD} xl:col-span-4`}>
+                <ExecutiveInsightsPanel insights={executiveInsights} riskLevel={executiveRiskLevel} />
+              </div>
+
+              <div className={`${CARD} xl:col-span-4`}>
+                <SmartInsightsPanel
+                  transactions={transactions}
+                  categories={categories}
+                  selectedYear={selectedYear}
+                  selectedMonth={selectedMonth}
+                  walletFilter={walletFilter}
+                  categoryFilter={categoryFilter}
+                />
+              </div>
+
+              <div className={`${CARD} xl:col-span-4`}>
+                <AiInsightsSidebar
+                  transactions={transactions}
+                  categories={categories}
+                  selectedYear={selectedYear}
+                  selectedMonth={selectedMonth}
+                  walletFilter={walletFilter}
+                  categoryFilter={categoryFilter}
+                />
+              </div>
             </div>
           )}
         </section>
 
         {/* Spending trend */}
-        <section className="mb-10">
-          <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-3">
+        <section className="mb-12">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-lg font-semibold tracking-tight">
+              <span className="gl-section-eyebrow">Spending signal</span>
+              <h2 className="mt-3 text-xl font-semibold tracking-tight">
                 Spending Trend – {monthLabel}
               </h2>
-              <p className="text-[11px] text-gray-400">
+              <p className="text-[12px] text-gray-400">
                 Daily expense movement for the selected month. Internal transfers excluded.
               </p>
             </div>
           </div>
 
-          <div className={CARD}>
+          <div className={CHART_CARD}>
             {loadingData ? (
               <Skeleton className={SK_CHART} rounded="2xl" />
             ) : monthlyIncomeExpenseData.length === 0 ? (
@@ -1337,22 +1348,25 @@ export default function DashboardPage() {
         </section>
 
         {/* Executive trend (Hero chart) */}
-        <section className="mb-10">
-          <div className="flex items-baseline justify-between gap-3 mb-3">
-            <h2 className="text-lg font-semibold tracking-tight">
-              Calendar-Year Income vs Expenses
-            </h2>
-            <div className="text-[11px] text-gray-400">
-              Executive monthly trend for {targetCalendarYear}.
+        <section className="mb-12">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <span className="gl-section-eyebrow">Executive trend</span>
+              <h2 className="mt-3 text-xl font-semibold tracking-tight">
+                Calendar-Year Income vs Expenses
+              </h2>
+            </div>
+            <div className="text-[11px] uppercase tracking-[0.18em] text-gray-400">
+              Monthly trend for {targetCalendarYear}
             </div>
           </div>
 
           {loadingData ? (
-            <div className={CARD}>
+            <div className={CHART_CARD}>
               <Skeleton className={SK_HERO} rounded="2xl" />
             </div>
           ) : (
-            <div className={CARD}>
+            <div className={CHART_CARD}>
               <YearlyIncomeExpenseBarChart
                 transactions={transactions}
                 categories={categories}
@@ -1365,46 +1379,51 @@ export default function DashboardPage() {
         </section>
 
         {/* Total Balance by currency */}
-        <section className="mb-10">
-          <div className="flex items-baseline justify-between gap-3 mb-3">
-            <h2 className="text-lg font-semibold tracking-tight">
-              Total Balance by Currency
-            </h2>
-            <div className="text-[11px] text-gray-400">
-              Wallet balances (starting balance + transactions). Transfers
-              included.
+        <section className="mb-12">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <span className="gl-section-eyebrow">Wallet position</span>
+              <h2 className="mt-3 text-xl font-semibold tracking-tight">
+                Net Worth by Currency
+              </h2>
+              <p className="text-[12px] text-gray-400">
+                Wallet balances include starting balances and transactions. Internal transfers are included.
+              </p>
+            </div>
+            <div className="text-[11px] uppercase tracking-[0.18em] text-gray-400">
+              {wallets.length} {wallets.length === 1 ? "wallet" : "wallets"} tracked
             </div>
           </div>
 
           {loadingData ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="border border-gray-800 bg-black/40 rounded-2xl px-4 py-3 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]"
-                >
-                  <Skeleton className="h-3 w-16 mb-3" />
-                  <Skeleton className="h-7 w-32" />
-                </div>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-28 w-full" rounded="2xl" />
               ))}
             </div>
           ) : Object.keys(totalsByCurrency).length === 0 ? (
-            <p className="text-gray-500 text-sm">
-              No balances yet – add a wallet and some transactions.
-            </p>
+            <div className="gl-empty-state rounded-2xl p-6 text-sm">
+              No balances yet. Add a wallet and your first transaction to activate the net-worth view.
+            </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {Object.entries(totalsByCurrency).map(([currency, minor]) => (
-                <div
-                  key={currency}
-                  className="border border-gray-800 bg-black/40 rounded-2xl px-4 py-3 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]"
-                >
-                  <div className="text-[11px] text-gray-400 uppercase tracking-wide">
-                    {currency}
+                <div key={currency} className="gl-currency-tile rounded-[1.35rem] p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-[10px] uppercase tracking-[0.22em] text-gray-500">
+                      {currency}
+                    </div>
+                    <span className="rounded-full border border-white/10 bg-white/[0.035] px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-gray-300">
+                      balance
+                    </span>
                   </div>
-                  <div className={`mt-2 ${KPI_VALUE_MD} tabular-nums`}>
+                  <div className={`mt-4 ${KPI_VALUE_MD} tabular-nums`}>
                     {formatMinorToAmount(minor)}{" "}
                     <span className="text-sm text-gray-300">{currency}</span>
+                  </div>
+                  <div className="mt-4 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+                  <div className="mt-3 text-[11px] text-gray-500">
+                    Current ledger position in {currency}.
                   </div>
                 </div>
               ))}
@@ -1412,105 +1431,22 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Intelligence */}
-        <section className="mb-10">
-          <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-3">
-            <div>
-              <h2 className="text-lg font-semibold tracking-tight">
-                Intelligence
-              </h2>
-              <p className="text-[11px] text-gray-400">
-                Actionable insights based on your recent activity.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid gap-5 xl:grid-cols-3">
-            <div className={CARD}>
-              {loadingData ? (
-                <>
-                  <Skeleton className="h-5 w-40 mb-3" />
-                  <Skeleton className="h-4 w-5/6 mb-2" />
-                  <Skeleton className="h-4 w-2/3 mb-4" />
-                  <Skeleton className="h-24 w-full rounded-2xl" />
-                </>
-              ) : (
-                <FinancialHealthSummary
-                  incomeEntries={monthIncomeEntries}
-                  expenseEntries={monthExpenseEntries}
-                  netEntries={monthNetEntries}
-                  totalBudgets={totalBudgets}
-                  budgetsOnTrack={budgetsOnTrack}
-                  budgetsAtRisk={budgetsAtRisk}
-                  budgetsOver={budgetsOver}
-                  monthLabel={monthLabel}
-                />
-              )}
-            </div>
-
-            <div className={CARD}>
-              {loadingData ? (
-                <>
-                  <Skeleton className="h-5 w-40 mb-3" />
-                  <Skeleton className="h-4 w-5/6 mb-2" />
-                  <Skeleton className="h-4 w-2/3 mb-4" />
-                  <Skeleton className="h-24 w-full rounded-2xl" />
-                </>
-              ) : (
-                <SmartInsightsPanel
-                  transactions={transactions}
-                  categories={categories}
-                  selectedYear={selectedYear}
-                  selectedMonth={selectedMonth}
-                  walletFilter={walletFilter}
-                  categoryFilter={categoryFilter}
-                />
-              )}
-            </div>
-
-            <div className={CARD}>
-              {loadingData ? (
-                <>
-                  <Skeleton className="h-5 w-40 mb-3" />
-                  <Skeleton className="h-4 w-5/6 mb-2" />
-                  <Skeleton className="h-4 w-2/3 mb-4" />
-                  <Skeleton className="h-24 w-full rounded-2xl" />
-                </>
-              ) : (
-                <AiInsightsSidebar
-                  transactions={transactions}
-                  categories={categories}
-                  selectedYear={selectedYear}
-                  selectedMonth={selectedMonth}
-                  walletFilter={walletFilter}
-                  categoryFilter={categoryFilter}
-                />
-              )}
-            </div>
-          </div>
-        </section>
-
         {/* Chart filters */}
-        <section className="mb-10 sticky top-0 z-30 -mx-4 px-4 pt-4 pb-4 bg-black/80 backdrop-blur border-b border-gray-800">
-          <div
-            className={`${CARD_TIGHT} flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`}
-          >
+        <section className="mb-12 sticky top-0 z-30 -mx-4 px-4 pt-4 pb-4 bg-black/75 backdrop-blur-xl border-b border-white/10">
+          <div className="gl-chart-filterbar rounded-[1.35rem] p-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-sm font-semibold tracking-tight">
-                Chart Filters
-              </h2>
-              <p className="text-[11px] text-gray-400">
-                Apply filters to the charts below, including spending and
-                income/expense trends.
+              <span className="gl-section-eyebrow">Analytics command bar</span>
+              <p className="mt-2 text-[11px] text-gray-400">
+                Tune the lens for category, wallet, and long-term chart analysis.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2 text-xs">
+            <div className="flex flex-wrap gap-3 text-xs">
               <div className="flex items-center gap-1">
                 <span className="text-gray-400">Wallet:</span>
                 <select
                   value={walletFilter}
                   onChange={(e) => setWalletFilter(e.target.value)}
-                  className="bg-black border border-gray-700 rounded px-2 py-1 text-xs"
+                  className="rounded-full border border-white/15 bg-black/70 px-3 py-1.5 text-xs text-gray-100 outline-none transition hover:border-white/30"
                 >
                   <option value="all">All wallets</option>
                   {wallets.map((w) => (
@@ -1525,7 +1461,7 @@ export default function DashboardPage() {
                 <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="bg-black border border-gray-700 rounded px-2 py-1 text-xs"
+                  className="rounded-full border border-white/15 bg-black/70 px-3 py-1.5 text-xs text-gray-100 outline-none transition hover:border-white/30"
                 >
                   <option value="all">All categories</option>
                   {categories.map((c) => (
@@ -1540,7 +1476,7 @@ export default function DashboardPage() {
                 <select
                   value={yearFilter}
                   onChange={(e) => setYearFilter(e.target.value)}
-                  className="bg-black border border-gray-700 rounded px-2 py-1 text-xs"
+                  className="rounded-full border border-white/15 bg-black/70 px-3 py-1.5 text-xs text-gray-100 outline-none transition hover:border-white/30"
                 >
                   <option value="all">All years</option>
                   {chartYearOptions.map((y) => (
@@ -1555,9 +1491,14 @@ export default function DashboardPage() {
         </section>
 
         {/* Composition */}
-        <section className="mb-10">
+        <section className="mb-12">
+          <div className="mb-4 flex flex-col gap-2">
+            <span className="gl-section-eyebrow">Category intelligence</span>
+            <h2 className="text-xl font-semibold tracking-tight">Spending composition</h2>
+            <p className="text-[12px] text-gray-400">Ranked category views for the selected filters.</p>
+          </div>
           <div className="grid gap-5 lg:grid-cols-2">
-            <div className={CARD}>
+            <div className={CHART_CARD}>
               <h2 className="text-lg font-semibold tracking-tight mb-3">
                 Spending by Category – {monthLabel}
               </h2>
@@ -1575,7 +1516,7 @@ export default function DashboardPage() {
               )}
             </div>
 
-            <div className={CARD}>
+            <div className={CHART_CARD}>
               <h2 className="text-lg font-semibold tracking-tight mb-3">
                 Top Spending Categories – This Year
               </h2>
@@ -1626,10 +1567,17 @@ export default function DashboardPage() {
                 <Skeleton className="h-10 w-full rounded-2xl" />
               </>
             ) : totalBudgets === 0 ? (
-              <p className="text-gray-500 text-sm">
-                You don&apos;t have any budgets set for this month yet. Add some
-                from the Budgets page.
-              </p>
+              <div className="gl-empty-state rounded-2xl p-6">
+                <div className="text-sm font-semibold text-gray-100">No budgets configured</div>
+                <p className="mt-2 max-w-2xl text-sm text-gray-400">
+                  Create your first budget to unlock overspend alerts, budget scoring, and stronger forecast confidence.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2 text-[11px] text-gray-300">
+                  <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1">Overspend alerts</span>
+                  <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1">Budget scoring</span>
+                  <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1">Forecast accuracy</span>
+                </div>
+              </div>
             ) : (
               <>
                 <div className="mb-4 flex flex-wrap gap-2 text-xs text-gray-300">
@@ -1757,69 +1705,73 @@ export default function DashboardPage() {
 
         {/* Advanced analytics */}
         <section className="mb-12">
-          <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-3">
-            <div>
-              <h2 className="text-lg font-semibold tracking-tight">
-                Advanced Analytics
-              </h2>
-              <p className="text-[11px] text-gray-400">
-                Trend charts to understand seasonality, long-term patterns, and
-                all-time net flow.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid gap-5 lg:grid-cols-2 mb-5">
-            <div className={CARD}>
-              {loadingData ? (
-                <Skeleton className={SK_CHART_TALL} rounded="2xl" />
-              ) : monthlyIncomeExpenseData.length === 0 ? (
-                <p className="text-gray-500 text-sm">
-                  No transactions yet to build a trend.
+          <details className="group" open>
+            <summary className="mb-5 flex cursor-pointer list-none flex-col gap-3 rounded-[1.35rem] border border-white/10 bg-white/[0.025] p-4 transition hover:border-white/20 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <span className="gl-section-eyebrow">Advanced analytics</span>
+                <h2 className="mt-3 text-xl font-semibold tracking-tight">Analytics vault</h2>
+                <p className="text-[12px] text-gray-400">
+                  Trend charts for seasonality, long-term patterns, and all-time net flow.
                 </p>
-              ) : (
-                <MonthlyIncomeExpenseChart data={monthlyIncomeExpenseData} />
-              )}
-            </div>
+              </div>
+              <span className="rounded-full border border-white/10 bg-black/50 px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-gray-300">
+                <span className="group-open:hidden">Show charts</span>
+                <span className="hidden group-open:inline">Hide charts</span>
+              </span>
+            </summary>
 
-            <div className={CARD}>
-              {loadingData ? (
-                <Skeleton className={SK_CHART_TALL} rounded="2xl" />
-              ) : incomeExpenseTrendLast12.length === 0 ? (
-                <p className="text-gray-500 text-sm">
-                  Not enough history yet to show this trend.
-                </p>
-              ) : (
-                <HistoricalIncomeExpenseChart data={incomeExpenseTrendLast12} />
-              )}
-            </div>
-          </div>
+            <div className="grid gap-5 lg:grid-cols-2 mb-5">
+              <div className={CHART_CARD}>
+                {loadingData ? (
+                  <Skeleton className={SK_CHART_TALL} rounded="2xl" />
+                ) : monthlyIncomeExpenseData.length === 0 ? (
+                  <div className="gl-empty-state rounded-2xl p-6 text-sm">
+                    No transactions yet to build a trend.
+                  </div>
+                ) : (
+                  <MonthlyIncomeExpenseChart data={monthlyIncomeExpenseData} />
+                )}
+              </div>
 
-          <div className="grid gap-5 lg:grid-cols-2">
-            <div className={CARD}>
-              {loadingData ? (
-                <Skeleton className={SK_CHART_TALL} rounded="2xl" />
-              ) : incomeExpenseTrendData.length === 0 ? (
-                <p className="text-gray-500 text-sm">
-                  No transactions yet to build an all-time trend.
-                </p>
-              ) : (
-                <FullHistoryIncomeExpenseChart data={incomeExpenseTrendData} />
-              )}
+              <div className={CHART_CARD}>
+                {loadingData ? (
+                  <Skeleton className={SK_CHART_TALL} rounded="2xl" />
+                ) : incomeExpenseTrendLast12.length === 0 ? (
+                  <div className="gl-empty-state rounded-2xl p-6 text-sm">
+                    Not enough history yet to show this trend.
+                  </div>
+                ) : (
+                  <HistoricalIncomeExpenseChart data={incomeExpenseTrendLast12} />
+                )}
+              </div>
             </div>
 
-            <div className={CARD}>
-              {loadingData ? (
-                <Skeleton className={SK_CHART_TALL} rounded="2xl" />
-              ) : incomeExpenseTrendData.length === 0 ? (
-                <p className="text-gray-500 text-sm">
-                  No transactions yet to build a cumulative net flow view.
-                </p>
-              ) : (
-                <CumulativeNetBalanceChart data={incomeExpenseTrendData} />
-              )}
+            <div className="grid gap-5 lg:grid-cols-2">
+              <div className={CHART_CARD}>
+                {loadingData ? (
+                  <Skeleton className={SK_CHART_TALL} rounded="2xl" />
+                ) : incomeExpenseTrendData.length === 0 ? (
+                  <div className="gl-empty-state rounded-2xl p-6 text-sm">
+                    No transactions yet to build an all-time trend.
+                  </div>
+                ) : (
+                  <FullHistoryIncomeExpenseChart data={incomeExpenseTrendData} />
+                )}
+              </div>
+
+              <div className={CHART_CARD}>
+                {loadingData ? (
+                  <Skeleton className={SK_CHART_TALL} rounded="2xl" />
+                ) : incomeExpenseTrendData.length === 0 ? (
+                  <div className="gl-empty-state rounded-2xl p-6 text-sm">
+                    No transactions yet to build a cumulative net flow view.
+                  </div>
+                ) : (
+                  <CumulativeNetBalanceChart data={incomeExpenseTrendData} />
+                )}
+              </div>
             </div>
-          </div>
+          </details>
         </section>
       </main>
     </div>

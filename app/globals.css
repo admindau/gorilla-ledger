@@ -175,3 +175,95 @@ body {
     border-radius: 1.1rem;
   }
 }
+
+/* Gorilla Ledger Luxury Polish P.3 — Intelligence & Chart Refinement */
+.gl-intelligence-suite {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.13);
+  background:
+    radial-gradient(circle at 16% 6%, rgba(255,255,255,0.16), transparent 22rem),
+    radial-gradient(circle at 86% 10%, rgba(255,255,255,0.09), transparent 24rem),
+    linear-gradient(180deg, rgba(255,255,255,0.050), rgba(255,255,255,0.018)),
+    rgba(0,0,0,0.58);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.10),
+    0 34px 110px rgba(0,0,0,0.52);
+}
+
+.gl-intelligence-suite::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.40), transparent);
+  opacity: 0.65;
+}
+
+.gl-chart-card {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255,255,255,0.10), transparent 18rem),
+    linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.018)),
+    rgba(0,0,0,0.68);
+  border-color: rgba(255,255,255,0.12);
+}
+
+.gl-chart-card svg {
+  filter: drop-shadow(0 16px 28px rgba(0,0,0,0.32));
+}
+
+.gl-chart-card .recharts-cartesian-grid line,
+.gl-chart-card .recharts-cartesian-axis-line,
+.gl-chart-card .recharts-cartesian-axis-tick-line {
+  stroke: rgba(255,255,255,0.10);
+}
+
+.gl-chart-card .recharts-text,
+.gl-chart-card .recharts-legend-item-text {
+  fill: rgba(255,255,255,0.70) !important;
+  color: rgba(255,255,255,0.70) !important;
+}
+
+.gl-chart-card .recharts-default-tooltip {
+  border: 1px solid rgba(255,255,255,0.16) !important;
+  background: rgba(0,0,0,0.88) !important;
+  box-shadow: 0 22px 70px rgba(0,0,0,0.55) !important;
+  border-radius: 14px !important;
+}
+
+.gl-chart-filterbar {
+  border: 1px solid rgba(255,255,255,0.12);
+  background:
+    radial-gradient(circle at 8% 0%, rgba(255,255,255,0.08), transparent 16rem),
+    linear-gradient(180deg, rgba(255,255,255,0.050), rgba(255,255,255,0.018)),
+    rgba(0,0,0,0.76);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 18px 55px rgba(0,0,0,0.42);
+  backdrop-filter: blur(18px);
+}
+
+.gl-currency-tile {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.105);
+  background:
+    radial-gradient(circle at 22% 0%, rgba(255,255,255,0.11), transparent 14rem),
+    linear-gradient(180deg, rgba(255,255,255,0.050), rgba(255,255,255,0.016)),
+    rgba(0,0,0,0.66);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 22px 70px rgba(0,0,0,0.38);
+}
+
+.gl-currency-tile::after {
+  content: "";
+  position: absolute;
+  right: -4rem;
+  top: -4rem;
+  height: 10rem;
+  width: 10rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255,255,255,0.08), transparent 62%);
+  pointer-events: none;
+}
