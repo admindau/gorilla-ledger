@@ -195,21 +195,20 @@ export default function FullHistoryIncomeExpenseChart({
                 }}
                 labelStyle={{ color: "#e5e7eb" }}
                 itemStyle={{ color: "#f9fafb" }}
-                formatter={(value: number | string) => {
-                  if (typeof value === "number") {
-                    return value.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    });
-                  }
-                  const parsed = Number(value);
+                formatter={(value) => {
+                  if (value == null) return "";
+
+                  const parsed =
+                    typeof value === "number" ? value : Number(value);
+
                   if (!Number.isNaN(parsed)) {
                     return parsed.toLocaleString(undefined, {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     });
                   }
-                  return value;
+
+                  return String(value);
                 }}
                 labelFormatter={(label) => `Month: ${formatMonthLabel(label)}`}
               />

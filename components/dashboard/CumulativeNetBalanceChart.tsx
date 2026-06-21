@@ -227,10 +227,15 @@ export default function CumulativeNetBalanceChart({
                 }}
                 labelStyle={{ color: "#e5e7eb" }}
                 itemStyle={{ color: "#f9fafb" }}
-                formatter={(value: number | string, name: string) => {
-                  const num = typeof value === "number" ? value : Number(value);
-                  if (!Number.isNaN(num)) return [formatNumber(num), name];
-                  return [value, name];
+                formatter={(value, name) => {
+                  const num =
+                    typeof value === "number" ? value : Number(value ?? 0);
+
+                  if (!Number.isNaN(num)) {
+                    return [formatNumber(num), String(name)];
+                  }
+
+                  return [String(value ?? ""), String(name)];
                 }}
                 labelFormatter={(label) =>
                   `Date: ${formatDateLabel(String(label))}`

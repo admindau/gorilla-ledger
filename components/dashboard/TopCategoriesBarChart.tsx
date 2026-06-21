@@ -221,10 +221,15 @@ export default function TopCategoriesBarChart({
                   fontSize: 11,
                   color: "#e5e7eb",
                 }}
-                formatter={(value: any) => [
-                  (value as number).toFixed(2),
-                  "total",
-                ]}
+                formatter={(value) => {
+                  const numeric =
+                    typeof value === "number" ? value : Number(value ?? 0);
+
+                  return [
+                    Number.isNaN(numeric) ? String(value ?? "") : numeric.toFixed(2),
+                    "total",
+                  ];
+                }}
               />
               <Bar
                 dataKey="value"

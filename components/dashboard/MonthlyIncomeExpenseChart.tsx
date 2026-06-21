@@ -220,10 +220,15 @@ export default function MonthlyIncomeExpenseChart({
                 }}
                 labelStyle={{ color: "#e5e7eb" }}
                 itemStyle={{ color: "#f9fafb" }}
-                formatter={(value: number | string) => {
-                  const num = typeof value === "number" ? value : Number(value);
+                formatter={(value) => {
+                  if (value == null) return "";
+
+                  const num =
+                    typeof value === "number" ? value : Number(value);
+
                   if (!Number.isNaN(num)) return formatNumber(num);
-                  return value;
+
+                  return String(value);
                 }}
                 labelFormatter={(label) =>
                   `Date: ${formatDateLabel(String(label))}`

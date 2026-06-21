@@ -237,8 +237,9 @@ export default function SpendingByCategoryChart({
                 labelStyle={{
                   color: "#e5e7eb",
                 }}
-                formatter={(value: any, name: any) => {
-                  const numeric = Number(value);
+                formatter={(value, name) => {
+                  const numeric =
+                    typeof value === "number" ? value : Number(value ?? 0);
                   const pct = total > 0 ? (numeric / total) * 100 : 0;
                   const formattedValue = numeric.toLocaleString(undefined, {
                     minimumFractionDigits: 2,
@@ -247,7 +248,7 @@ export default function SpendingByCategoryChart({
                   const formattedPct = pct.toFixed(1);
 
                   // Shows like: "12,345.67 (23.4%)"
-                  return [`${formattedValue} (${formattedPct}%)`, name];
+                  return [`${formattedValue} (${formattedPct}%)`, String(name)];
                 }}
               />
               {/* --- END TOOLTIP --- */}
