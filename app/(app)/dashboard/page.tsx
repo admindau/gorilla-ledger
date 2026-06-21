@@ -22,6 +22,10 @@ import QuickStatsRow from "@/components/dashboard/QuickStatsRow";
 import RecentTransactionsWidget from "@/components/dashboard/RecentTransactionsWidget";
 import LargestExpenseWidget from "@/components/dashboard/LargestExpenseWidget";
 import BudgetHealthWidget from "@/components/dashboard/BudgetHealthWidget";
+import FinancialHealthScore from "@/components/dashboard/FinancialHealthScore";
+import SmartAlertsPanel from "@/components/dashboard/SmartAlertsPanel";
+import ExecutiveInsightsPanel from "@/components/dashboard/ExecutiveInsightsPanel";
+import ForecastMonthEndBalance from "@/components/dashboard/ForecastMonthEndBalance";
 
 import Skeleton from "@/components/ui/Skeleton";
 
@@ -57,6 +61,39 @@ type Budget = {
   year: number;
   month: number;
   amount_minor: number;
+};
+
+type RecurringRule = {
+  id: string;
+  wallet_id: string;
+  category_id: string | null;
+  type: TransactionType;
+  amount_minor: number;
+  currency_code: string;
+  next_run_at: string;
+  is_active: boolean;
+};
+
+type SmartAlert = {
+  id: string;
+  tone: "good" | "watch" | "danger" | "neutral";
+  title: string;
+  detail: string;
+};
+
+type ExecutiveInsight = {
+  id: string;
+  label: string;
+  value: string;
+  helper: string;
+};
+
+type ForecastEntry = {
+  currencyCode: string;
+  currentBalanceMinor: number;
+  projectedBalanceMinor: number;
+  scheduledIncomeMinor: number;
+  scheduledExpenseMinor: number;
 };
 
 type DailyIncomeExpense = {
@@ -114,6 +151,7 @@ export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
   const [dailyIncomeExpense, setDailyIncomeExpense] = useState<
     DailyIncomeExpense[]
   >([]);
@@ -199,7 +237,7 @@ export default function DashboardPage() {
       // 2) Load wallets, categories, transactions, budgets + daily income/expense
       setLoadingData(true);
 
-      const [walletRes, categoryRes, txRes, budgetRes, dailyRes] =
+      const [walletRes, categoryRes, txRes, budgetRes, recurringRes, dailyRes] =
         await Promise.all([
           supabaseBrowserClient
             .from("wallets")
@@ -223,6 +261,11 @@ export default function DashboardPage() {
             .select("id, wallet_id, category_id, year, month, amount_minor")
             .order("year", { ascending: false })
             .order("month", { ascending: false })
+            .limit(200),
+          supabaseBrowserClient
+            .from("recurring_rules")
+            .select("id, wallet_id, category_id, type, amount_minor, currency_code, next_run_at, is_active")
+            .eq("is_active", true)
             .limit(200),
           supabaseBrowserClient
             .from("daily_income_expense")
@@ -253,6 +296,13 @@ export default function DashboardPage() {
         setErrorMsg(budgetRes.error.message);
         setLoadingData(false);
         return;
+      }
+      if (recurringRes.error) {
+        // Not fatal for the dashboard; forecast widgets will fall back gracefully.
+        console.error("Error loading recurring rules:", recurringRes.error);
+        setRecurringRules([]);
+      } else {
+        setRecurringRules(recurringRes.data as RecurringRule[]);
       }
 
       if (dailyRes.error) {
@@ -489,6 +539,201 @@ export default function DashboardPage() {
 
   const activeCategoryCount = categories.filter((c) => c.type === "expense").length;
 
+  // Dashboard Intelligence A.3: score, alerts, executive insights, and forecast
+  const incomeTotalMinor = monthIncomeEntries.reduce((sum, [, minor]) => sum + minor, 0);
+  const expenseTotalMinor = monthExpenseEntries.reduce((sum, [, minor]) => sum + minor, 0);
+  const netTotalMinor = monthNetEntries.reduce((sum, [, minor]) => sum + minor, 0);
+  const totalBalanceMinor = Object.values(totalsByCurrency).reduce(
+    (sum, minor) => sum + minor,
+    0
+  );
+
+  const budgetComplianceRatio =
+    totalBudgets === 0 ? 1 : budgetsOnTrack / Math.max(totalBudgets, 1);
+
+  const activityScore = selectedMonthActivityTransactions.length > 0 ? 15 : 5;
+  const cashFlowScore =
+    incomeTotalMinor === 0 && expenseTotalMinor === 0
+      ? 10
+      : netTotalMinor >= 0
+      ? 35
+      : incomeTotalMinor > 0
+      ? Math.max(5, Math.round(35 * (incomeTotalMinor / Math.max(expenseTotalMinor, 1))))
+      : 5;
+  const budgetScore =
+    totalBudgets === 0
+      ? 18
+      : Math.round(30 * budgetComplianceRatio) - budgetsOver * 4;
+  const balanceScore = totalBalanceMinor >= 0 ? 20 : 8;
+
+  const financialHealthScore = Math.max(
+    0,
+    Math.min(100, cashFlowScore + Math.max(0, budgetScore) + activityScore + balanceScore)
+  );
+
+  const financialHealthLabel =
+    financialHealthScore >= 85
+      ? "Excellent"
+      : financialHealthScore >= 70
+      ? "Good"
+      : financialHealthScore >= 50
+      ? "Watch"
+      : "Needs attention";
+
+  const selectedMonthStart = new Date(selectedYear, selectedMonth, 1);
+  const selectedMonthEnd = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999);
+  const now = new Date();
+  const forecastWindowStart =
+    selectedYear === now.getFullYear() && selectedMonth === now.getMonth()
+      ? now
+      : selectedMonthStart;
+
+  const scheduledRecurringThisMonth = recurringRules.filter((rule) => {
+    const nextRun = new Date(rule.next_run_at);
+    if (Number.isNaN(nextRun.getTime())) return false;
+    return nextRun >= forecastWindowStart && nextRun <= selectedMonthEnd;
+  });
+
+  const recurringIncomeByCurrency: Record<string, number> = {};
+  const recurringExpenseByCurrency: Record<string, number> = {};
+
+  for (const rule of scheduledRecurringThisMonth) {
+    if (rule.type === "income") {
+      recurringIncomeByCurrency[rule.currency_code] =
+        (recurringIncomeByCurrency[rule.currency_code] ?? 0) + rule.amount_minor;
+    } else {
+      recurringExpenseByCurrency[rule.currency_code] =
+        (recurringExpenseByCurrency[rule.currency_code] ?? 0) + rule.amount_minor;
+    }
+  }
+
+  const forecastCurrencies = Array.from(
+    new Set([
+      ...Object.keys(totalsByCurrency),
+      ...Object.keys(recurringIncomeByCurrency),
+      ...Object.keys(recurringExpenseByCurrency),
+    ])
+  ).sort();
+
+  const forecastEntries: ForecastEntry[] = forecastCurrencies.map((currencyCode) => {
+    const currentBalanceMinor = totalsByCurrency[currencyCode] ?? 0;
+    const scheduledIncomeMinor = recurringIncomeByCurrency[currencyCode] ?? 0;
+    const scheduledExpenseMinor = recurringExpenseByCurrency[currencyCode] ?? 0;
+
+    return {
+      currencyCode,
+      currentBalanceMinor,
+      scheduledIncomeMinor,
+      scheduledExpenseMinor,
+      projectedBalanceMinor:
+        currentBalanceMinor + scheduledIncomeMinor - scheduledExpenseMinor,
+    };
+  });
+
+  const selectedDate = new Date(selectedYear, selectedMonth, 1);
+  const monthLabel = selectedDate.toLocaleString("en", {
+    month: "long",
+    year: "numeric",
+  });
+
+  const smartAlerts: SmartAlert[] = [];
+
+  if (netTotalMinor < 0) {
+    smartAlerts.push({
+      id: "negative-cash-flow",
+      tone: "danger",
+      title: "Negative cash flow",
+      detail: `Expenses exceed income for ${monthLabel}. Review discretionary spending or add income entries.`,
+    });
+  } else if (incomeTotalMinor > 0 || expenseTotalMinor > 0) {
+    smartAlerts.push({
+      id: "positive-cash-flow",
+      tone: "good",
+      title: "Cash flow is stable",
+      detail: `Income is covering expenses for ${monthLabel}.`,
+    });
+  }
+
+  if (budgetsOver > 0) {
+    smartAlerts.push({
+      id: "budget-over",
+      tone: "danger",
+      title: "Budget exceeded",
+      detail: `${budgetsOver} ${budgetsOver === 1 ? "budget is" : "budgets are"} over the limit this month.`,
+    });
+  } else if (budgetsAtRisk > 0) {
+    smartAlerts.push({
+      id: "budget-risk",
+      tone: "watch",
+      title: "Budget pressure",
+      detail: `${budgetsAtRisk} ${budgetsAtRisk === 1 ? "budget is" : "budgets are"} approaching the limit.`,
+    });
+  } else if (totalBudgets > 0) {
+    smartAlerts.push({
+      id: "budgets-healthy",
+      tone: "good",
+      title: "Budgets are under control",
+      detail: "No active budgets are currently over the risk threshold.",
+    });
+  }
+
+  if (scheduledRecurringThisMonth.length > 0) {
+    smartAlerts.push({
+      id: "recurring-scheduled",
+      tone: "neutral",
+      title: "Recurring activity ahead",
+      detail: `${scheduledRecurringThisMonth.length} active recurring ${scheduledRecurringThisMonth.length === 1 ? "rule is" : "rules are"} scheduled before month-end.`,
+    });
+  }
+
+  if (smartAlerts.length === 0) {
+    smartAlerts.push({
+      id: "no-alerts",
+      tone: "neutral",
+      title: "No urgent alerts",
+      detail: "Add more transactions, budgets, and recurring rules to unlock deeper monitoring.",
+    });
+  }
+
+  const largestExpenseInsight = largestExpenseItem
+    ? `${largestExpenseItem.categoryName} — ${formatMinorToAmount(largestExpenseItem.amountMinor)} ${largestExpenseItem.currencyCode}`
+    : "No expense recorded";
+
+  const executiveInsights: ExecutiveInsight[] = [
+    {
+      id: "cash-flow",
+      label: "Cash flow",
+      value:
+        monthNetEntries.length > 0
+          ? monthNetEntries
+              .map(([currency, minor]) => `${formatMinorToAmount(minor)} ${currency}`)
+              .join(" · ")
+          : "0.00",
+      helper:
+        netTotalMinor >= 0
+          ? "Income is covering expenses in the selected month."
+          : "Expenses are higher than income in the selected month.",
+    },
+    {
+      id: "largest-expense",
+      label: "Largest expense",
+      value: largestExpenseInsight,
+      helper: "Highest single expense recorded in the selected month.",
+    },
+    {
+      id: "budget-position",
+      label: "Budget position",
+      value:
+        totalBudgets === 0
+          ? "No budgets"
+          : `${budgetsOnTrack} healthy · ${budgetsAtRisk} at risk · ${budgetsOver} over`,
+      helper:
+        totalBudgets === 0
+          ? "Create budgets to unlock compliance scoring."
+          : "Budget status based on selected-month actuals.",
+    },
+  ];
+
   // -------- Income vs expense trend for charts (with filters) --------
 
   type IncomeExpenseDailyPoint = {
@@ -653,12 +898,6 @@ export default function DashboardPage() {
     const parsed = Number(yearFilter);
     return Number.isFinite(parsed) ? parsed : new Date().getFullYear();
   })();
-
-  const selectedDate = new Date(selectedYear, selectedMonth, 1);
-  const monthLabel = selectedDate.toLocaleString("en", {
-    month: "long",
-    year: "numeric",
-  });
 
   const lastSecurityLabel = lastCheckAt
     ? `${daysAgoFromMs(lastCheckAt)} day(s) ago`
@@ -903,6 +1142,57 @@ export default function DashboardPage() {
                   budgetsAtRisk={budgetsAtRisk}
                   budgetsOver={budgetsOver}
                   riskThreshold={RISK_THRESHOLD}
+                  monthLabel={monthLabel}
+                />
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Intelligence A.3 */}
+        <section className="mb-10">
+          <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-3">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">
+                Decision Intelligence – {monthLabel}
+              </h2>
+              <p className="text-[11px] text-gray-400">
+                Score, alerts, executive guidance, and projected month-end position.
+              </p>
+            </div>
+          </div>
+
+          {loadingData ? (
+            <div className="grid gap-5 xl:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-48 w-full" rounded="2xl" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-5 xl:grid-cols-4">
+              <div className={CARD}>
+                <FinancialHealthScore
+                  score={financialHealthScore}
+                  label={financialHealthLabel}
+                  cashFlowMinor={netTotalMinor}
+                  budgetPressureCount={budgetsAtRisk + budgetsOver}
+                  activeBudgetsCount={totalBudgets}
+                  monthLabel={monthLabel}
+                />
+              </div>
+
+              <div className={CARD}>
+                <SmartAlertsPanel alerts={smartAlerts} />
+              </div>
+
+              <div className={CARD}>
+                <ExecutiveInsightsPanel insights={executiveInsights} />
+              </div>
+
+              <div className={CARD}>
+                <ForecastMonthEndBalance
+                  entries={forecastEntries}
+                  scheduledRulesCount={scheduledRecurringThisMonth.length}
                   monthLabel={monthLabel}
                 />
               </div>
