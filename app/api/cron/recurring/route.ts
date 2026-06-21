@@ -189,96 +189,168 @@ async function handler(req: NextRequest) {
       continue;
     }
 
-    const dueAtIso = new Date(rule.next_run_at).toISOString();
+    let currentRunAt = new Date(rule.next_run_at).toISOString();
+    let lastProcessedRunAt: string | null = null;
+    let runsHandledForRule = 0;
+    let ruleHadFailure = false;
 
-    const { data: existingTx, error: exErr } = await supabase
-      .from("transactions")
-      .select("id")
-      .eq("user_id", rule.user_id)
-      .eq("wallet_id", rule.wallet_id)
-      .eq("amount_minor", rule.amount_minor)
-      .eq("currency_code", rule.currency_code)
-      .eq("type", rule.type)
-      .eq("occurred_at", dueAtIso)
-      .maybeSingle();
+    // Safety guard: backfill enough missed periods for real outages while avoiding
+    // runaway loops if a rule has bad scheduling data.
+    const maxBackfillRunsPerRule = 60;
 
-    if (exErr) {
-      failedCount += 1;
-      console.error(
-        `[cron/recurring] Idempotency check failed for rule ${rule.id}:`,
-        exErr
-      );
-      await writeRunLog({
-        ruleId: rule.id,
-        userId: rule.user_id,
-        status: "failed",
-        details: `Idempotency check failed: ${exErr.message}`,
-      });
-      continue;
-    }
-
-    let transactionId: string | null = existingTx?.id ?? null;
-    let logStatus: RunLogStatus = existingTx?.id ? "skipped" : "success";
-    let logDetails = existingTx?.id
-      ? `Transaction already existed for scheduled run ${dueAtIso}. Rule advanced without creating a duplicate.`
-      : `Transaction created for scheduled run ${dueAtIso}.`;
-
-    if (!existingTx?.id) {
-      const { data: insertedTx, error: insertError } = await supabase
-        .from("transactions")
-        .insert({
-          user_id: rule.user_id,
-          wallet_id: rule.wallet_id,
-          category_id: rule.category_id,
-          amount_minor: rule.amount_minor,
-          currency_code: rule.currency_code,
-          type: rule.type,
-          description: rule.description,
-          occurred_at: dueAtIso,
-        })
-        .select("id")
-        .single();
-
-      if (insertError) {
+    while (new Date(currentRunAt).getTime() <= now.getTime()) {
+      if (runsHandledForRule >= maxBackfillRunsPerRule) {
         failedCount += 1;
+        ruleHadFailure = true;
+        await writeRunLog({
+          ruleId: rule.id,
+          userId: rule.user_id,
+          status: "failed",
+          details: `Backfill stopped after ${maxBackfillRunsPerRule} runs to prevent an unsafe cron loop. Current scheduled run: ${currentRunAt}.`,
+        });
+        break;
+      }
+
+      const dueAtIso = new Date(currentRunAt).toISOString();
+      const dueDateStr = dueAtIso.slice(0, 10);
+
+      if (rule.start_date && dueDateStr < rule.start_date) {
+        skippedCount += 1;
+        runsHandledForRule += 1;
+        lastProcessedRunAt = dueAtIso;
+
+        await writeRunLog({
+          ruleId: rule.id,
+          userId: rule.user_id,
+          status: "skipped",
+          details: `Scheduled run ${dueAtIso} skipped because it is before start date ${rule.start_date}.`,
+        });
+
+        currentRunAt = advanceNextRunAt(
+          currentRunAt,
+          rule.frequency,
+          rule.interval
+        );
+        continue;
+      }
+
+      if (rule.end_date && dueDateStr > rule.end_date) {
+        skippedCount += 1;
+        await writeRunLog({
+          ruleId: rule.id,
+          userId: rule.user_id,
+          status: "skipped",
+          details: `Backfill stopped at ${dueAtIso} because end date ${rule.end_date} has passed.`,
+        });
+        break;
+      }
+
+      const { data: existingTx, error: exErr } = await supabase
+        .from("transactions")
+        .select("id")
+        .eq("user_id", rule.user_id)
+        .eq("wallet_id", rule.wallet_id)
+        .eq("amount_minor", rule.amount_minor)
+        .eq("currency_code", rule.currency_code)
+        .eq("type", rule.type)
+        .eq("occurred_at", dueAtIso)
+        .maybeSingle();
+
+      if (exErr) {
+        failedCount += 1;
+        ruleHadFailure = true;
         console.error(
-          `[cron/recurring] Failed to create tx for rule ${rule.id}:`,
-          insertError
+          `[cron/recurring] Idempotency check failed for rule ${rule.id} at ${dueAtIso}:`,
+          exErr
         );
         await writeRunLog({
           ruleId: rule.id,
           userId: rule.user_id,
           status: "failed",
-          details: `Transaction insert failed: ${insertError.message}`,
+          details: `Idempotency check failed for scheduled run ${dueAtIso}: ${exErr.message}`,
         });
-        continue;
+        break;
       }
 
-      transactionId = insertedTx?.id ?? null;
-      createdCount += 1;
-    } else {
-      skippedCount += 1;
+      let transactionId: string | null = existingTx?.id ?? null;
+
+      if (existingTx?.id) {
+        skippedCount += 1;
+        await writeRunLog({
+          ruleId: rule.id,
+          userId: rule.user_id,
+          transactionId,
+          status: "skipped",
+          details: `Transaction already existed for scheduled run ${dueAtIso}. Rule advanced without creating a duplicate.`,
+        });
+      } else {
+        const { data: insertedTx, error: insertError } = await supabase
+          .from("transactions")
+          .insert({
+            user_id: rule.user_id,
+            wallet_id: rule.wallet_id,
+            category_id: rule.category_id,
+            amount_minor: rule.amount_minor,
+            currency_code: rule.currency_code,
+            type: rule.type,
+            description: rule.description,
+            occurred_at: dueAtIso,
+          })
+          .select("id")
+          .single();
+
+        if (insertError) {
+          failedCount += 1;
+          ruleHadFailure = true;
+          console.error(
+            `[cron/recurring] Failed to create tx for rule ${rule.id} at ${dueAtIso}:`,
+            insertError
+          );
+          await writeRunLog({
+            ruleId: rule.id,
+            userId: rule.user_id,
+            status: "failed",
+            details: `Transaction insert failed for scheduled run ${dueAtIso}: ${insertError.message}`,
+          });
+          break;
+        }
+
+        transactionId = insertedTx?.id ?? null;
+        createdCount += 1;
+
+        await writeRunLog({
+          ruleId: rule.id,
+          userId: rule.user_id,
+          transactionId,
+          status: "success",
+          details: `Backfilled recurring transaction for scheduled run ${dueAtIso}.`,
+        });
+      }
+
+      runsHandledForRule += 1;
+      lastProcessedRunAt = dueAtIso;
+      currentRunAt = advanceNextRunAt(
+        currentRunAt,
+        rule.frequency,
+        rule.interval
+      );
     }
 
-    const nextRunAt = advanceNextRunAt(
-      rule.next_run_at,
-      rule.frequency,
-      rule.interval
-    );
+    if (runsHandledForRule === 0) {
+      continue;
+    }
 
     const { error: updateError } = await supabase
       .from("recurring_rules")
       .update({
-        next_run_at: nextRunAt,
-        last_run_at: dueAtIso,
-        total_runs: (rule.total_runs ?? 0) + 1,
+        next_run_at: currentRunAt,
+        last_run_at: lastProcessedRunAt,
+        total_runs: (rule.total_runs ?? 0) + runsHandledForRule,
       })
       .eq("id", rule.id);
 
     if (updateError) {
       failedCount += 1;
-      logStatus = "failed";
-      logDetails = `Rule update failed after transaction handling: ${updateError.message}`;
       console.error(
         `[cron/recurring] Failed to update next_run_at for rule ${rule.id}:`,
         updateError
@@ -286,22 +358,22 @@ async function handler(req: NextRequest) {
       await writeRunLog({
         ruleId: rule.id,
         userId: rule.user_id,
-        transactionId,
-        status: logStatus,
-        details: logDetails,
+        status: "failed",
+        details: `Rule update failed after ${runsHandledForRule} handled run(s): ${updateError.message}`,
       });
       continue;
     }
 
     updatedCount += 1;
 
-    await writeRunLog({
-      ruleId: rule.id,
-      userId: rule.user_id,
-      transactionId,
-      status: logStatus,
-      details: logDetails,
-    });
+    if (runsHandledForRule > 1 && !ruleHadFailure) {
+      await writeRunLog({
+        ruleId: rule.id,
+        userId: rule.user_id,
+        status: "success",
+        details: `Backfill completed. ${runsHandledForRule} scheduled run(s) handled. Next run: ${currentRunAt}.`,
+      });
+    }
   }
 
   return NextResponse.json(
