@@ -7,27 +7,36 @@ type ExecutiveInsight = {
 
 type ExecutiveInsightsPanelProps = {
   insights: ExecutiveInsight[];
+  riskLevel?: string;
 };
 
 export default function ExecutiveInsightsPanel({
   insights,
+  riskLevel,
 }: ExecutiveInsightsPanelProps) {
   return (
     <div>
-      <div>
-        <h3 className="text-sm font-semibold tracking-tight">
-          Executive Insights
-        </h3>
-        <p className="mt-1 text-[11px] text-gray-400">
-          Short readout for quick decisions.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold tracking-tight">
+            Executive Insights
+          </h3>
+          <p className="mt-1 text-[11px] text-gray-400">
+            Short readout for quick decisions.
+          </p>
+        </div>
+        {riskLevel && (
+          <span className="rounded-full border border-gray-800 px-2 py-1 text-[10px] uppercase tracking-wide text-gray-300">
+            {riskLevel}
+          </span>
+        )}
       </div>
 
-      <div className="mt-5 space-y-3">
+      <div className="mt-5 grid gap-3">
         {insights.map((insight) => (
           <div
             key={insight.id}
-            className="rounded-2xl border border-gray-800 bg-black/30 p-3"
+            className="rounded-2xl border border-gray-800 bg-black/30 p-3 transition hover:bg-white/[0.03]"
           >
             <div className="text-[10px] uppercase tracking-wide text-gray-500">
               {insight.label}

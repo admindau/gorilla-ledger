@@ -1,14 +1,16 @@
 type FinancialHealthScoreProps = {
   score: number;
   label: string;
+  riskLevel?: string;
   cashFlowMinor: number;
   budgetPressureCount: number;
   activeBudgetsCount: number;
   monthLabel: string;
 };
 
-function clampScore(value: number) {
-  return Math.max(0, Math.min(100, Math.round(value)));
+function clampScore(score: number) {
+  if (!Number.isFinite(score)) return 0;
+  return Math.max(0, Math.min(100, Math.round(score)));
 }
 
 function formatMinor(minor: number) {
@@ -19,16 +21,17 @@ function formatMinor(minor: number) {
   })}`;
 }
 
-function scoreTone(score: number) {
-  if (score >= 85) return "Excellent";
-  if (score >= 70) return "Good";
-  if (score >= 50) return "Watch";
-  return "Needs attention";
+function ringTone(score: number, riskLevel?: string) {
+  if (riskLevel === "Critical" || score < 45) return "border-white/70 text-white";
+  if (riskLevel === "Warning" || score < 65) return "border-gray-500 text-gray-100";
+  if (riskLevel === "Watch" || score < 80) return "border-gray-700 text-gray-200";
+  return "border-gray-800 text-gray-300";
 }
 
 export default function FinancialHealthScore({
   score,
   label,
+  riskLevel,
   cashFlowMinor,
   budgetPressureCount,
   activeBudgetsCount,
@@ -37,7 +40,7 @@ export default function FinancialHealthScore({
   const safeScore = clampScore(score);
   const circumference = 2 * Math.PI * 44;
   const dash = (safeScore / 100) * circumference;
-  const tone = label || scoreTone(safeScore);
+  const tone = ringTone(safeScore, riskLevel);
 
   return (
     <div>
@@ -51,14 +54,14 @@ export default function FinancialHealthScore({
           </p>
         </div>
 
-        <span className="rounded-full border border-gray-800 px-2 py-1 text-[10px] uppercase tracking-wide text-gray-300">
-          {tone}
+        <span className={`rounded-full border px-2 py-1 text-[10px] uppercase tracking-wide ${tone}`}>
+          {riskLevel ?? label}
         </span>
       </div>
 
-      <div className="mt-5 flex items-center gap-5">
-        <div className="relative h-28 w-28 shrink-0">
-          <svg viewBox="0 0 100 100" className="h-28 w-28 -rotate-90">
+      <div className="mt-5 flex flex-col items-center gap-5 sm:flex-row sm:items-center">
+        <div className="relative h-32 w-32 shrink-0">
+          <svg viewBox="0 0 100 100" className="h-32 w-32 -rotate-90">
             <circle
               cx="50"
               cy="50"
@@ -76,20 +79,20 @@ export default function FinancialHealthScore({
               strokeWidth="8"
               strokeLinecap="round"
               strokeDasharray={`${dash} ${circumference - dash}`}
-              className="text-white"
+              className="text-white transition-all duration-500"
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <div className="text-3xl font-semibold tabular-nums text-white">
+            <div className="text-4xl font-semibold tabular-nums text-white">
               {safeScore}
             </div>
             <div className="text-[10px] uppercase tracking-wide text-gray-500">
-              / 100
+              {label}
             </div>
           </div>
         </div>
 
-        <div className="min-w-0 space-y-3 text-xs">
+        <div className="grid min-w-0 flex-1 gap-3 text-xs sm:grid-cols-1">
           <div className="rounded-2xl border border-gray-800 bg-black/30 p-3">
             <div className="text-[10px] uppercase tracking-wide text-gray-500">
               Cash flow
@@ -111,9 +114,11 @@ export default function FinancialHealthScore({
       </div>
 
       <p className="mt-5 text-xs leading-5 text-gray-400">
-        {safeScore >= 70
-          ? "Your selected month is currently in a manageable position."
-          : "This month needs closer attention. Review alerts, budgets, and upcoming recurring activity."}
+        {safeScore >= 80
+          ? "Strong position. Continue monitoring budgets and recurring commitments."
+          : safeScore >= 60
+          ? "Manageable position. Review alerts and protect your net cash flow."
+          : "This month needs closer attention. Prioritize cash flow, budgets, and upcoming recurring activity."}
       </p>
     </div>
   );

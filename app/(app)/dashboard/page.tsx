@@ -26,6 +26,8 @@ import FinancialHealthScore from "@/components/dashboard/FinancialHealthScore";
 import SmartAlertsPanel from "@/components/dashboard/SmartAlertsPanel";
 import ExecutiveInsightsPanel from "@/components/dashboard/ExecutiveInsightsPanel";
 import ForecastMonthEndBalance from "@/components/dashboard/ForecastMonthEndBalance";
+import ExecutiveHeroCard from "@/components/dashboard/ExecutiveHeroCard";
+import ExecutiveScorecardRow from "@/components/dashboard/ExecutiveScorecardRow";
 
 import Skeleton from "@/components/ui/Skeleton";
 
@@ -734,6 +736,78 @@ export default function DashboardPage() {
     },
   ];
 
+  // Dashboard Intelligence A.4: executive polish and prioritization
+  const alertSeverityRank: Record<SmartAlert["tone"], number> = {
+    neutral: 0,
+    good: 1,
+    watch: 2,
+    danger: 3,
+  };
+
+  const highestAlertRank = smartAlerts.reduce(
+    (rank, alert) => Math.max(rank, alertSeverityRank[alert.tone] ?? 0),
+    0
+  );
+
+  const criticalAlertsCount = smartAlerts.filter(
+    (alert) => alert.tone === "danger"
+  ).length;
+  const watchAlertsCount = smartAlerts.filter(
+    (alert) => alert.tone === "watch"
+  ).length;
+
+  const executiveRiskLevel =
+    criticalAlertsCount > 0 || financialHealthScore < 45
+      ? "Critical"
+      : highestAlertRank >= 2 || financialHealthScore < 65
+      ? "Warning"
+      : financialHealthScore < 80 || watchAlertsCount > 0
+      ? "Watch"
+      : "Healthy";
+
+  const forecastConfidence =
+    scheduledRecurringThisMonth.length >= 3 && selectedMonthActivityTransactions.length >= 5
+      ? "High"
+      : scheduledRecurringThisMonth.length > 0 || selectedMonthActivityTransactions.length >= 3
+      ? "Medium"
+      : "Low";
+
+  const executiveBalanceSummary =
+    Object.entries(totalsByCurrency).length > 0
+      ? Object.entries(totalsByCurrency)
+          .slice(0, 2)
+          .map(([currency, minor]) => `${formatMinorToAmount(minor)} ${currency}`)
+          .join(" · ")
+      : "No wallet balance yet";
+
+  const executiveNetFlowSummary =
+    monthNetEntries.length > 0
+      ? monthNetEntries
+          .slice(0, 2)
+          .map(([currency, minor]) => `${formatMinorToAmount(minor)} ${currency}`)
+          .join(" · ")
+      : "0.00";
+
+  const forecastSummary =
+    forecastEntries.length > 0
+      ? forecastEntries
+          .slice(0, 2)
+          .map(
+            (entry) =>
+              `${formatMinorToAmount(entry.projectedBalanceMinor)} ${entry.currencyCode}`
+          )
+          .join(" · ")
+      : "Create a wallet to unlock forecast";
+
+  const executiveHeroMessage =
+    executiveRiskLevel === "Critical"
+      ? "Immediate review recommended. Cash flow or budget pressure needs attention."
+      : executiveRiskLevel === "Warning"
+      ? "Review the highlighted alerts before month-end to stay in control."
+      : executiveRiskLevel === "Watch"
+      ? "Your position is manageable, with a few items worth monitoring."
+      : "Your financial position is stable for the selected month.";
+
   // -------- Income vs expense trend for charts (with filters) --------
 
   type IncomeExpenseDailyPoint = {
@@ -1071,11 +1145,51 @@ export default function DashboardPage() {
 
         {errorMsg && <p className="mb-6 text-red-400 text-sm">{errorMsg}</p>}
 
-        {/* Executive */}
-        <div className="mt-2 mb-4">
-          <div className={SECTION_KICKER}>Executive</div>
-          <div className={`${SECTION_DIVIDER} mt-2`} />
-        </div>
+        {/* Executive command center */}
+        <section className="mb-8">
+          {loadingData ? (
+            <div className={CARD}>
+              <Skeleton className="h-64 w-full" rounded="2xl" />
+            </div>
+          ) : (
+            <ExecutiveHeroCard
+              monthLabel={monthLabel}
+              healthScore={financialHealthScore}
+              healthLabel={financialHealthLabel}
+              riskLevel={executiveRiskLevel}
+              message={executiveHeroMessage}
+              balanceSummary={executiveBalanceSummary}
+              netFlowSummary={executiveNetFlowSummary}
+              forecastSummary={forecastSummary}
+              alertsCount={smartAlerts.length}
+              criticalAlertsCount={criticalAlertsCount}
+              forecastConfidence={forecastConfidence}
+            />
+          )}
+        </section>
+
+        {/* Executive scorecard */}
+        <section className="mb-8">
+          {loadingData ? (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-28 w-full" rounded="2xl" />
+              ))}
+            </div>
+          ) : (
+            <ExecutiveScorecardRow
+              healthScore={financialHealthScore}
+              riskLevel={executiveRiskLevel}
+              forecastConfidence={forecastConfidence}
+              forecastSummary={forecastSummary}
+              budgetsOnTrack={budgetsOnTrack}
+              budgetsAtRisk={budgetsAtRisk}
+              budgetsOver={budgetsOver}
+              alertsCount={smartAlerts.length}
+              criticalAlertsCount={criticalAlertsCount}
+            />
+          )}
+        </section>
 
         {/* Executive KPI cards */}
         <section className="mb-8">
@@ -1149,15 +1263,15 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Intelligence A.3 */}
+        {/* Intelligence */}
         <section className="mb-10">
           <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-3">
             <div>
               <h2 className="text-lg font-semibold tracking-tight">
-                Decision Intelligence – {monthLabel}
+                Gorilla Intelligence™ – {monthLabel}
               </h2>
               <p className="text-[11px] text-gray-400">
-                Score, alerts, executive guidance, and projected month-end position.
+                Alerts, executive guidance, and projected month-end position.
               </p>
             </div>
           </div>
@@ -1174,6 +1288,7 @@ export default function DashboardPage() {
                 <FinancialHealthScore
                   score={financialHealthScore}
                   label={financialHealthLabel}
+                  riskLevel={executiveRiskLevel}
                   cashFlowMinor={netTotalMinor}
                   budgetPressureCount={budgetsAtRisk + budgetsOver}
                   activeBudgetsCount={totalBudgets}
@@ -1182,11 +1297,11 @@ export default function DashboardPage() {
               </div>
 
               <div className={CARD}>
-                <SmartAlertsPanel alerts={smartAlerts} />
+                <SmartAlertsPanel alerts={smartAlerts} riskLevel={executiveRiskLevel} />
               </div>
 
               <div className={CARD}>
-                <ExecutiveInsightsPanel insights={executiveInsights} />
+                <ExecutiveInsightsPanel insights={executiveInsights} riskLevel={executiveRiskLevel} />
               </div>
 
               <div className={CARD}>
@@ -1194,6 +1309,7 @@ export default function DashboardPage() {
                   entries={forecastEntries}
                   scheduledRulesCount={scheduledRecurringThisMonth.length}
                   monthLabel={monthLabel}
+                  confidence={forecastConfidence}
                 />
               </div>
             </div>
