@@ -17,7 +17,7 @@ type RecurringRule = {
   type: string;
   description: string | null;
 
-  frequency: "daily" | "weekly" | "monthly";
+  frequency: "daily" | "weekly" | "monthly" | "yearly";
   interval: number | null;
   day_of_month: number | null;
   day_of_week: number | null;
@@ -27,6 +27,8 @@ type RecurringRule = {
 
   next_run_at: string; // timestamptz
   is_active: boolean;
+  last_run_at: string | null;
+  total_runs: number;
 
   created_at: string;
   updated_at: string;
@@ -79,8 +81,11 @@ function advanceNextRunAt(
       d.setUTCDate(d.getUTCDate() + step * 7);
       break;
     case "monthly":
-    default:
       d.setUTCMonth(d.getUTCMonth() + step);
+      break;
+    case "yearly":
+    default:
+      d.setUTCFullYear(d.getUTCFullYear() + step);
       break;
   }
 
@@ -189,7 +194,11 @@ async function handler(req: NextRequest) {
 
     const { error: updateError } = await supabase
       .from("recurring_rules")
-      .update({ next_run_at: nextRunAt })
+      .update({
+        next_run_at: nextRunAt,
+        last_run_at: dueAtIso,
+        total_runs: (rule.total_runs ?? 0) + 1,
+      })
       .eq("id", rule.id);
 
     if (updateError) {

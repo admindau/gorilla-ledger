@@ -10,6 +10,7 @@ export async function createRecurringRule(formData: FormData) {
   const amountStr = formData.get("amount")?.toString() || "";
   const firstRunDate = formData.get("firstRunDate")?.toString() || "";
   const description = formData.get("description")?.toString() || "";
+  const frequencyRaw = formData.get("frequency")?.toString() || "monthly";
 
   if (!walletId || !categoryComposite || !amountStr || !firstRunDate) {
     return { success: false, error: "Missing required fields." };
@@ -35,6 +36,10 @@ export async function createRecurringRule(formData: FormData) {
   }
 
   const dayOfMonth = firstDate.getUTCDate();
+  const dayOfWeek = firstDate.getUTCDay();
+  const frequency = ["daily", "weekly", "monthly", "yearly"].includes(frequencyRaw)
+    ? frequencyRaw
+    : "monthly";
 
   const supabase = await createServerSupabaseClient();
 
@@ -44,9 +49,10 @@ export async function createRecurringRule(formData: FormData) {
     type,
     amount_minor: amountMinor,
     currency_code: currencyCode,
-    frequency: "monthly",
+    frequency,
     interval: 1,
-    day_of_month: dayOfMonth,
+    day_of_month: frequency === "monthly" || frequency === "yearly" ? dayOfMonth : null,
+    day_of_week: frequency === "weekly" ? dayOfWeek : null,
     start_date: firstRunDate,
     next_run_at: firstRunDate,
     description,

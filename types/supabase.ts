@@ -488,8 +488,10 @@ export type Database = {
           id: string
           interval: number
           is_active: boolean
+          last_run_at: string | null
           next_run_at: string
           start_date: string
+          total_runs: number
           type: string
           updated_at: string
           user_id: string
@@ -508,8 +510,10 @@ export type Database = {
           id?: string
           interval?: number
           is_active?: boolean
+          last_run_at?: string | null
           next_run_at: string
           start_date: string
+          total_runs?: number
           type: string
           updated_at?: string
           user_id: string
@@ -528,8 +532,10 @@ export type Database = {
           id?: string
           interval?: number
           is_active?: boolean
+          last_run_at?: string | null
           next_run_at?: string
           start_date?: string
+          total_runs?: number
           type?: string
           updated_at?: string
           user_id?: string
@@ -568,6 +574,7 @@ export type Database = {
           description: string | null
           id: string
           occurred_at: string
+          total_runs: number
           type: string
           updated_at: string
           user_id: string
@@ -581,6 +588,7 @@ export type Database = {
           description?: string | null
           id?: string
           occurred_at?: string
+          total_runs?: number
           type: string
           updated_at?: string
           user_id: string
@@ -594,6 +602,7 @@ export type Database = {
           description?: string | null
           id?: string
           occurred_at?: string
+          total_runs?: number
           type?: string
           updated_at?: string
           user_id?: string
@@ -630,6 +639,7 @@ export type Database = {
           id: string
           name: string
           starting_balance_minor: number
+          total_runs: number
           type: string
           updated_at: string
           user_id: string
@@ -640,6 +650,7 @@ export type Database = {
           id?: string
           name: string
           starting_balance_minor?: number
+          total_runs?: number
           type?: string
           updated_at?: string
           user_id: string
@@ -650,6 +661,7 @@ export type Database = {
           id?: string
           name?: string
           starting_balance_minor?: number
+          total_runs?: number
           type?: string
           updated_at?: string
           user_id?: string

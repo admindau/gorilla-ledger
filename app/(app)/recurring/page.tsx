@@ -17,6 +17,8 @@ type Category = {
   type: "income" | "expense";
 };
 
+type RecurringFrequency = "daily" | "weekly" | "monthly" | "yearly";
+
 type RecurringRule = {
   id: string;
   user_id: string;
@@ -25,9 +27,15 @@ type RecurringRule = {
   description: string | null;
   amount_minor: number;
   currency_code: string;
+  type: "income" | "expense" | string;
+  frequency: RecurringFrequency | string;
+  interval: number | null;
   day_of_month: number | null;
+  day_of_week: number | null;
   start_date: string | null;
   next_run_at: string | null;
+  last_run_at: string | null;
+  total_runs: number | null;
   is_active: boolean;
 };
 
@@ -48,6 +56,7 @@ export default function RecurringPage() {
   const [categoryId, setCategoryId] = useState("");
   const [amount, setAmount] = useState("");
   const [firstRunDate, setFirstRunDate] = useState("");
+  const [frequency, setFrequency] = useState<RecurringFrequency>("monthly");
   const [description, setDescription] = useState("");
 
   const now = useMemo(() => new Date(), []);
@@ -97,7 +106,7 @@ export default function RecurringPage() {
           supabase
             .from("recurring_rules")
             .select(
-              "id,user_id,wallet_id,category_id,description,amount_minor,currency_code,day_of_month,start_date,next_run_at,is_active"
+              "id,user_id,wallet_id,category_id,description,amount_minor,currency_code,type,frequency,interval,day_of_month,day_of_week,start_date,next_run_at,last_run_at,total_runs,is_active"
             )
             .order("created_at", { ascending: true }),
         ]);
@@ -165,7 +174,8 @@ export default function RecurringPage() {
     const type: "income" | "expense" = selectedCategory?.type ?? "expense";
 
     const firstDate = new Date(firstRunDate);
-    const dayOfMonth = firstDate.getDate();
+    const dayOfMonth = firstDate.getUTCDate();
+    const dayOfWeek = firstDate.getUTCDay();
     const nextRunAt = firstDate.toISOString(); // timestamptz-safe
 
     setSaving(true);
@@ -177,9 +187,10 @@ export default function RecurringPage() {
       type, // 🔑 satisfy recurring_rules_type_check
       amount_minor: amountMinor,
       currency_code: currencyCode,
-      frequency: "monthly",
+      frequency,
       interval: 1,
-      day_of_month: dayOfMonth,
+      day_of_month: frequency === "monthly" || frequency === "yearly" ? dayOfMonth : null,
+      day_of_week: frequency === "weekly" ? dayOfWeek : null,
       start_date: firstRunDate,
       next_run_at: nextRunAt,
       description: description || null,
@@ -197,12 +208,13 @@ export default function RecurringPage() {
     showToast("Recurring rule created.", "success");
     setAmount("");
     setDescription("");
+    setFrequency("monthly");
 
     // reload rules from base table
     const { data: r, error: rErr } = await supabase
       .from("recurring_rules")
       .select(
-        "id,user_id,wallet_id,category_id,description,amount_minor,currency_code,day_of_month,start_date,next_run_at,is_active"
+        "id,user_id,wallet_id,category_id,description,amount_minor,currency_code,type,frequency,interval,day_of_month,day_of_week,start_date,next_run_at,last_run_at,total_runs,is_active"
       )
       .order("created_at", { ascending: true });
 
@@ -266,6 +278,45 @@ export default function RecurringPage() {
 
     showToast("Recurring rule deleted.", "success");
     setRules((prev) => prev.filter((r) => r.id !== rule.id));
+  }
+
+
+  function formatDateTime(value: string | null) {
+    if (!value) return "—";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  function formatFrequency(rule: RecurringRule) {
+    const every = rule.interval && rule.interval > 1 ? `Every ${rule.interval}` : "Every";
+
+    switch (rule.frequency) {
+      case "daily":
+        return `${every} day${rule.interval && rule.interval > 1 ? "s" : ""}`;
+      case "weekly":
+        return `${every} week${rule.interval && rule.interval > 1 ? "s" : ""}`;
+      case "yearly":
+        return `${every} year${rule.interval && rule.interval > 1 ? "s" : ""}`;
+      case "monthly":
+      default:
+        return `${every} month${rule.interval && rule.interval > 1 ? "s" : ""}`;
+    }
+  }
+
+  function formatSchedule(rule: RecurringRule) {
+    if (rule.frequency === "daily") return "Runs daily";
+    if (rule.frequency === "weekly") {
+      return `Runs weekly${rule.day_of_week != null ? ` on day ${rule.day_of_week}` : ""}`;
+    }
+    if (rule.frequency === "yearly") {
+      return `Runs yearly${rule.day_of_month != null ? ` on day ${rule.day_of_month}` : ""}`;
+    }
+    return `Runs monthly${rule.day_of_month != null ? ` on day ${rule.day_of_month}` : ""}`;
   }
 
   const NavLink = ({
@@ -356,9 +407,7 @@ export default function RecurringPage() {
             Recurring Rules – {monthName} {year}
           </h1>
           <p className="text-xs text-gray-400 mb-6">
-            Define automatic monthly transactions like salary, rent, and
-            subscriptions. Gorilla Ledger will materialize them using the cron
-            engine we wired up.
+            Define automatic transactions like salary, rent, subscriptions, and annual renewals. Gorilla Ledger tracks next run, last run, total runs, and active status.
           </p>
 
           <form
@@ -436,6 +485,23 @@ export default function RecurringPage() {
                   required
                 />
               </div>
+
+              <div>
+                <label className="block mb-1 text-xs text-gray-400">
+                  Frequency
+                </label>
+                <select
+                  value={frequency}
+                  onChange={(e) => setFrequency(e.target.value as RecurringFrequency)}
+                  className="w-full bg-black border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-white"
+                  required
+                >
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+              </div>
             </div>
 
             <div>
@@ -482,24 +548,51 @@ export default function RecurringPage() {
                   return (
                     <div
                       key={rule.id}
-                      className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 border border-gray-800 rounded px-3 py-2"
+                      className="flex flex-col gap-3 rounded-lg border border-gray-800 bg-black/30 px-3 py-3 md:flex-row md:items-start md:justify-between"
                     >
-                      <div>
-                        <p className="text-xs font-semibold">
-                          {rule.description || category?.name || "Recurring rule"}
-                        </p>
-                        <p className="text-[11px] text-gray-400">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-xs font-semibold">
+                            {rule.description || category?.name || "Recurring rule"}
+                          </p>
+                          <span className="rounded-full border border-gray-700 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-gray-300">
+                            {formatFrequency(rule)}
+                          </span>
+                          <span className="rounded-full border border-gray-800 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-gray-400">
+                            {rule.type}
+                          </span>
+                        </div>
+
+                        <p className="mt-1 text-[11px] text-gray-400">
                           {wallet
                             ? `${wallet.name} • ${wallet.currency_code}`
                             : rule.currency_code}
                           {" • "}
-                          Every month on day {rule.day_of_month ?? "?"} • Next
-                          run:{" "}
-                          {rule.next_run_at
-                            ? new Date(rule.next_run_at).toLocaleDateString()
-                            : "—"}{" "}
-                          • Amount: {amt.toLocaleString()} {rule.currency_code}
+                          {category?.name ?? "Uncategorized"}
+                          {" • "}
+                          {formatSchedule(rule)}
+                          {" • "}
+                          Amount: {amt.toLocaleString()} {rule.currency_code}
                         </p>
+
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
+                          <div className="rounded-md border border-gray-900 bg-black/50 px-2 py-1.5">
+                            <p className="text-[10px] uppercase tracking-[0.16em] text-gray-500">Last run</p>
+                            <p className="mt-1 text-gray-200">{formatDateTime(rule.last_run_at)}</p>
+                          </div>
+                          <div className="rounded-md border border-gray-900 bg-black/50 px-2 py-1.5">
+                            <p className="text-[10px] uppercase tracking-[0.16em] text-gray-500">Next run</p>
+                            <p className="mt-1 text-gray-200">{formatDateTime(rule.next_run_at)}</p>
+                          </div>
+                          <div className="rounded-md border border-gray-900 bg-black/50 px-2 py-1.5">
+                            <p className="text-[10px] uppercase tracking-[0.16em] text-gray-500">Total runs</p>
+                            <p className="mt-1 text-gray-200">{rule.total_runs ?? 0}</p>
+                          </div>
+                          <div className="rounded-md border border-gray-900 bg-black/50 px-2 py-1.5">
+                            <p className="text-[10px] uppercase tracking-[0.16em] text-gray-500">Status</p>
+                            <p className="mt-1 text-gray-200">{rule.is_active ? "Active" : "Paused"}</p>
+                          </div>
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-2 text-[11px]">
