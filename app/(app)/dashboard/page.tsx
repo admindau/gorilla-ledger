@@ -18,6 +18,10 @@ import YearlyIncomeExpenseBarChart from "@/components/dashboard/YearlyIncomeExpe
 import ExecutiveKpiCards from "@/components/dashboard/ExecutiveKpiCards";
 import SpendingTrendChart from "@/components/dashboard/SpendingTrendChart";
 import FinancialHealthSummary from "@/components/dashboard/FinancialHealthSummary";
+import QuickStatsRow from "@/components/dashboard/QuickStatsRow";
+import RecentTransactionsWidget from "@/components/dashboard/RecentTransactionsWidget";
+import LargestExpenseWidget from "@/components/dashboard/LargestExpenseWidget";
+import BudgetHealthWidget from "@/components/dashboard/BudgetHealthWidget";
 
 import Skeleton from "@/components/ui/Skeleton";
 
@@ -435,6 +439,56 @@ export default function DashboardPage() {
       ? totalBudgets - budgetsAtRisk - budgetsOver
       : 0;
 
+
+  // Dashboard Intelligence A.2: activity snapshot widgets
+  const selectedMonthActivityTransactions = transactions.filter((tx) => {
+    if (!isSelectedMonth(tx.occurred_at)) return false;
+
+    const category = tx.category_id ? categoryMap[tx.category_id] : null;
+    if (isInternalTransferCategory(category)) return false;
+
+    return true;
+  });
+
+  const recentTransactions = selectedMonthActivityTransactions
+    .slice()
+    .sort(
+      (a, b) =>
+        new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime()
+    )
+    .slice(0, 5)
+    .map((tx) => ({
+      id: tx.id,
+      type: tx.type,
+      amountMinor: tx.amount_minor,
+      currencyCode: tx.currency_code,
+      occurredAt: tx.occurred_at,
+      categoryName: tx.category_id
+        ? categoryMap[tx.category_id]?.name ?? "Uncategorized"
+        : "Uncategorized",
+      walletName: walletMap[tx.wallet_id]?.name ?? "Unknown wallet",
+    }));
+
+  const largestExpense = selectedMonthActivityTransactions
+    .filter((tx) => tx.type === "expense")
+    .slice()
+    .sort((a, b) => b.amount_minor - a.amount_minor)[0];
+
+  const largestExpenseItem = largestExpense
+    ? {
+        id: largestExpense.id,
+        amountMinor: largestExpense.amount_minor,
+        currencyCode: largestExpense.currency_code,
+        occurredAt: largestExpense.occurred_at,
+        categoryName: largestExpense.category_id
+          ? categoryMap[largestExpense.category_id]?.name ?? "Uncategorized"
+          : "Uncategorized",
+        walletName: walletMap[largestExpense.wallet_id]?.name ?? "Unknown wallet",
+      }
+    : null;
+
+  const activeCategoryCount = categories.filter((c) => c.type === "expense").length;
+
   // -------- Income vs expense trend for charts (with filters) --------
 
   type IncomeExpenseDailyPoint = {
@@ -795,6 +849,65 @@ export default function DashboardPage() {
             netEntries={monthNetEntries}
             monthLabel={monthLabel}
           />
+        </section>
+
+        {/* Activity snapshot */}
+        <section className="mb-10">
+          <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-3">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">
+                Activity Snapshot – {monthLabel}
+              </h2>
+              <p className="text-[11px] text-gray-400">
+                Fast operational view of wallets, transactions, budgets, and recent movement.
+              </p>
+            </div>
+          </div>
+
+          {loadingData ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-28 w-full" rounded="2xl" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-5">
+              <QuickStatsRow
+                walletsCount={wallets.length}
+                monthTransactionsCount={selectedMonthActivityTransactions.length}
+                categoriesCount={activeCategoryCount}
+                activeBudgetsCount={totalBudgets}
+              />
+
+              <div className="grid gap-5 xl:grid-cols-3">
+                <div className={CARD}>
+                  <LargestExpenseWidget
+                    item={largestExpenseItem}
+                    monthLabel={monthLabel}
+                  />
+                </div>
+
+                <div className={`${CARD} xl:col-span-2`}>
+                  <RecentTransactionsWidget
+                    transactions={recentTransactions}
+                    monthLabel={monthLabel}
+                  />
+                </div>
+              </div>
+
+              <div className={CARD}>
+                <BudgetHealthWidget
+                  summaries={budgetSummaries}
+                  totalBudgets={totalBudgets}
+                  budgetsOnTrack={budgetsOnTrack}
+                  budgetsAtRisk={budgetsAtRisk}
+                  budgetsOver={budgetsOver}
+                  riskThreshold={RISK_THRESHOLD}
+                  monthLabel={monthLabel}
+                />
+              </div>
+            </div>
+          )}
         </section>
 
         {/* Spending trend */}
