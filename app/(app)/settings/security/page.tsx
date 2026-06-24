@@ -441,7 +441,7 @@ export default function SecuritySettingsPage() {
                 type="button"
                 onClick={handleLogout}
                 disabled={signingOut}
-                className="px-3 py-1.5 rounded-md border border-gray-700 text-xs text-gray-200 hover:bg-white/5 transition disabled:opacity-60"
+                className="gl-btn gl-btn-secondary gl-btn-sm transition disabled:opacity-60"
               >
                 {signingOut ? "Logging out…" : "Logout"}
               </button>
@@ -479,7 +479,7 @@ export default function SecuritySettingsPage() {
 
       {/* ========================= Page Content ========================= */}
       <main className="flex items-center justify-center px-4 py-10">
-        <div className="w-full max-w-xl border border-gray-800 rounded-lg p-6 bg-black/60">
+        <div className="gl-card w-full max-w-xl p-6">
           {/* ========================= Header ========================= */}
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -550,7 +550,7 @@ export default function SecuritySettingsPage() {
                         type="button"
                         onClick={startEnroll}
                         disabled={loading || booting}
-                        className="bg-white text-black px-4 py-2 rounded text-sm font-semibold hover:bg-gray-200 disabled:opacity-60"
+                        className="gl-btn gl-btn-primary gl-btn-md"
                       >
                         Add backup factor
                       </button>
@@ -570,7 +570,7 @@ export default function SecuritySettingsPage() {
                     type="button"
                     onClick={startEnroll}
                     disabled={loading || booting}
-                    className="bg-white text-black px-4 py-2 rounded text-sm font-semibold hover:bg-gray-200 disabled:opacity-60"
+                    className="gl-btn gl-btn-primary gl-btn-md"
                   >
                     Enable
                   </button>
@@ -617,7 +617,7 @@ export default function SecuritySettingsPage() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full bg-white text-black px-4 py-2 rounded text-sm font-semibold hover:bg-gray-200 disabled:opacity-60"
+                      className="w-full gl-btn gl-btn-primary gl-btn-md"
                     >
                       Verify & enable
                     </button>

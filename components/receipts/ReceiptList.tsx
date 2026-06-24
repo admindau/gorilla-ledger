@@ -119,7 +119,7 @@ export default function ReceiptList({ transactionId }: Props) {
       <button
         type="button"
         onClick={handleToggle}
-        className="px-2 py-1 rounded border border-gray-700 bg-gray-900 hover:bg-gray-800 transition text-[11px]"
+        className="gl-btn gl-btn-secondary gl-btn-sm text-[11px]"
       >
         {opened ? "Hide receipts" : "Receipts"}
       </button>
@@ -148,14 +148,14 @@ export default function ReceiptList({ transactionId }: Props) {
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      className="px-2 py-1 rounded border border-gray-700 bg-gray-900 hover:bg-gray-800 transition text-[11px]"
+                      className="gl-btn gl-btn-secondary gl-btn-sm text-[11px]"
                       onClick={() => openReceipt(r.id)}
                     >
                       Open
                     </button>
                     <button
                       type="button"
-                      className="px-2 py-1 rounded border border-red-500 text-red-300 bg-gray-900 hover:bg-gray-900/70 transition text-[11px]"
+                      className="gl-btn gl-btn-danger gl-btn-sm text-[11px]"
                       onClick={() => deleteReceipt(r.id)}
                     >
                       Delete
@@ -170,7 +170,7 @@ export default function ReceiptList({ transactionId }: Props) {
             <button
               type="button"
               onClick={load}
-              className="px-3 py-2 rounded border border-gray-700 text-xs bg-gray-900 hover:bg-gray-800 transition"
+              className="gl-btn gl-btn-secondary gl-btn-sm"
             >
               Refresh
             </button>

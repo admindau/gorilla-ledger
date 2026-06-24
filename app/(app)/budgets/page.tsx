@@ -410,7 +410,7 @@ export default function BudgetsPage() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="px-3 py-1.5 rounded-md border border-gray-700 text-xs text-gray-200 hover:bg-white/5"
+                className="gl-btn gl-btn-secondary gl-btn-sm"
               >
                 Logout
               </button>
@@ -461,7 +461,7 @@ export default function BudgetsPage() {
             <label className="block text-xs mb-1">Year</label>
             <input
               type="number"
-              className="w-24 p-1 rounded bg-gray-900 border border-gray-700"
+              className="gl-input w-24 py-1"
               value={year}
               onChange={(e) => setYear(Number(e.target.value) || year)}
             />
@@ -469,7 +469,7 @@ export default function BudgetsPage() {
           <div>
             <label className="block text-xs mb-1">Month</label>
             <select
-              className="w-32 p-1 rounded bg-gray-900 border border-gray-700"
+              className="gl-input w-32 py-1"
               value={month}
               onChange={(e) => setMonth(Number(e.target.value))}
             >
@@ -492,7 +492,7 @@ export default function BudgetsPage() {
           </div>
         </section>
 
-        <section className="mb-8 border border-gray-800 rounded p-4">
+        <section className="gl-card mb-8 p-4">
           <h2 className="text-lg font-semibold mb-3">Add Budget</h2>
 
           {wallets.length === 0 || categories.length === 0 ? (
@@ -504,7 +504,7 @@ export default function BudgetsPage() {
               <div>
                 <label className="block text-sm mb-1">Wallet</label>
                 <select
-                  className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+                  className="gl-input"
                   value={walletId}
                   onChange={(e) => setWalletId(e.target.value)}
                 >
@@ -519,7 +519,7 @@ export default function BudgetsPage() {
               <div>
                 <label className="block text-sm mb-1">Category</label>
                 <select
-                  className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+                  className="gl-input"
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
                 >
@@ -535,7 +535,7 @@ export default function BudgetsPage() {
                 <label className="block text-sm mb-1">Budget Amount</label>
                 <input
                   type="text"
-                  className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+                  className="gl-input"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                 />
@@ -545,7 +545,7 @@ export default function BudgetsPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-2 rounded bg-white text-black font-semibold"
+                  className="gl-btn gl-btn-primary gl-btn-md"
                 >
                   {saving ? "Saving..." : "Save Budget"}
                 </button>
@@ -562,7 +562,7 @@ export default function BudgetsPage() {
           ) : budgetsForPeriod.length === 0 ? (
             <p className="text-gray-500 text-sm">You have no budgets set for this period yet.</p>
           ) : (
-            <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm">
+            <div className="gl-list-shell text-sm">
               {budgetsForPeriod.map((b) => {
                 const wallet = b.wallet_id ? walletMap[b.wallet_id] : null;
                 const category = categoryMap[b.category_id];
@@ -592,7 +592,7 @@ export default function BudgetsPage() {
                             type="button"
                             onClick={() => beginEdit(b)}
                             disabled={isBusy}
-                            className="px-3 py-1.5 rounded border border-gray-700 text-sm text-gray-200"
+                            className="gl-btn gl-btn-secondary gl-btn-sm"
                           >
                             Edit
                           </button>
@@ -600,7 +600,7 @@ export default function BudgetsPage() {
                             type="button"
                             onClick={() => handleDeleteBudget(b)}
                             disabled={isBusy}
-                            className="px-3 py-1.5 rounded border border-red-900 text-sm text-red-300"
+                            className="gl-btn gl-btn-danger gl-btn-sm"
                           >
                             {isBusy ? "Working..." : "Delete"}
                           </button>
@@ -616,7 +616,7 @@ export default function BudgetsPage() {
                           <label className="block text-xs mb-1 text-gray-400">Amount</label>
                           <input
                             type="text"
-                            className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+                            className="gl-input"
                             value={editAmount}
                             onChange={(e) => setEditAmount(e.target.value)}
                           />
@@ -627,7 +627,7 @@ export default function BudgetsPage() {
                             type="button"
                             onClick={() => handleSaveEdit(b)}
                             disabled={isBusy}
-                            className="px-3 py-2 rounded bg-white text-black font-semibold"
+                            className="gl-btn gl-btn-primary gl-btn-sm"
                           >
                             {isBusy ? "Saving..." : "Save"}
                           </button>
@@ -635,7 +635,7 @@ export default function BudgetsPage() {
                             type="button"
                             onClick={cancelEdit}
                             disabled={isBusy}
-                            className="px-3 py-2 rounded border border-gray-700 text-gray-200"
+                            className="gl-btn gl-btn-secondary gl-btn-sm"
                           >
                             Cancel
                           </button>

@@ -52,7 +52,7 @@ export default function ResetPasswordRequestPage() {
 
   return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
-      <div className="w-full max-w-md border border-gray-800 rounded-lg p-6 bg-black/60">
+      <div className="gl-card w-full max-w-md p-6">
         <h1 className="text-2xl font-semibold mb-1 text-center">
           Reset your password
         </h1>
@@ -80,7 +80,7 @@ export default function ResetPasswordRequestPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-black border border-gray-700 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-white"
+              className="gl-input"
               placeholder="you@example.com"
             />
           </div>
@@ -88,7 +88,7 @@ export default function ResetPasswordRequestPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-2 bg-white text-black py-2 rounded font-semibold text-sm hover:bg-gray-200 disabled:opacity-60"
+            className="gl-btn gl-btn-primary gl-btn-md w-full mt-2"
           >
             {loading ? "Sending..." : "Send reset link"}
           </button>

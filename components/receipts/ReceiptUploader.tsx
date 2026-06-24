@@ -92,7 +92,7 @@ export default function ReceiptUploader({
         <div className="flex items-center justify-between gap-3">
           <div className="text-xs text-gray-300">{countLabel}</div>
 
-          <label className="px-3 py-2 rounded bg-white text-black text-xs font-semibold hover:bg-gray-200 transition cursor-pointer">
+          <label className="gl-btn gl-btn-primary gl-btn-sm cursor-pointer">
             Upload files
             <input
               type="file"
@@ -118,7 +118,7 @@ export default function ReceiptUploader({
                 </div>
                 <button
                   type="button"
-                  className="px-2 py-1 rounded border border-gray-700 bg-gray-900 hover:bg-gray-800 transition"
+                  className="gl-btn gl-btn-secondary gl-btn-sm"
                   onClick={() => onRemoveAt(idx)}
                   disabled={disabled}
                 >

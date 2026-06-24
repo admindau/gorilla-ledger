@@ -191,7 +191,7 @@ export default function MfaClient() {
 
   return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
-      <div className="w-full max-w-md border border-gray-800 rounded-lg p-6 bg-black/60">
+      <div className="gl-card w-full max-w-md p-6">
         <h1 className="text-2xl font-semibold mb-1 text-center">
           Two-factor verification
         </h1>
@@ -220,7 +220,7 @@ export default function MfaClient() {
                 autoComplete="one-time-code"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                className="w-full bg-black border border-gray-700 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-white tracking-widest text-center"
+                className="gl-input tracking-widest text-center"
                 placeholder="123456"
               />
             </div>
@@ -228,7 +228,7 @@ export default function MfaClient() {
             <button
               type="submit"
               disabled={loading || !ctx}
-              className="w-full mt-2 bg-white text-black py-2 rounded font-semibold text-sm hover:bg-gray-200 disabled:opacity-60"
+              className="gl-btn gl-btn-primary gl-btn-md w-full mt-2"
             >
               {loading ? "Verifying..." : "Verify"}
             </button>

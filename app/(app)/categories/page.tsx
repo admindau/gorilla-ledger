@@ -362,7 +362,7 @@ export default function CategoriesPage() {
                 type="button"
                 onClick={() => beginEdit(cat.id)}
                 disabled={isBusy}
-                className="px-3 py-1.5 rounded border border-gray-700 text-xs text-gray-200 hover:bg-white/5"
+                className="gl-btn gl-btn-secondary gl-btn-sm"
               >
                 Edit
               </button>
@@ -382,7 +382,7 @@ export default function CategoriesPage() {
               <label className="block text-xs mb-1 text-gray-400">Name</label>
               <input
                 type="text"
-                className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+                className="gl-input"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
               />
@@ -390,7 +390,7 @@ export default function CategoriesPage() {
             <div>
               <label className="block text-xs mb-1 text-gray-400">Type</label>
               <select
-                className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+                className="gl-input"
                 value={editType}
                 onChange={(e) => setEditType(e.target.value as CategoryType)}
               >
@@ -404,7 +404,7 @@ export default function CategoriesPage() {
                 type="button"
                 onClick={() => handleSaveEdit(cat.id)}
                 disabled={isBusy}
-                className="px-3 py-2 rounded bg-white text-black font-semibold"
+                className="gl-btn gl-btn-primary gl-btn-sm"
               >
                 {isBusy ? "Saving..." : "Save"}
               </button>
@@ -412,7 +412,7 @@ export default function CategoriesPage() {
                 type="button"
                 onClick={cancelEdit}
                 disabled={isBusy}
-                className="px-3 py-2 rounded border border-gray-700 text-gray-200 hover:bg-white/5"
+                className="gl-btn gl-btn-secondary gl-btn-sm hover:bg-white/5"
               >
                 Cancel
               </button>
@@ -481,7 +481,7 @@ export default function CategoriesPage() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="px-3 py-1.5 rounded-md border border-gray-700 text-xs text-gray-200 hover:bg-white/5"
+                className="gl-btn gl-btn-secondary gl-btn-sm"
               >
                 Logout
               </button>
@@ -536,13 +536,13 @@ export default function CategoriesPage() {
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                   placeholder="Search categories..."
-                  className="w-full sm:w-56 bg-black border border-gray-800 rounded-md px-3 py-1.5 text-xs text-gray-200 placeholder:text-gray-600"
+                  className="gl-input w-full sm:w-56 text-xs py-1.5"
                 />
 
                 <select
                   value={typeFilter}
                   onChange={(e) => setTypeFilter(e.target.value as any)}
-                  className="bg-black border border-gray-800 rounded-md px-2.5 py-1.5 text-xs text-gray-200"
+                  className="gl-input text-xs py-1.5"
                 >
                   <option value="all">All</option>
                   <option value="income">Income</option>
@@ -554,7 +554,7 @@ export default function CategoriesPage() {
                 <button
                   type="button"
                   onClick={openCreateModal}
-                  className="px-3 py-1.5 rounded-md bg-white text-black text-xs font-semibold hover:bg-gray-200 transition"
+                  className="gl-btn gl-btn-primary gl-btn-sm"
                 >
                   Add Category
                 </button>
@@ -624,7 +624,7 @@ export default function CategoriesPage() {
                 <input
                   ref={createNameRef}
                   type="text"
-                  className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+                  className="gl-input"
                   placeholder="e.g. Salary, Rent, Food, Transport"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -635,7 +635,7 @@ export default function CategoriesPage() {
               <div className="sm:col-span-2">
                 <label className="block text-xs mb-1 text-gray-400">Type</label>
                 <select
-                  className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+                  className="gl-input"
                   value={type}
                   onChange={(e) => setType(e.target.value as CategoryType)}
                 >
@@ -660,7 +660,7 @@ export default function CategoriesPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-2 rounded-md bg-white text-black text-xs font-semibold hover:bg-gray-200 transition"
+                  className="gl-btn gl-btn-primary gl-btn-sm"
                 >
                   {saving ? "Saving..." : "Create Category"}
                 </button>
@@ -692,7 +692,7 @@ export default function CategoriesPage() {
             ) : incomeCategories.length === 0 ? (
               <p className="text-gray-500 text-sm">No income categories match your filters.</p>
             ) : (
-              <ul className="border border-gray-800 rounded divide-y divide-gray-800 bg-black/40">
+              <ul className="gl-list-shell bg-black/40">
                 {incomeCategories.map(renderCategoryRow)}
               </ul>
             )}
@@ -709,7 +709,7 @@ export default function CategoriesPage() {
             ) : expenseCategories.length === 0 ? (
               <p className="text-gray-500 text-sm">No expense categories match your filters.</p>
             ) : (
-              <ul className="border border-gray-800 rounded divide-y divide-gray-800 bg-black/40">
+              <ul className="gl-list-shell bg-black/40">
                 {expenseCategories.map(renderCategoryRow)}
               </ul>
             )}

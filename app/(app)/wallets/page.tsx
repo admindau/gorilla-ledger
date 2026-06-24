@@ -266,7 +266,7 @@ export default function WalletsPage() {
           <div className="flex items-center gap-2 shrink-0">
             <a
               href="/dashboard"
-              className="px-3 py-1.5 rounded border border-gray-700 text-xs text-gray-200 hover:bg-white hover:text-black transition"
+              className="gl-btn gl-btn-secondary gl-btn-sm"
             >
               Back to Dashboard
             </a>
@@ -287,7 +287,7 @@ export default function WalletsPage() {
 
         {errorMsg && <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>}
 
-        <section className="mb-8 border border-gray-800 rounded p-4">
+        <section className="gl-card mb-8 p-4">
           <h2 className="text-lg font-semibold mb-3">Add a Wallet</h2>
 
           <form
@@ -298,7 +298,7 @@ export default function WalletsPage() {
               <label className="block text-sm mb-1">Name</label>
               <input
                 type="text"
-                className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+                className="gl-input"
                 placeholder="e.g. Cash, Mobile Money, Bank"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -309,7 +309,7 @@ export default function WalletsPage() {
             <div>
               <label className="block text-sm mb-1">Type</label>
               <select
-                className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+                className="gl-input"
                 value={type}
                 onChange={(e) => setType(e.target.value as Wallet["type"])}
               >
@@ -325,7 +325,7 @@ export default function WalletsPage() {
               <label className="block text-sm mb-1">Currency</label>
               <input
                 type="text"
-                className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+                className="gl-input"
                 value={currencyCode}
                 onChange={(e) => setCurrencyCode(e.target.value.toUpperCase())}
               />
@@ -335,7 +335,7 @@ export default function WalletsPage() {
               <label className="block text-sm mb-1">Starting Balance</label>
               <input
                 type="text"
-                className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+                className="gl-input"
                 value={startingBalance}
                 onChange={(e) => setStartingBalance(e.target.value)}
               />
@@ -345,7 +345,7 @@ export default function WalletsPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="px-4 py-2 rounded bg-white text-black font-semibold"
+                className="gl-btn gl-btn-primary gl-btn-md"
               >
                 {saving ? "Saving..." : "Create Wallet"}
               </button>
@@ -363,7 +363,7 @@ export default function WalletsPage() {
               You don’t have any wallets yet. Add one using the form above.
             </p>
           ) : (
-            <div className="border border-gray-800 rounded divide-y divide-gray-800">
+            <div className="gl-list-shell">
               {wallets.map((wallet) => {
                 const isEditing = editingId === wallet.id;
                 const isBusy = rowBusyId === wallet.id;
@@ -385,7 +385,7 @@ export default function WalletsPage() {
                           <button
                             type="button"
                             onClick={() => beginEdit(wallet.id)}
-                            className="px-3 py-1.5 rounded border border-gray-700 text-sm text-gray-200"
+                            className="gl-btn gl-btn-secondary gl-btn-sm"
                             disabled={isBusy}
                           >
                             Edit
@@ -393,7 +393,7 @@ export default function WalletsPage() {
                           <button
                             type="button"
                             onClick={() => handleDeleteWallet(wallet.id)}
-                            className="px-3 py-1.5 rounded border border-red-900 text-sm text-red-300"
+                            className="gl-btn gl-btn-danger gl-btn-sm"
                             disabled={isBusy}
                           >
                             {isBusy ? "Working..." : "Delete"}
@@ -408,7 +408,7 @@ export default function WalletsPage() {
                           </label>
                           <input
                             type="text"
-                            className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+                            className="gl-input"
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
                           />
@@ -419,7 +419,7 @@ export default function WalletsPage() {
                             Type
                           </label>
                           <select
-                            className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+                            className="gl-input"
                             value={editType}
                             onChange={(e) =>
                               setEditType(e.target.value as Wallet["type"])
@@ -439,7 +439,7 @@ export default function WalletsPage() {
                           </label>
                           <input
                             type="text"
-                            className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+                            className="gl-input"
                             value={editCurrencyCode}
                             onChange={(e) =>
                               setEditCurrencyCode(e.target.value.toUpperCase())
@@ -453,7 +453,7 @@ export default function WalletsPage() {
                           </label>
                           <input
                             type="text"
-                            className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+                            className="gl-input"
                             value={editStartingBalance}
                             onChange={(e) => setEditStartingBalance(e.target.value)}
                           />
@@ -464,7 +464,7 @@ export default function WalletsPage() {
                             type="button"
                             onClick={() => handleSaveEdit(wallet.id)}
                             disabled={isBusy}
-                            className="px-3 py-2 rounded bg-white text-black font-semibold"
+                            className="gl-btn gl-btn-primary gl-btn-sm"
                           >
                             {isBusy ? "Saving..." : "Save"}
                           </button>
@@ -472,7 +472,7 @@ export default function WalletsPage() {
                             type="button"
                             onClick={cancelEdit}
                             disabled={isBusy}
-                            className="px-3 py-2 rounded border border-gray-700 text-gray-200"
+                            className="gl-btn gl-btn-secondary gl-btn-sm"
                           >
                             Cancel
                           </button>

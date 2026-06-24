@@ -188,7 +188,7 @@ export default function MonthlyIncomeExpenseChart({
           No transactions yet to build this trend.
         </p>
       ) : (
-        <div className="border border-gray-800 rounded-lg bg-black/40 p-4 h-72">
+        <div className="gl-card p-4 h-72">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#222222" />

@@ -735,7 +735,7 @@ export default function TransactionsPage() {
         {errorMsg && <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>}
 
         {/* Add Transaction */}
-        <section className="mb-8 border border-gray-800 rounded-lg bg-black/40">
+        <section className="mb-8 gl-card">
           <div className="px-4 py-3 border-b border-gray-800">
             <div className="text-[11px] uppercase tracking-wider text-gray-400">
               Operational
@@ -761,7 +761,7 @@ export default function TransactionsPage() {
                     Wallet
                   </label>
                   <select
-                    className="w-full p-2 rounded bg-gray-900 border border-gray-700 text-sm"
+                    className="gl-input"
                     value={walletId}
                     onChange={(e) => setWalletId(e.target.value)}
                   >
@@ -778,7 +778,7 @@ export default function TransactionsPage() {
                     Category
                   </label>
                   <select
-                    className="w-full p-2 rounded bg-gray-900 border border-gray-700 text-sm"
+                    className="gl-input"
                     value={categoryId}
                     onChange={(e) => setCategoryId(e.target.value)}
                   >
@@ -795,7 +795,7 @@ export default function TransactionsPage() {
                     Type
                   </label>
                   <select
-                    className="w-full p-2 rounded bg-gray-900 border border-gray-700 text-sm"
+                    className="gl-input"
                     value={type}
                     onChange={(e) => setType(e.target.value as TransactionType)}
                   >
@@ -810,7 +810,7 @@ export default function TransactionsPage() {
                   </label>
                   <input
                     type="text"
-                    className="w-full p-2 rounded bg-gray-900 border border-gray-700 text-sm"
+                    className="gl-input"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                   />
@@ -822,7 +822,7 @@ export default function TransactionsPage() {
                   </label>
                   <input
                     type="date"
-                    className="w-full p-2 rounded bg-gray-900 border border-gray-700 text-sm"
+                    className="gl-input"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
                   />
@@ -834,7 +834,7 @@ export default function TransactionsPage() {
                   </label>
                   <input
                     type="text"
-                    className="w-full p-2 rounded bg-gray-900 border border-gray-700 text-sm"
+                    className="gl-input"
                     placeholder="Optional note (e.g. salary for Nov, rent for Juba house)"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
@@ -858,7 +858,7 @@ export default function TransactionsPage() {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="px-4 py-2 rounded bg-white text-black text-sm font-semibold hover:bg-gray-200 transition"
+                    className="gl-btn gl-btn-primary gl-btn-md"
                   >
                     {saving ? "Saving..." : "Save Transaction"}
                   </button>
@@ -869,7 +869,7 @@ export default function TransactionsPage() {
         </section>
 
         {/* Recent Transactions */}
-        <section className="border border-gray-800 rounded-lg bg-black/40">
+        <section className="gl-card">
           <div className="px-4 py-3 border-b border-gray-800">
             <div className="text-[11px] uppercase tracking-wider text-gray-400">
               Records
@@ -887,14 +887,14 @@ export default function TransactionsPage() {
               <div className="flex gap-2 w-full md:w-auto">
                 <input
                   type="date"
-                  className="p-2 rounded bg-gray-900 border border-gray-700 text-sm"
+                  className="gl-input"
                   value={fromDate}
                   onChange={(e) => setFromDate(e.target.value)}
                 />
                 <span className="self-center text-xs text-gray-500">to</span>
                 <input
                   type="date"
-                  className="p-2 rounded bg-gray-900 border border-gray-700 text-sm"
+                  className="gl-input"
                   value={toDate}
                   onChange={(e) => setToDate(e.target.value)}
                 />
@@ -902,7 +902,7 @@ export default function TransactionsPage() {
                   <button
                     type="button"
                     onClick={handleClearDates}
-                    className="px-3 py-2 rounded bg-gray-900 border border-gray-700 text-xs text-gray-200 hover:bg-gray-800 transition"
+                    className="gl-btn gl-btn-secondary gl-btn-sm"
                   >
                     Clear dates
                   </button>
@@ -920,14 +920,14 @@ export default function TransactionsPage() {
               <div className="flex gap-2 w-full md:w-96">
                 <input
                   type="text"
-                  className="flex-1 p-2 rounded bg-gray-900 border border-gray-700 text-sm"
+                  className="flex-1 gl-input"
                   placeholder="Search recent transactions..."
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                 />
                 <button
                   type="submit"
-                  className="px-3 py-2 rounded bg-white text-black text-xs font-semibold hover:bg-gray-200 transition"
+                  className="gl-btn gl-btn-primary gl-btn-sm"
                 >
                   Search
                 </button>
@@ -935,7 +935,7 @@ export default function TransactionsPage() {
                   <button
                     type="button"
                     onClick={handleClearSearch}
-                    className="px-3 py-2 rounded bg-gray-900 border border-gray-700 text-xs text-gray-200 hover:bg-gray-800 transition"
+                    className="gl-btn gl-btn-secondary gl-btn-sm"
                   >
                     Clear
                   </button>
@@ -955,7 +955,7 @@ export default function TransactionsPage() {
               </p>
             ) : (
               <>
-                <div className="border border-gray-800 rounded divide-y divide-gray-800 text-sm overflow-hidden">
+                <div className="gl-list-shell text-sm overflow-hidden">
                   {filteredTransactions.map((tx) => {
                     const wallet = walletMap[tx.wallet_id];
                     const category = tx.category_id
@@ -980,7 +980,7 @@ export default function TransactionsPage() {
                                 Wallet
                               </label>
                               <select
-                                className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                                className="gl-input text-xs py-1.5"
                                 value={editWalletId}
                                 onChange={(e) => setEditWalletId(e.target.value)}
                               >
@@ -997,7 +997,7 @@ export default function TransactionsPage() {
                                 Category
                               </label>
                               <select
-                                className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                                className="gl-input text-xs py-1.5"
                                 value={editCategoryId}
                                 onChange={(e) => setEditCategoryId(e.target.value)}
                               >
@@ -1014,7 +1014,7 @@ export default function TransactionsPage() {
                                 Type
                               </label>
                               <select
-                                className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                                className="gl-input text-xs py-1.5"
                                 value={editType}
                                 onChange={(e) =>
                                   setEditType(e.target.value as TransactionType)
@@ -1031,7 +1031,7 @@ export default function TransactionsPage() {
                               </label>
                               <input
                                 type="date"
-                                className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                                className="gl-input text-xs py-1.5"
                                 value={editDate}
                                 onChange={(e) => setEditDate(e.target.value)}
                               />
@@ -1045,7 +1045,7 @@ export default function TransactionsPage() {
                               </label>
                               <input
                                 type="text"
-                                className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                                className="gl-input text-xs py-1.5"
                                 value={editAmount}
                                 onChange={(e) => setEditAmount(e.target.value)}
                               />
@@ -1057,7 +1057,7 @@ export default function TransactionsPage() {
                               </label>
                               <input
                                 type="text"
-                                className="w-full p-1.5 rounded bg-gray-900 border border-gray-700 text-xs"
+                                className="gl-input text-xs py-1.5"
                                 value={editDescription}
                                 onChange={(e) => setEditDescription(e.target.value)}
                               />
@@ -1068,7 +1068,7 @@ export default function TransactionsPage() {
                             <button
                               type="button"
                               onClick={handleCancelInlineEdit}
-                              className="px-3 py-1 rounded border border-gray-700 text-[11px] text-gray-200 bg-gray-900 hover:bg-gray-800 transition"
+                              className="gl-btn gl-btn-secondary gl-btn-sm"
                               disabled={savingEdit || uploadingEditReceipts}
                             >
                               Cancel
@@ -1076,7 +1076,7 @@ export default function TransactionsPage() {
                             <button
                               type="button"
                               onClick={handleSaveInlineEdit}
-                              className="px-3 py-1 rounded border border-gray-700 text-[11px] bg-white text-black font-semibold hover:bg-gray-200 transition"
+                              className="gl-btn gl-btn-primary gl-btn-sm"
                               disabled={savingEdit || uploadingEditReceipts}
                             >
                               {savingEdit ? "Saving..." : "Save"}
@@ -1084,7 +1084,7 @@ export default function TransactionsPage() {
                             <button
                               type="button"
                               onClick={() => handleDeleteTransaction(tx)}
-                              className="px-3 py-1 rounded border border-red-500 text-[11px] text-red-300 bg-gray-900 hover:bg-gray-900/70 transition"
+                              className="gl-btn gl-btn-danger gl-btn-sm"
                               disabled={savingEdit || uploadingEditReceipts}
                             >
                               Delete
@@ -1118,7 +1118,7 @@ export default function TransactionsPage() {
                                   uploadingEditReceipts ||
                                   editReceiptFiles.length === 0
                                 }
-                                className="px-4 py-2 rounded bg-white text-black text-xs font-semibold hover:bg-gray-200 transition disabled:opacity-50"
+                                className="gl-btn gl-btn-primary gl-btn-sm"
                               >
                                 {uploadingEditReceipts
                                   ? "Uploading..."
@@ -1167,14 +1167,14 @@ export default function TransactionsPage() {
                               <button
                                 type="button"
                                 onClick={() => handleStartInlineEdit(tx)}
-                                className="px-2 py-1 rounded border border-gray-700 bg-gray-900 hover:bg-gray-800 transition"
+                                className="gl-btn gl-btn-secondary gl-btn-sm"
                               >
                                 Edit
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleDeleteTransaction(tx)}
-                                className="px-2 py-1 rounded border border-red-500 text-red-300 bg-gray-900 hover:bg-gray-900/70 transition"
+                                className="gl-btn gl-btn-danger gl-btn-sm"
                               >
                                 Delete
                               </button>
@@ -1196,7 +1196,7 @@ export default function TransactionsPage() {
                       type="button"
                       onClick={handleLoadMore}
                       disabled={loadingMore}
-                      className="px-4 py-2 rounded border border-gray-700 text-sm bg-gray-900 hover:bg-gray-800 disabled:opacity-50 transition"
+                      className="gl-btn gl-btn-secondary gl-btn-md"
                     >
                       {loadingMore ? "Loading..." : "Load more"}
                     </button>
@@ -1219,7 +1219,7 @@ export default function TransactionsPage() {
               <button
                 type="button"
                 onClick={handleUndoDelete}
-                className="px-3 py-1 rounded bg-white text-black font-semibold hover:bg-gray-200 transition"
+                className="gl-btn gl-btn-primary gl-btn-sm"
               >
                 Undo
               </button>

@@ -450,7 +450,7 @@ export default function RecurringPage() {
                 type="button"
                 onClick={handleLogout}
                 disabled={signingOut}
-                className="px-3 py-1.5 rounded-md border border-gray-700 text-xs text-gray-200 hover:bg-white/5 transition disabled:opacity-60"
+                className="gl-btn gl-btn-secondary gl-btn-sm transition disabled:opacity-60"
               >
                 {signingOut ? "Logging out…" : "Logout"}
               </button>
@@ -589,7 +589,7 @@ export default function RecurringPage() {
             <button
               type="submit"
               disabled={saving}
-              className="mt-2 inline-flex items-center justify-center px-4 py-2 bg-white text-black rounded text-sm font-semibold hover:bg-gray-200 disabled:opacity-60"
+              className="gl-btn gl-btn-primary gl-btn-md mt-2"
             >
               {saving ? "Saving..." : "Save Rule"}
             </button>

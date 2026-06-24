@@ -62,14 +62,14 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-black text-white">
-      <div className="w-full max-w-md p-6 border border-gray-700 rounded">
+      <div className="gl-card w-full max-w-md p-6">
         <h1 className="text-2xl mb-4 font-semibold">Create an Account</h1>
 
         <form onSubmit={handleRegister} className="space-y-4">
           <input
             type="email"
             placeholder="Email address"
-            className="w-full p-3 rounded bg-gray-900 border border-gray-700"
+            className="gl-input"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -78,7 +78,7 @@ export default function RegisterPage() {
           <input
             type="password"
             placeholder="Password"
-            className="w-full p-3 rounded bg-gray-900 border border-gray-700"
+            className="gl-input"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -90,7 +90,7 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full p-3 rounded bg-white text-black font-semibold"
+            className="gl-btn gl-btn-primary gl-btn-md w-full"
           >
             {loading ? "Creating account..." : "Register"}
           </button>

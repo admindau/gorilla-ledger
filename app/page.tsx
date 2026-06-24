@@ -29,14 +29,14 @@ export default function HomePage() {
         <div className="flex items-center justify-center gap-4 mt-4">
           <a
             href="/auth/register"
-            className="px-4 py-2 rounded bg-white text-black font-semibold"
+            className="gl-btn gl-btn-primary gl-btn-md"
           >
             Get Started
           </a>
 
           <a
             href="/auth/login"
-            className="px-4 py-2 rounded border border-gray-600"
+            className="gl-btn gl-btn-secondary gl-btn-md"
           >
             Login
           </a>

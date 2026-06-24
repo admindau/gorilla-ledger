@@ -8,7 +8,7 @@ export default function MfaPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
-          <div className="w-full max-w-md border border-gray-800 rounded-lg p-6 bg-black/60">
+          <div className="gl-card w-full max-w-md p-6">
             <h1 className="text-2xl font-semibold mb-1 text-center">
               Two-factor verification
             </h1>

@@ -139,7 +139,7 @@ export default function BudgetInsightsPanel({
 
   return (
     <section className="mb-6">
-      <div className="border border-gray-800 rounded p-4 bg-black/40">
+      <div className="gl-card p-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
           <h2 className="text-sm font-semibold">
             Budget Insights – {monthLabel}
