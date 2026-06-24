@@ -694,34 +694,9 @@ export default function TransactionsPage() {
     "px-2.5 py-1 rounded border border-gray-800 bg-black/40 text-xs text-gray-200 hover:bg-white hover:text-black transition";
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
+    <div className="gl-page-migrated">
       {/* Tight, app-like header (less link-bar) */}
-      <header className="sticky top-0 z-40 w-full border-b border-gray-900 bg-black/80 backdrop-blur">
-        <div className="px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-sm font-semibold leading-tight truncate">
-              Gorilla Ledger™
-            </div>
-            <div className="text-[11px] text-gray-400 leading-tight">
-              Transactions
-            </div>
-          </div>
-
-          <nav className="flex items-center gap-2 shrink-0">
-            <a href="/dashboard" className={headerLinkClass}>
-              Dashboard
-            </a>
-            <a href="/wallets" className={headerLinkClass}>
-              Wallets
-            </a>
-            <a href="/categories" className={headerLinkClass}>
-              Categories
-            </a>
-          </nav>
-        </div>
-      </header>
-
-      <main className="flex-1 px-4 py-6 max-w-5xl mx-auto w-full">
+<main className="gl-page-shell max-w-5xl">
         {/* Tightened page title rhythm */}
         <div className="mb-4">
           <h1 className="text-xl sm:text-2xl font-semibold leading-tight">

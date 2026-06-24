@@ -413,65 +413,10 @@ export default function RecurringPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="gl-page-migrated">
       {/* ========================= Hardened Top Navigation ========================= */}
-      <header className="w-full border-b border-gray-900 bg-black/80 backdrop-blur">
-        <div className="max-w-6xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <Link
-                href="/dashboard"
-                className="font-semibold tracking-tight truncate"
-              >
-                Gorilla Ledger™
-              </Link>
-
-              <nav className="hidden md:flex items-center gap-2">
-                <NavLink href="/wallets" label="Wallets" />
-                <NavLink href="/categories" label="Categories" />
-                <NavLink href="/transactions" label="Transactions" />
-                <NavLink href="/budgets" label="Budgets" />
-                <NavLink href="/recurring" label="Recurring" active />
-                <NavLink href="/settings/security" label="Security" />
-              </nav>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {userEmail ? (
-                <div className="hidden sm:flex items-center gap-2 max-w-[260px]">
-                  <span className="text-[11px] text-gray-400">Signed in</span>
-                  <span className="text-xs text-gray-200 truncate">
-                    {userEmail}
-                  </span>
-                </div>
-              ) : null}
-
-              <button
-                type="button"
-                onClick={handleLogout}
-                disabled={signingOut}
-                className="gl-btn gl-btn-secondary gl-btn-sm transition disabled:opacity-60"
-              >
-                {signingOut ? "Logging out…" : "Logout"}
-              </button>
-            </div>
-          </div>
-
-          {/* Mobile nav (compact) */}
-          <nav className="md:hidden mt-2 flex flex-wrap gap-2">
-            <NavLink href="/wallets" label="Wallets" />
-            <NavLink href="/categories" label="Categories" />
-            <NavLink href="/transactions" label="Transactions" />
-            <NavLink href="/budgets" label="Budgets" />
-            <NavLink href="/recurring" label="Recurring" active />
-            <NavLink href="/settings/security" label="Security" />
-          </nav>
-        </div>
-      </header>
-
-      {/* ========================= Page Content ========================= */}
-      <main className="px-4 py-10">
-        <div className="max-w-5xl mx-auto">
+{/* ========================= Page Content ========================= */}
+      <main className="gl-page-shell max-w-5xl">
           <h1 className="text-2xl font-semibold mb-2">
             Recurring Rules – {monthName} {year}
           </h1>
@@ -774,8 +719,6 @@ export default function RecurringPage() {
               </div>
             )}
           </section>
-
-        </div>
       </main>
     </div>
   );

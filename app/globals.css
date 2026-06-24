@@ -734,3 +734,141 @@ body {
     width: 100%;
   }
 }
+
+/* GL-UX-01B — Page Migration + Central App Navigation */
+.gl-app-page-region {
+  min-height: calc(100vh - 4.75rem);
+}
+
+.gl-app-topnav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-bottom: 1px solid rgba(255,255,255,0.10);
+  background:
+    linear-gradient(180deg, rgba(12,12,12,0.92), rgba(0,0,0,0.78));
+  box-shadow: 0 1px 0 rgba(255,255,255,0.045), 0 22px 70px rgba(0,0,0,0.45);
+  backdrop-filter: blur(18px);
+}
+
+.gl-app-topnav-inner {
+  width: 100%;
+  max-width: 80rem;
+  margin-inline: auto;
+  padding: 0.85rem 1rem;
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.gl-app-brand {
+  display: block;
+  color: #ffffff;
+  font-size: 0.92rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.gl-app-current-section {
+  margin-top: 0.28rem;
+  color: rgb(156 163 175);
+  font-size: 0.64rem;
+  font-weight: 720;
+  letter-spacing: 0.18em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.gl-app-nav {
+  min-width: 0;
+  justify-self: center;
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 0.25rem;
+  overflow-x: auto;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.035);
+  padding: 0.25rem;
+  scrollbar-width: none;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.060), 0 16px 44px rgba(0,0,0,0.34);
+}
+
+.gl-app-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.gl-app-nav-link {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 0.48rem 0.78rem;
+  color: rgb(209 213 219);
+  font-size: 0.74rem;
+  font-weight: 650;
+  line-height: 1;
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.gl-app-nav-link:hover {
+  color: #ffffff;
+  background: rgba(255,255,255,0.075);
+}
+
+.gl-app-nav-link-active {
+  color: #050505;
+  background: linear-gradient(180deg, #ffffff, #d7d7d7);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.90), 0 10px 26px rgba(255,255,255,0.08);
+}
+
+.gl-app-nav-meta {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.gl-page-migrated {
+  min-height: 100%;
+  color: #ffffff;
+}
+
+.gl-page-migrated .gl-page-shell {
+  padding-top: 1.75rem;
+}
+
+@media (max-width: 900px) {
+  .gl-app-topnav-inner {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "brand action"
+      "nav nav";
+  }
+
+  .gl-app-topnav-inner > .min-w-0 {
+    grid-area: brand;
+  }
+
+  .gl-app-nav {
+    grid-area: nav;
+    justify-self: stretch;
+  }
+
+  .gl-app-nav-meta {
+    grid-area: action;
+  }
+}
+
+@media (max-width: 640px) {
+  .gl-app-topnav-inner {
+    padding-inline: 0.85rem;
+    gap: 0.75rem;
+  }
+
+  .gl-app-nav-link {
+    padding-inline: 0.72rem;
+  }
+}

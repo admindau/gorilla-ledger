@@ -252,29 +252,9 @@ export default function WalletsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
+    <div className="gl-page-migrated">
       {/* Tight, premium header (less “link-bar”) */}
-      <header className="w-full border-b border-gray-800 bg-black/60 backdrop-blur">
-        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-sm font-semibold truncate">Gorilla Ledger™</div>
-            <div className="text-[11px] text-gray-400 tracking-wide uppercase">
-              Wallets
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <a
-              href="/dashboard"
-              className="gl-btn gl-btn-secondary gl-btn-sm"
-            >
-              Back to Dashboard
-            </a>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 px-4 py-6 max-w-4xl mx-auto w-full">
+<main className="gl-page-shell max-w-4xl">
         {/* Tightened page heading rhythm */}
         <div className="mb-4">
           <h1 className="text-xl sm:text-2xl font-semibold leading-tight">

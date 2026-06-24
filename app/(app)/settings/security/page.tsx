@@ -409,75 +409,9 @@ export default function SecuritySettingsPage() {
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="gl-page-migrated">
       {/* ========================= Hardened Top Navigation ========================= */}
-      <header className="w-full border-b border-gray-900 bg-black/80 backdrop-blur">
-        <div className="max-w-6xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <Link href="/dashboard" className="font-semibold tracking-tight truncate">
-                Gorilla Ledger™
-              </Link>
-
-              <nav className="hidden md:flex items-center gap-2">
-                <NavLink href="/wallets" label="Wallets" />
-                <NavLink href="/categories" label="Categories" />
-                <NavLink href="/transactions" label="Transactions" />
-                <NavLink href="/budgets" label="Budgets" />
-                <NavLink href="/recurring" label="Recurring" />
-                <NavLink href="/settings/security" label="Security" active />
-              </nav>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {userEmail ? (
-                <div className="hidden sm:flex items-center gap-2 max-w-[260px]">
-                  <span className="text-[11px] text-gray-400">Signed in</span>
-                  <span className="text-xs text-gray-200 truncate">{userEmail}</span>
-                </div>
-              ) : null}
-
-              <button
-                type="button"
-                onClick={handleLogout}
-                disabled={signingOut}
-                className="gl-btn gl-btn-secondary gl-btn-sm transition disabled:opacity-60"
-              >
-                {signingOut ? "Logging out…" : "Logout"}
-              </button>
-            </div>
-          </div>
-
-          {/* Mobile nav */}
-          <nav className="md:hidden mt-2 flex flex-wrap gap-2">
-            <NavLink href="/wallets" label="Wallets" />
-            <NavLink href="/categories" label="Categories" />
-            <NavLink href="/transactions" label="Transactions" />
-            <NavLink href="/budgets" label="Budgets" />
-            <NavLink href="/recurring" label="Recurring" />
-            <NavLink href="/settings/security" label="Security" active />
-          </nav>
-
-          {/* Security posture row (tight, consistent) */}
-          <div className="mt-2 text-[11px] text-gray-300 flex flex-wrap gap-x-2 gap-y-1">
-            <span className="text-gray-400">MFA:</span>
-            <span className={mfaEnabled ? "text-emerald-400" : "text-gray-300"}>
-              {mfaEnabled ? "Enabled" : "Not enabled"}
-            </span>
-            <span className="text-gray-600">•</span>
-            <span className="text-gray-400">Last security check:</span>
-            <span className="text-gray-200">{lastCheckLabel}</span>
-            {mfaEnabled && !backupConfigured && (
-              <>
-                <span className="text-gray-600">•</span>
-                <span className="text-amber-300">Backup authenticator not configured</span>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* ========================= Page Content ========================= */}
+{/* ========================= Page Content ========================= */}
       <main className="flex items-center justify-center px-4 py-10">
         <div className="gl-card w-full max-w-xl p-6">
           {/* ========================= Header ========================= */}

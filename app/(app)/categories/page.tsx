@@ -453,69 +453,9 @@ export default function CategoriesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
+    <div className="gl-page-migrated">
       {/* Tightened header (app-shell) */}
-      <header className="w-full border-b border-gray-900 bg-black/80 backdrop-blur">
-        <div className="px-4 sm:px-6 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="font-semibold tracking-tight truncate">Gorilla Ledger™</div>
-              <div className="hidden md:flex items-center gap-2">
-                <NavLink href="/wallets" label="Wallets" />
-                <NavLink href="/categories" label="Categories" active />
-                <NavLink href="/transactions" label="Transactions" />
-                <NavLink href="/budgets" label="Budgets" />
-                <NavLink href="/recurring" label="Recurring" />
-                <NavLink href="/settings/security" label="Security" />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {userEmail ? (
-                <div className="hidden sm:flex items-center gap-2 max-w-[260px]">
-                  <span className="text-[11px] text-gray-400">Signed in</span>
-                  <span className="text-xs text-gray-200 truncate">{userEmail}</span>
-                </div>
-              ) : null}
-
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="gl-btn gl-btn-secondary gl-btn-sm"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-
-          {/* Mobile nav (compact) */}
-          <div className="md:hidden mt-2 flex flex-wrap gap-2">
-            <NavLink href="/wallets" label="Wallets" />
-            <NavLink href="/categories" label="Categories" active />
-            <NavLink href="/transactions" label="Transactions" />
-            <NavLink href="/budgets" label="Budgets" />
-            <NavLink href="/recurring" label="Recurring" />
-            <NavLink href="/settings/security" label="Security" />
-          </div>
-
-          {/* Security posture line (tight) */}
-          <div className="mt-2 text-[11px] text-gray-300 flex flex-wrap gap-x-2 gap-y-1">
-            <span className="text-gray-400">MFA:</span>
-            <span className={mfaEnabled ? "text-emerald-400" : "text-gray-300"}>
-              {mfaEnabled ? "Enabled" : "Not enabled"}
-            </span>
-            <span className="text-gray-600">•</span>
-            <span className="text-gray-400">Last security check:</span>
-            {lastSecurityCheckDays === null ? (
-              <span className="text-gray-500">—</span>
-            ) : (
-              <span className="text-gray-200">{formatDaysAgo(lastSecurityCheckDays)}</span>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Mini sticky command bar */}
+{/* Mini sticky command bar */}
       <div className="sticky top-0 z-30 border-b border-gray-900 bg-black/85 backdrop-blur">
         <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 py-2.5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -670,7 +610,7 @@ export default function CategoriesPage() {
         </div>
       )}
 
-      <main className="flex-1 px-4 py-6 max-w-4xl mx-auto w-full">
+      <main className="gl-page-shell max-w-4xl">
         <div className="mb-4">
           <h1 className="text-2xl font-semibold leading-tight">Categories</h1>
           <p className="text-sm text-gray-400 mt-1">
