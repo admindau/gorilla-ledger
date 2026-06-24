@@ -2,8 +2,10 @@ import SessionGuard from "@/components/SessionGuard";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-black text-white">
-      <SessionGuard>{children}</SessionGuard>
+    <div className="gl-app-root">
+      <div className="gl-app-content">
+        <SessionGuard>{children}</SessionGuard>
+      </div>
     </div>
   );
 }

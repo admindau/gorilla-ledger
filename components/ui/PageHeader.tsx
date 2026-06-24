@@ -8,6 +8,7 @@ type PageHeaderProps = {
   backHref?: string;
   backLabel?: string;
   action?: ReactNode;
+  align?: "start" | "center";
 };
 
 export function PageHeader({
@@ -17,9 +18,10 @@ export function PageHeader({
   backHref,
   backLabel = "Back to Dashboard",
   action,
+  align = "start",
 }: PageHeaderProps) {
   return (
-    <div className="gl-page-header">
+    <div className={["gl-page-header", align === "center" ? "gl-page-header-center" : ""].filter(Boolean).join(" ")}>
       <div className="min-w-0">
         {eyebrow ? <p className="gl-page-eyebrow">{eyebrow}</p> : null}
         <h1 className="gl-page-title">{title}</h1>
