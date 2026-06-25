@@ -8,9 +8,12 @@
    - Top navigation
    ============================================================================= */
 
-import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { SecurityCommandCenter } from "@/components/security/SecurityCommandCenter";
+import { SecurityMfaPanel } from "@/components/security/SecurityMfaPanel";
+import { SecurityRecommendations } from "@/components/security/SecurityRecommendations";
 
 /* =============================================================================
    Constants & Helpers
@@ -379,195 +382,87 @@ export default function SecuritySettingsPage() {
   }
 
   // ---------------------------------------------------------------------------
-  // Header UI helpers (hardened)
-  // ---------------------------------------------------------------------------
-  const NavLink = ({
-    href,
-    label,
-    active,
-  }: {
-    href: string;
-    label: string;
-    active?: boolean;
-  }) => {
-    return (
-      <Link
-        href={href}
-        className={[
-          "px-2.5 py-1.5 rounded-md border text-xs transition",
-          active
-            ? "border-white/30 bg-white/10 text-white"
-            : "border-gray-800 bg-black/40 text-gray-300 hover:bg-white/5 hover:text-white",
-        ].join(" ")}
-      >
-        {label}
-      </Link>
-    );
-  };
-
-  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
   return (
     <div className="gl-page-migrated">
-      {/* ========================= Hardened Top Navigation ========================= */}
-{/* ========================= Page Content ========================= */}
-      <main className="flex items-center justify-center px-4 py-10">
-        <div className="gl-card w-full max-w-xl p-6">
-          {/* ========================= Header ========================= */}
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-semibold mb-1">Security</h1>
-              <p className="text-gray-400 text-xs">
-                MFA status and account protection controls.
-              </p>
-            </div>
-
-            <div className="text-right text-xs">
-              <div className="text-gray-400">Last security check</div>
-              <div className="text-white">{lastCheckLabel}</div>
-            </div>
-          </div>
-
-          {/* ========================= Alerts ========================= */}
-          {errorMsg && (
-            <p className="mt-4 text-xs text-red-400 border border-red-500/40 rounded px-3 py-2 bg-red-950/30">
-              {errorMsg}
-            </p>
-          )}
-          {successMsg && (
-            <p className="mt-4 text-xs text-emerald-400 border border-emerald-500/40 rounded px-3 py-2 bg-emerald-950/30">
-              {successMsg}
-            </p>
-          )}
-
-          {/* ========================= MFA Card ========================= */}
-          <div className="mt-6 border border-gray-800 rounded-lg p-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="font-semibold">Multi-factor authentication (TOTP)</h2>
-                <p className="text-xs text-gray-400 mt-1">
-                  Use Google Authenticator, Microsoft Authenticator, Authy, or 1Password.
-                </p>
-
-                <div className="mt-3 space-y-1 text-xs">
-                  <div className="text-gray-400">
-                    Status:{" "}
-                    <span className={mfaEnabled ? "text-emerald-400" : "text-gray-300"}>
-                      {mfaEnabled ? "Enabled" : "Not enabled"}
-                    </span>
-                  </div>
-
-                  <div className="text-gray-400">
-                    Backup factor:{" "}
-                    <span
-                      className={backupConfigured ? "text-emerald-400" : "text-yellow-300"}
-                    >
-                      {backupConfigured ? "Configured" : "Not configured"}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Optional: show total factors for troubleshooting without exposing Supabase */}
-                {allTotp.length > 0 && (
-                  <div className="mt-2 text-[11px] text-gray-500">
-                    Authenticator factors on this account: {allTotp.length}
-                  </div>
-                )}
+      <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <PageHeader
+          eyebrow="Account Protection"
+          title="Security Command Center"
+          description="Protect your Gorilla Ledger™ account with multi-factor authentication, recovery readiness, and security best practices."
+          action={
+            userEmail ? (
+              <div className="hidden text-right text-xs text-gray-400 sm:block">
+                <div>Signed in as</div>
+                <div className="max-w-[220px] truncate text-white">{userEmail}</div>
               </div>
+            ) : null
+          }
+        />
 
-              <div className="flex flex-col gap-2">
-                {mfaEnabled ? (
-                  <>
-                    {!backupConfigured && (
-                      <button
-                        type="button"
-                        onClick={startEnroll}
-                        disabled={loading || booting}
-                        className="gl-btn gl-btn-primary gl-btn-md"
-                      >
-                        Add backup factor
-                      </button>
-                    )}
+        {errorMsg && (
+          <p className="mb-4 rounded-xl border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-300">
+            {errorMsg}
+          </p>
+        )}
 
-                    <button
-                      type="button"
-                      onClick={disableMfa}
-                      disabled={loading || booting}
-                      className="bg-black border border-white/20 text-white px-4 py-2 rounded text-sm hover:bg-white hover:text-black transition disabled:opacity-60"
-                    >
-                      Disable
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={startEnroll}
-                    disabled={loading || booting}
-                    className="gl-btn gl-btn-primary gl-btn-md"
-                  >
-                    Enable
-                  </button>
-                )}
-              </div>
-            </div>
+        {successMsg && (
+          <p className="mb-4 rounded-xl border border-emerald-500/40 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-300">
+            {successMsg}
+          </p>
+        )}
 
-            {/* ========================= Brand Warning (No Supabase mention) ========================= */}
-            {!backupConfigured && (
-              <div className="mt-4 text-xs text-yellow-200 border border-yellow-500/40 rounded px-3 py-2 bg-yellow-950/20">
-                Savvy Gorilla™ does not provide recovery codes. For account recovery, enroll a
-                backup authenticator factor on a different device or app.
-              </div>
-            )}
+        <SecurityCommandCenter
+          mfaEnabled={mfaEnabled}
+          backupConfigured={backupConfigured}
+          factorCount={allTotp.length}
+          lastCheckAt={lastCheckAt}
+          lastCheckLabel={lastCheckLabel}
+          booting={booting}
+        />
 
-            {/* ========================= Enrollment UI ========================= */}
-            {enroll.status === "enrolling" && (
-              <div className="mt-6 border-t border-gray-800 pt-5">
-                <h3 className="text-sm font-semibold">Complete enrollment</h3>
-                <p className="text-xs text-gray-400 mt-1">
-                  Scan the QR code in your authenticator app, then enter the 6-digit code.
-                </p>
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
+          <SecurityMfaPanel
+            mfaEnabled={mfaEnabled}
+            backupConfigured={backupConfigured}
+            allTotpCount={allTotp.length}
+            loading={loading}
+            booting={booting}
+            enroll={enroll}
+            otp={otp}
+            setOtp={setOtp}
+            startEnroll={startEnroll}
+            disableMfa={disableMfa}
+            verifyEnroll={verifyEnroll}
+          />
 
-                <div className="mt-4 flex flex-col gap-4">
-                  <div className="border border-gray-800 rounded p-3 bg-black/40">
-                    <div
-                      className="w-full overflow-hidden"
-                      dangerouslySetInnerHTML={{ __html: enroll.qr }}
-                    />
-                  </div>
+          <SecurityRecommendations
+            mfaEnabled={mfaEnabled}
+            backupConfigured={backupConfigured}
+            lastCheckAt={lastCheckAt}
+            lastCheckLabel={lastCheckLabel}
+            loading={loading}
+            booting={booting}
+            onStartEnroll={startEnroll}
+            onMarkReviewed={bumpLastSecurityCheck}
+          />
+        </div>
 
-                  <form onSubmit={verifyEnroll} className="space-y-3">
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">6-digit code</label>
-                      <input
-                        value={otp}
-                        onChange={(e) => setOtp(e.target.value)}
-                        inputMode="numeric"
-                        placeholder="123456"
-                        className="w-full bg-black border border-gray-800 rounded px-3 py-2 text-sm"
-                      />
-                    </div>
+        {booting && (
+          <p className="mt-4 text-xs text-gray-400">Loading security settings…</p>
+        )}
 
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full gl-btn gl-btn-primary gl-btn-md"
-                    >
-                      Verify & enable
-                    </button>
-                  </form>
-
-                  <div className="text-[11px] text-gray-400">
-                    Secret (store securely if needed):{" "}
-                    <span className="text-gray-200">{enroll.secret}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ========================= Boot state hint ========================= */}
-            {booting && <p className="mt-4 text-xs text-gray-400">Loading security settings…</p>}
-          </div>
+        <div className="mt-8 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs text-gray-400">
+          <span>Security changes are handled through encrypted Supabase Auth MFA factors.</span>
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={signingOut}
+            className="gl-btn gl-btn-secondary gl-btn-sm"
+          >
+            {signingOut ? "Signing out…" : "Log out"}
+          </button>
         </div>
       </main>
     </div>
