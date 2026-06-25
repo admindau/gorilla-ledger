@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CategoryCard, type CategoryType } from "@/components/categories/CategoryCard";
+import { CategoryCommandCenter } from "@/components/categories/CategoryCommandCenter";
+import { CategoryInsights } from "@/components/categories/CategoryInsights";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { PageShell } from "@/components/ui/PageShell";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
-
-type CategoryType = "income" | "expense";
 
 type Category = {
   id: string;
@@ -13,18 +17,16 @@ type Category = {
   created_at: string;
 };
 
-function formatDaysAgo(days: number) {
-  if (days <= 0) return "0 day(s) ago";
-  if (days === 1) return "1 day ago";
-  return `${days} day(s) ago`;
+function sortCategories(items: Category[]) {
+  return [...items].sort((a, b) => {
+    if (a.type !== b.type) return a.type.localeCompare(b.type);
+    return a.name.localeCompare(b.name);
+  });
 }
 
-function computeDaysAgo(iso: string) {
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return null;
-  const now = Date.now();
-  const diffDays = Math.floor((now - t) / (1000 * 60 * 60 * 24));
-  return Math.max(0, diffDays);
+function latestCategory(categories: Category[]) {
+  if (categories.length === 0) return null;
+  return [...categories].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0];
 }
 
 export default function CategoriesPage() {
@@ -32,74 +34,24 @@ export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // create form state
   const [name, setName] = useState("");
   const [type, setType] = useState<CategoryType>("expense");
   const [saving, setSaving] = useState(false);
 
-  // create modal state
   const [createOpen, setCreateOpen] = useState(false);
   const createNameRef = useRef<HTMLInputElement | null>(null);
 
-  // edit state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editType, setEditType] = useState<CategoryType>("expense");
   const [rowBusyId, setRowBusyId] = useState<string | null>(null);
 
-  // header/security UI state
-  const [userEmail, setUserEmail] = useState<string>("");
-  const [mfaEnabled, setMfaEnabled] = useState<boolean>(false);
-  const [lastSecurityCheckDays, setLastSecurityCheckDays] = useState<number | null>(null);
-
-  // command bar state
   const [q, setQ] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | CategoryType>("all");
 
   const categoryById = useMemo(() => {
     return Object.fromEntries(categories.map((c) => [c.id, c] as const));
   }, [categories]);
-
-  useEffect(() => {
-    async function loadHeaderSecurity() {
-      try {
-        const {
-          data: { user },
-        } = await supabaseBrowserClient.auth.getUser();
-
-        setUserEmail(user?.email ?? "");
-
-        // MFA enabled status = enrolled TOTP factor(s)
-        const { data: factorsData } = await supabaseBrowserClient.auth.mfa.listFactors();
-        const totpCount = factorsData?.totp?.length ?? 0;
-        const enabled = totpCount > 0;
-        setMfaEnabled(enabled);
-
-        // "Last security check" heuristic:
-        // If user is currently AAL2, we stamp/refresh a local marker.
-        const { data: aal } = await supabaseBrowserClient.auth.mfa.getAuthenticatorAssuranceLevel();
-        const isAAL2 = aal?.currentLevel === "aal2";
-
-        const key = "gl_last_security_check_at";
-        if (enabled && isAAL2) {
-          const nowIso = new Date().toISOString();
-          localStorage.setItem(key, nowIso);
-        }
-
-        const existing = localStorage.getItem(key);
-        if (existing) {
-          const d = computeDaysAgo(existing);
-          setLastSecurityCheckDays(d);
-        } else {
-          setLastSecurityCheckDays(null);
-        }
-      } catch {
-        // Non-fatal; header will still render
-      }
-    }
-
-    loadHeaderSecurity();
-  }, []);
 
   useEffect(() => {
     async function loadCategories() {
@@ -141,16 +93,12 @@ export default function CategoriesPage() {
   useEffect(() => {
     if (!createOpen) return;
 
-    // focus the name field when modal opens
     const t = window.setTimeout(() => {
       createNameRef.current?.focus();
     }, 0);
 
-    // esc to close
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        setCreateOpen(false);
-      }
+      if (e.key === "Escape") setCreateOpen(false);
     }
 
     window.addEventListener("keydown", onKeyDown);
@@ -160,22 +108,13 @@ export default function CategoriesPage() {
     };
   }, [createOpen]);
 
-  async function handleLogout() {
-    try {
-      await supabaseBrowserClient.auth.signOut();
-    } finally {
-      window.location.href = "/";
-    }
-  }
-
   function openCreateModal() {
     setErrorMsg("");
     setCreateOpen(true);
   }
 
   function closeCreateModal() {
-    if (saving) return;
-    setCreateOpen(false);
+    if (!saving) setCreateOpen(false);
   }
 
   function resetCreateForm() {
@@ -208,11 +147,7 @@ export default function CategoriesPage() {
 
     const { data, error } = await supabaseBrowserClient
       .from("categories")
-      .insert({
-        user_id: user.id,
-        name: trimmed,
-        type,
-      })
+      .insert({ user_id: user.id, name: trimmed, type })
       .select()
       .single();
 
@@ -223,12 +158,7 @@ export default function CategoriesPage() {
       return;
     }
 
-    setCategories((prev) => [...prev, data as Category].sort((a, b) => {
-      // keep UI stable: type asc then name asc
-      if (a.type !== b.type) return a.type.localeCompare(b.type);
-      return a.name.localeCompare(b.name);
-    }));
-
+    setCategories((prev) => sortCategories([...prev, data as Category]));
     resetCreateForm();
     setSaving(false);
     setCreateOpen(false);
@@ -265,9 +195,16 @@ export default function CategoriesPage() {
       return;
     }
 
+    const trimmed = editName.trim();
+    if (!trimmed) {
+      setErrorMsg("Category name is required.");
+      setRowBusyId(null);
+      return;
+    }
+
     const { data, error } = await supabaseBrowserClient
       .from("categories")
-      .update({ name: editName, type: editType })
+      .update({ name: trimmed, type: editType })
       .eq("id", id)
       .eq("user_id", user.id)
       .select()
@@ -280,14 +217,7 @@ export default function CategoriesPage() {
       return;
     }
 
-    setCategories((prev) =>
-      prev
-        .map((c) => (c.id === id ? (data as Category) : c))
-        .sort((a, b) => {
-          if (a.type !== b.type) return a.type.localeCompare(b.type);
-          return a.name.localeCompare(b.name);
-        })
-    );
+    setCategories((prev) => sortCategories(prev.map((c) => (c.id === id ? (data as Category) : c))));
     setEditingId(null);
     setRowBusyId(null);
   }
@@ -296,9 +226,7 @@ export default function CategoriesPage() {
     const c = categoryById[id];
     if (!c) return;
 
-    const ok = window.confirm(
-      `Disable category "${c.name}"? (Recommended: categories are disabled, not hard-deleted.)`
-    );
+    const ok = window.confirm(`Disable category "${c.name}"? Categories are disabled, not hard-deleted.`);
     if (!ok) return;
 
     setRowBusyId(id);
@@ -345,222 +273,96 @@ export default function CategoriesPage() {
 
   const incomeCategories = filteredCategories.filter((c) => c.type === "income");
   const expenseCategories = filteredCategories.filter((c) => c.type === "expense");
-
-  const visibleCount = filteredCategories.length;
-
-  function renderCategoryRow(cat: Category) {
-    const isEditing = editingId === cat.id;
-    const isBusy = rowBusyId === cat.id;
-
-    return (
-      <li key={cat.id} className="px-4 py-2.5 text-sm">
-        {!isEditing ? (
-          <div className="flex items-center justify-between gap-3">
-            <div className="truncate">{cat.name}</div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => beginEdit(cat.id)}
-                disabled={isBusy}
-                className="gl-btn gl-btn-secondary gl-btn-sm"
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDeleteCategory(cat.id)}
-                disabled={isBusy}
-                className="px-3 py-1.5 rounded border border-red-900 text-xs text-red-300 hover:bg-red-500/10"
-              >
-                {isBusy ? "Working..." : "Delete"}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="grid gap-2 md:grid-cols-3 items-end">
-            <div className="md:col-span-2">
-              <label className="block text-xs mb-1 text-gray-400">Name</label>
-              <input
-                type="text"
-                className="gl-input"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-xs mb-1 text-gray-400">Type</label>
-              <select
-                className="gl-input"
-                value={editType}
-                onChange={(e) => setEditType(e.target.value as CategoryType)}
-              >
-                <option value="expense">Expense</option>
-                <option value="income">Income</option>
-              </select>
-            </div>
-
-            <div className="md:col-span-3 flex gap-2 justify-end">
-              <button
-                type="button"
-                onClick={() => handleSaveEdit(cat.id)}
-                disabled={isBusy}
-                className="gl-btn gl-btn-primary gl-btn-sm"
-              >
-                {isBusy ? "Saving..." : "Save"}
-              </button>
-              <button
-                type="button"
-                onClick={cancelEdit}
-                disabled={isBusy}
-                className="gl-btn gl-btn-secondary gl-btn-sm hover:bg-white/5"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-      </li>
-    );
-  }
-
-  const NavLink = ({
-    href,
-    label,
-    active,
-  }: {
-    href: string;
-    label: string;
-    active?: boolean;
-  }) => {
-    return (
-      <a
-        href={href}
-        className={[
-          "px-2.5 py-1.5 rounded-md border text-xs transition",
-          active
-            ? "border-white/30 bg-white/10 text-white"
-            : "border-gray-800 bg-black/40 text-gray-300 hover:bg-white/5 hover:text-white",
-        ].join(" ")}
-      >
-        {label}
-      </a>
-    );
-  };
+  const latest = latestCategory(categories);
+  const latestName = latest?.name ?? "None yet";
 
   function clearCommandBar() {
     setQ("");
     setTypeFilter("all");
   }
 
+  function renderCategoryCard(cat: Category) {
+    return (
+      <CategoryCard
+        key={cat.id}
+        category={cat}
+        isEditing={editingId === cat.id}
+        isBusy={rowBusyId === cat.id}
+        editName={editName}
+        editType={editType}
+        onBeginEdit={() => beginEdit(cat.id)}
+        onCancelEdit={cancelEdit}
+        onSaveEdit={() => handleSaveEdit(cat.id)}
+        onDelete={() => handleDeleteCategory(cat.id)}
+        onEditNameChange={setEditName}
+        onEditTypeChange={setEditType}
+      />
+    );
+  }
+
   return (
     <div className="gl-page-migrated">
-      {/* Tightened header (app-shell) */}
-{/* Mini sticky command bar */}
       <div className="sticky top-0 z-30 border-b border-gray-900 bg-black/85 backdrop-blur">
-        <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 py-2.5">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div className="flex items-baseline gap-2 min-w-0">
-              <div className="text-[11px] uppercase tracking-widest text-gray-500">
-                Configuration
-              </div>
-              <div className="text-xs text-gray-300 truncate">Categories</div>
+        <div className="mx-auto w-full max-w-7xl px-4 py-2.5 sm:px-6">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-baseline gap-2">
+              <div className="text-[11px] uppercase tracking-widest text-gray-500">Configuration</div>
+              <div className="truncate text-xs text-gray-300">Category intelligence</div>
               <span className="text-gray-700">•</span>
               <div className="text-[11px] text-gray-400">
-                Showing <span className="text-gray-200 font-medium">{visibleCount}</span>
+                Showing <span className="font-medium text-gray-200">{filteredCategories.length}</span>
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <div className="flex items-center gap-2">
-                <input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Search categories..."
-                  className="gl-input w-full sm:w-56 text-xs py-1.5"
-                />
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search categories..."
+                className="gl-input w-full py-1.5 text-xs sm:w-56"
+              />
 
-                <select
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value as any)}
-                  className="gl-input text-xs py-1.5"
-                >
-                  <option value="all">All</option>
-                  <option value="income">Income</option>
-                  <option value="expense">Expense</option>
-                </select>
-              </div>
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value as "all" | CategoryType)}
+                className="gl-input py-1.5 text-xs"
+              >
+                <option value="all">All categories</option>
+                <option value="income">Income only</option>
+                <option value="expense">Expenses only</option>
+              </select>
 
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={openCreateModal}
-                  className="gl-btn gl-btn-primary gl-btn-sm"
-                >
+                <button type="button" onClick={openCreateModal} className="gl-btn gl-btn-primary gl-btn-sm">
                   Add Category
                 </button>
-                <button
-                  type="button"
-                  onClick={clearCommandBar}
-                  className="px-3 py-1.5 rounded-md border border-gray-800 bg-black/40 text-xs text-gray-200 hover:bg-white/5 transition"
-                >
+                <button type="button" onClick={clearCommandBar} className="gl-btn gl-btn-secondary gl-btn-sm">
                   Clear
                 </button>
               </div>
             </div>
           </div>
-
-          {(q.trim() || typeFilter !== "all") && (
-            <div className="mt-2 text-[11px] text-gray-400">
-              Filters active:{" "}
-              {q.trim() ? (
-                <span className="text-gray-200">Search “{q.trim()}”</span>
-              ) : (
-                <span className="text-gray-500">No search</span>
-              )}
-              <span className="text-gray-700"> • </span>
-              <span className="text-gray-200">
-                {typeFilter === "all" ? "All types" : typeFilter}
-              </span>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Create Category Modal (single source of "Add Category") */}
-      {createOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center px-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Add Category"
-        >
-          <button
-            type="button"
-            aria-label="Close modal"
-            onClick={closeCreateModal}
-            className="absolute inset-0 bg-black/70"
-          />
-          <div className="relative w-full max-w-lg border border-gray-800 rounded-xl bg-black/90 backdrop-blur p-4 sm:p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.06)]">
-            <div className="flex items-start justify-between gap-3 mb-3">
+      {createOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" role="dialog" aria-modal="true" aria-label="Add Category">
+          <button type="button" aria-label="Close modal" onClick={closeCreateModal} className="absolute inset-0 bg-black/70" />
+          <div className="relative w-full max-w-lg rounded-3xl border border-gray-800 bg-black/90 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.06)] backdrop-blur">
+            <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <div className="text-sm font-semibold leading-tight">Add Category</div>
-                <div className="text-[11px] text-gray-400 mt-0.5">
-                  Create a new income or expense category.
-                </div>
+                <p className="text-[11px] uppercase tracking-[0.22em] text-gray-500">New category</p>
+                <h2 className="mt-1 text-lg font-semibold text-white">Add Category</h2>
+                <p className="mt-1 text-xs text-gray-400">Create a reusable income or expense label.</p>
               </div>
-              <button
-                type="button"
-                onClick={closeCreateModal}
-                disabled={saving}
-                className="px-2.5 py-1.5 rounded-md border border-gray-800 text-xs text-gray-200 hover:bg-white/5"
-              >
+              <button type="button" onClick={closeCreateModal} disabled={saving} className="gl-btn gl-btn-secondary gl-btn-sm">
                 Close
               </button>
             </div>
 
             <form onSubmit={handleCreateCategory} className="grid gap-3 sm:grid-cols-2">
               <div className="sm:col-span-2">
-                <label className="block text-xs mb-1 text-gray-400">Name</label>
+                <label className="mb-1 block text-xs text-gray-400">Name</label>
                 <input
                   ref={createNameRef}
                   type="text"
@@ -573,12 +375,8 @@ export default function CategoriesPage() {
               </div>
 
               <div className="sm:col-span-2">
-                <label className="block text-xs mb-1 text-gray-400">Type</label>
-                <select
-                  className="gl-input"
-                  value={type}
-                  onChange={(e) => setType(e.target.value as CategoryType)}
-                >
+                <label className="mb-1 block text-xs text-gray-400">Type</label>
+                <select className="gl-input" value={type} onChange={(e) => setType(e.target.value as CategoryType)}>
                   <option value="expense">Expense</option>
                   <option value="income">Income</option>
                 </select>
@@ -593,69 +391,94 @@ export default function CategoriesPage() {
                     setCreateOpen(false);
                   }}
                   disabled={saving}
-                  className="px-3 py-2 rounded-md border border-gray-800 bg-black/40 text-xs text-gray-200 hover:bg-white/5"
+                  className="gl-btn gl-btn-secondary gl-btn-sm"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="gl-btn gl-btn-primary gl-btn-sm"
-                >
+                <button type="submit" disabled={saving} className="gl-btn gl-btn-primary gl-btn-sm">
                   {saving ? "Saving..." : "Create Category"}
                 </button>
               </div>
             </form>
           </div>
         </div>
-      )}
+      ) : null}
 
-      <main className="gl-page-shell max-w-4xl">
-        <div className="mb-4">
-          <h1 className="text-2xl font-semibold leading-tight">Categories</h1>
-          <p className="text-sm text-gray-400 mt-1">
-            Organize your income and expenses by category.
-          </p>
-        </div>
+      <PageShell size="xl" className="space-y-6">
+        <PageHeader
+          eyebrow="Configuration intelligence"
+          title="Category Intelligence Center"
+          description="Organize income and expenses into a clean taxonomy for sharper reporting, cleaner dashboards, and better spending intelligence."
+          action={
+            <button type="button" onClick={openCreateModal} className="gl-btn gl-btn-primary gl-btn-sm">
+              Add Category
+            </button>
+          }
+        />
 
-        {errorMsg && <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>}
+        {errorMsg ? <p className="rounded-2xl border border-red-900/70 bg-red-950/20 p-3 text-sm text-red-300">{errorMsg}</p> : null}
 
-        <section className="grid md:grid-cols-2 gap-6">
-          <div>
-            <div className="flex items-baseline justify-between mb-2">
-              <h2 className="text-sm font-semibold">Income</h2>
-              <span className="text-[11px] text-gray-500">{incomeCategories.length}</span>
+        <CategoryCommandCenter
+          totalCategories={categories.length}
+          incomeCategories={categories.filter((c) => c.type === "income").length}
+          expenseCategories={categories.filter((c) => c.type === "expense").length}
+          recentlyAddedLabel={latestName}
+        />
+
+        <CategoryInsights
+          totalCategories={categories.length}
+          incomeCategories={categories.filter((c) => c.type === "income").length}
+          expenseCategories={categories.filter((c) => c.type === "expense").length}
+          latestCategoryName={latestName}
+          filteredCount={filteredCategories.length}
+        />
+
+        <section className="grid gap-6 lg:grid-cols-2">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.24em] text-gray-500">Income taxonomy</p>
+                <h2 className="mt-1 text-lg font-semibold text-white">Income Categories</h2>
+              </div>
+              <span className="rounded-full border border-gray-800 bg-black/40 px-3 py-1 text-xs text-gray-300">{incomeCategories.length}</span>
             </div>
 
             {loading ? (
-              <p className="text-gray-400 text-sm">Loading categories...</p>
+              <p className="text-sm text-gray-400">Loading categories...</p>
             ) : incomeCategories.length === 0 ? (
-              <p className="text-gray-500 text-sm">No income categories match your filters.</p>
+              <EmptyState
+                compact
+                title="No income categories"
+                description="Create income categories such as Salary, Allowance, or Business Income."
+              />
             ) : (
-              <ul className="gl-list-shell bg-black/40">
-                {incomeCategories.map(renderCategoryRow)}
-              </ul>
+              <div className="space-y-3">{incomeCategories.map(renderCategoryCard)}</div>
             )}
           </div>
 
-          <div>
-            <div className="flex items-baseline justify-between mb-2">
-              <h2 className="text-sm font-semibold">Expenses</h2>
-              <span className="text-[11px] text-gray-500">{expenseCategories.length}</span>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.24em] text-gray-500">Expense taxonomy</p>
+                <h2 className="mt-1 text-lg font-semibold text-white">Expense Categories</h2>
+              </div>
+              <span className="rounded-full border border-gray-800 bg-black/40 px-3 py-1 text-xs text-gray-300">{expenseCategories.length}</span>
             </div>
 
             {loading ? (
-              <p className="text-gray-400 text-sm">Loading categories...</p>
+              <p className="text-sm text-gray-400">Loading categories...</p>
             ) : expenseCategories.length === 0 ? (
-              <p className="text-gray-500 text-sm">No expense categories match your filters.</p>
+              <EmptyState
+                compact
+                title="No expense categories"
+                description="Create expense categories such as Food, Transport, Subscriptions, or Utilities."
+              />
             ) : (
-              <ul className="gl-list-shell bg-black/40">
-                {expenseCategories.map(renderCategoryRow)}
-              </ul>
+              <div className="space-y-3">{expenseCategories.map(renderCategoryCard)}</div>
             )}
           </div>
         </section>
-      </main>
+      </PageShell>
     </div>
   );
 }
