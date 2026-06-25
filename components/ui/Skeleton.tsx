@@ -21,8 +21,11 @@ export default function Skeleton({
 }: SkeletonProps) {
   return (
     <div
+      aria-hidden="true"
       className={[
-        "animate-pulse bg-white/10 border border-white/5",
+        "relative overflow-hidden bg-white/10 border border-white/5",
+        "before:absolute before:inset-0 before:-translate-x-full before:animate-[gl-shimmer_1.8s_infinite]",
+        "before:bg-gradient-to-r before:from-transparent before:via-white/10 before:to-transparent",
         roundedMap[rounded],
         className,
       ].join(" ")}

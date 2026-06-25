@@ -872,3 +872,11 @@ body {
     padding-inline: 0.72rem;
   }
 }
+
+
+/* GL-UX-11A — Platform loading shimmer */
+@keyframes gl-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
