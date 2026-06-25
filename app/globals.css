@@ -1028,3 +1028,131 @@ body {
   fill: rgba(255, 255, 255, 0.46);
   font-size: 10px;
 }
+
+
+/* GL-SPACING-01 — Fintech vertical rhythm system */
+:root {
+  --gl-space-xs: 0.5rem;    /* 8px */
+  --gl-space-sm: 0.75rem;   /* 12px */
+  --gl-space-md: 1rem;      /* 16px */
+  --gl-space-lg: 1.5rem;    /* 24px */
+  --gl-space-xl: 2rem;      /* 32px */
+  --gl-space-2xl: 3rem;     /* 48px */
+  --gl-space-3xl: 4rem;     /* 64px */
+
+  --gl-page-gap: var(--gl-space-2xl);
+  --gl-section-gap: var(--gl-space-xl);
+  --gl-card-pad-x: 1.5rem;
+  --gl-card-pad-y: 1.35rem;
+  --gl-card-pad-x-lg: 1.75rem;
+  --gl-card-pad-y-lg: 1.6rem;
+}
+
+/* Page-level breathing room */
+.gl-page-shell {
+  padding-top: var(--gl-space-xl);
+  padding-bottom: var(--gl-space-3xl);
+}
+
+.gl-page-stack {
+  gap: var(--gl-page-gap);
+}
+
+.gl-page-section {
+  gap: var(--gl-section-gap);
+}
+
+.gl-page-section-spacious {
+  gap: var(--gl-space-2xl);
+}
+
+/* Header-to-content rhythm */
+.gl-page-header {
+  margin-bottom: var(--gl-space-2xl);
+  gap: var(--gl-space-lg);
+}
+
+.gl-page-description {
+  margin-top: var(--gl-space-sm);
+}
+
+/* Section heading rhythm */
+.gl-page-section-header {
+  gap: var(--gl-space-lg);
+  margin-bottom: var(--gl-space-sm);
+}
+
+.gl-page-section-description {
+  margin-top: var(--gl-space-sm);
+}
+
+/* Shared card breathing room */
+.gl-card-header {
+  padding: var(--gl-card-pad-y) var(--gl-card-pad-x);
+}
+
+.gl-card-body {
+  padding: var(--gl-card-pad-y) var(--gl-card-pad-x);
+}
+
+.gl-list-row {
+  padding: var(--gl-card-pad-y) var(--gl-card-pad-x);
+}
+
+/* Utility hooks for command-center style blocks */
+.gl-rhythm-section {
+  margin-top: var(--gl-space-2xl);
+}
+
+.gl-rhythm-section + .gl-rhythm-section {
+  margin-top: var(--gl-space-2xl);
+}
+
+.gl-rhythm-tight {
+  margin-top: var(--gl-space-xl);
+}
+
+.gl-command-center-rhythm {
+  margin-bottom: var(--gl-space-2xl);
+}
+
+.gl-content-grid {
+  gap: var(--gl-space-xl);
+}
+
+@media (min-width: 1024px) {
+  .gl-page-shell {
+    padding-top: var(--gl-space-2xl);
+    padding-bottom: 5rem;
+  }
+
+  .gl-card-header {
+    padding: var(--gl-card-pad-y-lg) var(--gl-card-pad-x-lg);
+  }
+
+  .gl-card-body {
+    padding: var(--gl-card-pad-y-lg) var(--gl-card-pad-x-lg);
+  }
+
+  .gl-list-row {
+    padding: var(--gl-card-pad-y-lg) var(--gl-card-pad-x-lg);
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --gl-page-gap: var(--gl-space-xl);
+    --gl-section-gap: var(--gl-space-lg);
+    --gl-card-pad-x: 1rem;
+    --gl-card-pad-y: 1rem;
+  }
+
+  .gl-page-shell {
+    padding-top: var(--gl-space-lg);
+    padding-bottom: max(var(--gl-space-2xl), env(safe-area-inset-bottom));
+  }
+
+  .gl-page-header {
+    margin-bottom: var(--gl-space-xl);
+  }
+}
