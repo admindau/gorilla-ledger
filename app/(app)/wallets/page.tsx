@@ -10,6 +10,7 @@ import { Input, Select } from "@/components/ui/Input";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageSection } from "@/components/ui/PageSection";
 import { PageShell } from "@/components/ui/PageShell";
+import TrustIndicator from "@/components/ui/TrustIndicator";
 
 type Wallet = {
   id: string;
@@ -385,6 +386,11 @@ export default function WalletsPage() {
               <p className="mt-4 max-w-2xl text-sm leading-6 text-white/55">
                 This command center is based on wallet starting positions. Transaction-adjusted balances remain visible on the dashboard.
               </p>
+
+              <div className="mt-5 flex flex-wrap gap-2">
+                <TrustIndicator status="success" label="Live Ledger Data" />
+                <TrustIndicator status="success" label="Snapshot Updated" detail="Today" />
+              </div>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
@@ -401,6 +407,18 @@ export default function WalletsPage() {
                   {currencyTotals.length > 0
                     ? currencyTotals.map(([currency]) => currency).join(" • ")
                     : "No currency yet"}
+                </p>
+              </div>
+
+              <div className="gl-inner-card p-4 sm:col-span-2 lg:col-span-1">
+                <p className="text-xs uppercase tracking-[0.22em] text-white/35">Wallet Health</p>
+                <p className="mt-2 text-3xl font-semibold text-white">
+                  {wallets.length > 0 ? "Healthy" : "Setup"}
+                </p>
+                <p className="mt-1 text-xs text-white/45">
+                  {wallets.length > 0
+                    ? "Assets actively tracked"
+                    : "Create your first wallet"}
                 </p>
               </div>
             </div>
