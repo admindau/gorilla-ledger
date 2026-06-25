@@ -1,9 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState, FormEvent } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/ToastProvider";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { RecurringCommandCenter } from "@/components/recurring/RecurringCommandCenter";
+import { RecurringInsights } from "@/components/recurring/RecurringInsights";
+import { RecurringRuleCard } from "@/components/recurring/RecurringRuleCard";
+import { RecurringTimeline } from "@/components/recurring/RecurringTimeline";
 
 type Wallet = {
   id: string;
@@ -54,9 +59,6 @@ type RecurringRunLog = {
 export default function RecurringPage() {
   const { showToast } = useToast();
 
-  const [userEmail, setUserEmail] = useState<string>("");
-  const [signingOut, setSigningOut] = useState(false);
-
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [rules, setRules] = useState<RecurringRule[]>([]);
@@ -75,22 +77,6 @@ export default function RecurringPage() {
   const now = useMemo(() => new Date(), []);
   const monthName = now.toLocaleString("en-US", { month: "long" });
   const year = now.getFullYear();
-
-  async function handleLogout() {
-    if (signingOut) return;
-
-    const ok = window.confirm(
-      "You are about to log out of Gorilla Ledger™. Continue?"
-    );
-    if (!ok) return;
-
-    setSigningOut(true);
-    try {
-      await supabaseBrowserClient.auth.signOut();
-    } finally {
-      window.location.href = "/";
-    }
-  }
 
   // Load wallets, categories, existing rules, and user email
   useEffect(() => {
@@ -131,8 +117,6 @@ export default function RecurringPage() {
         ]);
 
         if (cancelled) return;
-
-        setUserEmail(u?.user?.email ?? "");
 
         if (wErr) console.error("Error loading wallets", wErr);
         if (cErr) console.error("Error loading categories", cErr);
@@ -313,32 +297,6 @@ export default function RecurringPage() {
     });
   }
 
-  function formatFrequency(rule: RecurringRule) {
-    const every = rule.interval && rule.interval > 1 ? `Every ${rule.interval}` : "Every";
-
-    switch (rule.frequency) {
-      case "daily":
-        return `${every} day${rule.interval && rule.interval > 1 ? "s" : ""}`;
-      case "weekly":
-        return `${every} week${rule.interval && rule.interval > 1 ? "s" : ""}`;
-      case "yearly":
-        return `${every} year${rule.interval && rule.interval > 1 ? "s" : ""}`;
-      case "monthly":
-      default:
-        return `${every} month${rule.interval && rule.interval > 1 ? "s" : ""}`;
-    }
-  }
-
-  function formatSchedule(rule: RecurringRule) {
-    if (rule.frequency === "daily") return "Runs daily";
-    if (rule.frequency === "weekly") {
-      return `Runs weekly${rule.day_of_week != null ? ` on day ${rule.day_of_week}` : ""}`;
-    }
-    if (rule.frequency === "yearly") {
-      return `Runs yearly${rule.day_of_month != null ? ` on day ${rule.day_of_month}` : ""}`;
-    }
-    return `Runs monthly${rule.day_of_month != null ? ` on day ${rule.day_of_month}` : ""}`;
-  }
 
   function formatDateTimeWithTime(value: string | null) {
     if (!value) return "—";
@@ -388,47 +346,39 @@ export default function RecurringPage() {
   const runLogSummary = getRunLogSummary();
 
 
-  const NavLink = ({
-    href,
-    label,
-    active,
-  }: {
-    href: string;
-    label: string;
-    active?: boolean;
-  }) => {
-    return (
-      <Link
-        href={href}
-        className={[
-          "px-2.5 py-1.5 rounded-md border text-xs transition",
-          active
-            ? "border-white/30 bg-white/10 text-white"
-            : "border-gray-800 bg-black/40 text-gray-300 hover:bg-white/5 hover:text-white",
-        ].join(" ")}
-      >
-        {label}
-      </Link>
-    );
-  };
-
   return (
     <div className="gl-page-migrated">
       {/* ========================= Hardened Top Navigation ========================= */}
 {/* ========================= Page Content ========================= */}
       <main className="gl-page-shell max-w-5xl">
-          <h1 className="text-2xl font-semibold mb-2">
-            Recurring Rules – {monthName} {year}
-          </h1>
-          <p className="text-xs text-gray-400 mb-6">
-            Define automatic transactions like salary, rent, subscriptions, and annual renewals. Gorilla Ledger tracks next run, last run, total runs, and active status.
-          </p>
+          <PageHeader
+            eyebrow="Automation"
+            title={`Recurring Automation Center – ${monthName} ${year}`}
+            description="Monitor recurring income, expenses, upcoming executions, run history, and automation health from one command center."
+          />
+
+          <RecurringCommandCenter rules={rules} runLogs={runLogs} />
+
+          <RecurringTimeline
+            rules={rules}
+            wallets={wallets}
+            categories={categories}
+            loading={loadingPage}
+          />
 
           <form
             onSubmit={handleCreateRule}
-            className="border border-gray-800 rounded-lg p-4 mb-8 bg-black/40 space-y-4 text-sm"
+            className="gl-premium-card mb-8 space-y-4 p-4 text-sm"
           >
-            <h2 className="text-sm font-semibold mb-2">Add a Recurring Rule</h2>
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500">
+                New automation
+              </p>
+              <h2 className="mt-1 text-sm font-semibold">Add a Recurring Rule</h2>
+              <p className="mt-1 text-xs text-gray-500">
+                Create scheduled transactions for predictable income, bills, subscriptions, and renewals.
+              </p>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -540,116 +490,52 @@ export default function RecurringPage() {
             </button>
           </form>
 
-          {/* Existing rules */}
-          <section className="border border-gray-800 rounded-lg p-4 bg-black/40 text-sm">
-            <h2 className="text-sm font-semibold mb-4">Existing Rules</h2>
+          {/* Automation rules */}
+          <section className="gl-premium-card p-4 text-sm">
+            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500">
+                  Automation rules
+                </p>
+                <h2 className="mt-1 text-sm font-semibold">Recurring Rule Portfolio</h2>
+                <p className="mt-1 text-xs text-gray-500">
+                  Review, pause, activate, or delete the rules powering your automated transactions.
+                </p>
+              </div>
+              <div className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] text-gray-400">
+                {rules.filter((rule) => rule.is_active).length} active / {rules.length} total
+              </div>
+            </div>
 
             {loadingPage ? (
-              <p className="text-xs text-gray-500">Loading…</p>
+              <p className="text-xs text-gray-500">Loading recurring rules…</p>
             ) : rules.length === 0 ? (
-              <p className="text-xs text-gray-500">
-                No recurring rules yet. Add one above.
-              </p>
+              <EmptyState
+                compact
+                eyebrow="Automation"
+                title="No recurring rules yet"
+                description="Create your first recurring rule to automate predictable income, bills, subscriptions, or annual renewals."
+              />
             ) : (
-              <div className="space-y-3">
-                {rules.map((rule) => {
-                  const wallet = wallets.find((w) => w.id === rule.wallet_id);
-                  const category = categories.find(
-                    (c) => c.id === rule.category_id
-                  );
-                  const amt = (rule.amount_minor ?? 0) / 100;
-
-                  return (
-                    <div
-                      key={rule.id}
-                      className="flex flex-col gap-3 rounded-lg border border-gray-800 bg-black/30 px-3 py-3 md:flex-row md:items-start md:justify-between"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-xs font-semibold">
-                            {rule.description || category?.name || "Recurring rule"}
-                          </p>
-                          <span className="rounded-full border border-gray-700 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-gray-300">
-                            {formatFrequency(rule)}
-                          </span>
-                          <span className="rounded-full border border-gray-800 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-gray-400">
-                            {rule.type}
-                          </span>
-                        </div>
-
-                        <p className="mt-1 text-[11px] text-gray-400">
-                          {wallet
-                            ? `${wallet.name} • ${wallet.currency_code}`
-                            : rule.currency_code}
-                          {" • "}
-                          {category?.name ?? "Uncategorized"}
-                          {" • "}
-                          {formatSchedule(rule)}
-                          {" • "}
-                          Amount: {amt.toLocaleString()} {rule.currency_code}
-                        </p>
-
-                        <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
-                          <div className="rounded-md border border-gray-900 bg-black/50 px-2 py-1.5">
-                            <p className="text-[10px] uppercase tracking-[0.16em] text-gray-500">Last run</p>
-                            <p className="mt-1 text-gray-200">{formatDateTime(rule.last_run_at)}</p>
-                          </div>
-                          <div className="rounded-md border border-gray-900 bg-black/50 px-2 py-1.5">
-                            <p className="text-[10px] uppercase tracking-[0.16em] text-gray-500">Next run</p>
-                            <p className="mt-1 text-gray-200">{formatDateTime(rule.next_run_at)}</p>
-                          </div>
-                          <div className="rounded-md border border-gray-900 bg-black/50 px-2 py-1.5">
-                            <p className="text-[10px] uppercase tracking-[0.16em] text-gray-500">Total runs</p>
-                            <p className="mt-1 text-gray-200">{rule.total_runs ?? 0}</p>
-                          </div>
-                          <div className="rounded-md border border-gray-900 bg-black/50 px-2 py-1.5">
-                            <p className="text-[10px] uppercase tracking-[0.16em] text-gray-500">Status</p>
-                            <p className="mt-1 text-gray-200">{rule.is_active ? "Active" : "Paused"}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 text-[11px]">
-                        <span
-                          className={`px-2 py-0.5 rounded-full border ${
-                            rule.is_active
-                              ? "border-emerald-500/70 text-emerald-300"
-                              : "border-gray-600 text-gray-400"
-                          }`}
-                        >
-                          {rule.is_active ? "ACTIVE" : "PAUSED"}
-                        </span>
-                        {rule.is_active ? (
-                          <button
-                            onClick={() => toggleRuleActive(rule, false)}
-                            className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
-                          >
-                            Pause
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => toggleRuleActive(rule, true)}
-                            className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
-                          >
-                            Activate
-                          </button>
-                        )}
-                        <button
-                          onClick={() => deleteRule(rule)}
-                          className="px-2 py-1 border border-red-700 text-red-300 rounded hover:bg-red-950/40"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="grid gap-4 lg:grid-cols-2">
+                {rules.map((rule) => (
+                  <RecurringRuleCard
+                    key={rule.id}
+                    rule={rule}
+                    wallet={wallets.find((wallet) => wallet.id === rule.wallet_id)}
+                    category={categories.find((category) => category.id === rule.category_id)}
+                    onToggle={(isActive) => toggleRuleActive(rule, isActive)}
+                    onDelete={() => deleteRule(rule)}
+                  />
+                ))}
               </div>
             )}
           </section>
 
+          <RecurringInsights rules={rules} runLogs={runLogs} wallets={wallets} categories={categories} />
+
           {/* Recurring run audit logs */}
-          <section className="mt-8 border border-gray-800 rounded-lg p-4 bg-black/40 text-sm">
+          <section className="gl-premium-card mt-8 p-4 text-sm">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold">Recurring Run Audit</h2>
@@ -674,15 +560,18 @@ export default function RecurringPage() {
             {loadingPage ? (
               <p className="text-xs text-gray-500">Loading audit logs…</p>
             ) : runLogs.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-gray-800 bg-black/30 p-4 text-xs text-gray-500">
-                No recurring run logs yet. Logs will appear after the recurring cron endpoint processes due rules.
-              </div>
+              <EmptyState
+                compact
+                eyebrow="Audit"
+                title="No recurring run logs yet"
+                description="Logs will appear after the recurring cron endpoint processes due rules."
+              />
             ) : (
               <div className="space-y-2">
                 {runLogs.map((log) => (
                   <div
                     key={log.id}
-                    className="rounded-lg border border-gray-800 bg-black/30 px-3 py-3"
+                    className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3"
                   >
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
