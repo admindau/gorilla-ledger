@@ -6,6 +6,10 @@ import ReceiptUploader, {
   validateReceiptFiles,
 } from "@/components/receipts/ReceiptUploader";
 import ReceiptList from "@/components/receipts/ReceiptList";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { TransactionCommandCenter } from "@/components/transactions/TransactionCommandCenter";
+import { TransactionActivityCard } from "@/components/transactions/TransactionActivityCard";
 
 type Wallet = {
   id: string;
@@ -171,6 +175,7 @@ export default function TransactionsPage() {
   const [saving, setSaving] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -690,36 +695,41 @@ export default function TransactionsPage() {
     setToDate("");
   }
 
-  const headerLinkClass =
-    "px-2.5 py-1 rounded border border-gray-800 bg-black/40 text-xs text-gray-200 hover:bg-white hover:text-black transition";
-
   return (
     <div className="gl-page-migrated">
       {/* Tight, app-like header (less link-bar) */}
-<main className="gl-page-shell max-w-5xl">
-        {/* Tightened page title rhythm */}
-        <div className="mb-4">
-          <h1 className="text-xl sm:text-2xl font-semibold leading-tight">
-            Transactions
-          </h1>
-          <p className="text-xs text-gray-400 mt-1">
-            Add, search, edit, and attach receipts to your records.
-          </p>
-        </div>
+        <main className="gl-page-shell max-w-5xl">
+        <PageHeader
+          eyebrow="Activity Ledger"
+          title="Financial Activity"
+          description="Track income, expenses and supporting receipts across all wallets."
+        />
 
-        {errorMsg && <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>}
+        <TransactionCommandCenter transactions={transactions} />
+
+        {errorMsg && <p className="text-red-400 text-sm">{errorMsg}</p>}
 
         {/* Add Transaction */}
-        <section className="mb-8 gl-card">
-          <div className="px-4 py-3 border-b border-gray-800">
-            <div className="text-[11px] uppercase tracking-wider text-gray-400">
-              Operational
+        <section className="gl-card">
+          <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between gap-4">
+            <div>
+              <div className="text-[11px] uppercase tracking-wider text-gray-400">
+                Operational
+              </div>
+              <h2 className="text-sm font-semibold mt-1 leading-tight">
+                Add Transaction
+              </h2>
             </div>
-            <h2 className="text-sm font-semibold mt-1 leading-tight">
-              Add Transaction
-            </h2>
+            <button
+              type="button"
+              onClick={() => setShowCreateForm((value) => !value)}
+              className="gl-btn gl-btn-primary gl-btn-sm"
+            >
+              {showCreateForm ? "Hide Form" : "+ Add Transaction"}
+            </button>
           </div>
 
+          {showCreateForm ? (
           <div className="p-4">
             {wallets.length === 0 || categories.length === 0 ? (
               <p className="text-sm text-yellow-300">
@@ -841,6 +851,7 @@ export default function TransactionsPage() {
               </form>
             )}
           </div>
+          ) : null}
         </section>
 
         {/* Recent Transactions */}
@@ -921,22 +932,34 @@ export default function TransactionsPage() {
             {loading ? (
               <p className="text-gray-400 text-sm">Loading...</p>
             ) : transactions.length === 0 ? (
-              <p className="text-gray-500 text-sm">
-                You have no transactions yet.
-              </p>
+              <EmptyState
+                compact
+                title="No transactions yet"
+                description="Create your first transaction to begin tracking activity."
+                action={
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateForm(true)}
+                    className="gl-btn gl-btn-primary gl-btn-sm"
+                  >
+                    Add Transaction
+                  </button>
+                }
+              />
             ) : filteredTransactions.length === 0 ? (
-              <p className="text-gray-500 text-sm">
-                No transactions match your filters.
-              </p>
+              <EmptyState
+                compact
+                title="No matching transactions"
+                description="Adjust your search or date filters to see more activity."
+              />
             ) : (
               <>
-                <div className="gl-list-shell text-sm overflow-hidden">
+                <div className="space-y-3 text-sm">
                   {filteredTransactions.map((tx) => {
                     const wallet = walletMap[tx.wallet_id];
                     const category = tx.category_id
                       ? categoryMap[tx.category_id]
                       : null;
-                    const dateStr = tx.occurred_at.slice(0, 10);
                     const isEditing = editingTxId === tx.id;
 
                     if (isEditing) {
@@ -1110,57 +1133,14 @@ export default function TransactionsPage() {
                     }
 
                     return (
-                      <div key={tx.id} className="px-4 py-2">
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="min-w-0">
-                            <div className="font-medium truncate">
-                              {category ? category.name : "Uncategorized"}{" "}
-                              <span className="text-xs text-gray-400">
-                                ({tx.type})
-                              </span>
-                            </div>
-                            <div className="text-xs text-gray-400 truncate">
-                              {wallet ? wallet.name : "Unknown wallet"} • {dateStr}
-                              {tx.description ? ` • ${tx.description}` : null}
-                            </div>
-                          </div>
-
-                          <div className="flex flex-col items-end gap-1 shrink-0">
-                            <div
-                              className={
-                                tx.type === "income"
-                                  ? "text-green-400"
-                                  : "text-red-400"
-                              }
-                            >
-                              {tx.type === "income" ? "+" : "-"}
-                              {formatMinorToAmount(tx.amount_minor)}{" "}
-                              {tx.currency_code}
-                            </div>
-
-                            <div className="flex gap-2 text-[11px]">
-                              <button
-                                type="button"
-                                onClick={() => handleStartInlineEdit(tx)}
-                                className="gl-btn gl-btn-secondary gl-btn-sm"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteTransaction(tx)}
-                                className="gl-btn gl-btn-danger gl-btn-sm"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="mt-2">
-                          <ReceiptList transactionId={tx.id} />
-                        </div>
-                      </div>
+                      <TransactionActivityCard
+                        key={tx.id}
+                        tx={tx}
+                        wallet={wallet}
+                        category={category}
+                        onEdit={handleStartInlineEdit}
+                        onDelete={handleDeleteTransaction}
+                      />
                     );
                   })}
                 </div>
