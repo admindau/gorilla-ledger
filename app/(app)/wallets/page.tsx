@@ -2,6 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Input, Select } from "@/components/ui/Input";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { PageSection } from "@/components/ui/PageSection";
+import { PageShell } from "@/components/ui/PageShell";
 
 type Wallet = {
   id: string;
@@ -19,8 +27,34 @@ const WALLET_TYPES = [
   { value: "other", label: "Other" },
 ] as const;
 
+const WALLET_TYPE_META: Record<
+  Wallet["type"],
+  { label: string; icon: string; description: string }
+> = {
+  cash: {
+    label: "Cash",
+    icon: "◼",
+    description: "Physical cash reserve",
+  },
+  mobile: {
+    label: "Mobile Money",
+    icon: "▣",
+    description: "Mobile wallet balance",
+  },
+  bank: {
+    label: "Bank",
+    icon: "▤",
+    description: "Bank account position",
+  },
+  other: {
+    label: "Other",
+    icon: "◆",
+    description: "Custom asset wallet",
+  },
+};
+
 function parseAmountToMinor(amount: string): number {
-  const cleaned = amount.replace(",", "").trim();
+  const cleaned = amount.replace(/,/g, "").trim();
   const [whole, fractional = ""] = cleaned.split(".");
   const fracPadded = (fractional + "00").slice(0, 2);
   const wholeNum = Number(whole) || 0;
@@ -29,13 +63,39 @@ function parseAmountToMinor(amount: string): number {
 }
 
 function formatMinorToAmount(minor: number): string {
-  return (minor / 100).toFixed(2);
+  return (minor / 100).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function formatWalletDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Recently added";
+
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  });
+}
+
+function getCurrencyTotals(wallets: Wallet[]) {
+  const totals = new Map<string, number>();
+
+  for (const wallet of wallets) {
+    const currency = wallet.currency_code || "—";
+    totals.set(currency, (totals.get(currency) ?? 0) + wallet.starting_balance_minor);
+  }
+
+  return Array.from(totals.entries()).sort((a, b) => a[0].localeCompare(b[0]));
 }
 
 export default function WalletsPage() {
   const [loading, setLoading] = useState(true);
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
+  const [showCreatePanel, setShowCreatePanel] = useState(false);
 
   // create form state
   const [name, setName] = useState("");
@@ -54,6 +114,18 @@ export default function WalletsPage() {
 
   const walletById = useMemo(() => {
     return Object.fromEntries(wallets.map((w) => [w.id, w] as const));
+  }, [wallets]);
+
+  const currencyTotals = useMemo(() => getCurrencyTotals(wallets), [wallets]);
+
+  const largestWallet = useMemo(() => {
+    return [...wallets].sort(
+      (a, b) => Math.abs(b.starting_balance_minor) - Math.abs(a.starting_balance_minor)
+    )[0];
+  }, [wallets]);
+
+  const walletTypeCount = useMemo(() => {
+    return new Set(wallets.map((wallet) => wallet.type)).size;
   }, [wallets]);
 
   useEffect(() => {
@@ -162,6 +234,7 @@ export default function WalletsPage() {
     setType("cash");
     setCurrencyCode("SSP");
     setStartingBalance("0");
+    setShowCreatePanel(false);
     setSaving(false);
   }
 
@@ -252,44 +325,152 @@ export default function WalletsPage() {
   }
 
   return (
-    <div className="gl-page-migrated">
-      {/* Tight, premium header (less “link-bar”) */}
-<main className="gl-page-shell max-w-4xl">
-        {/* Tightened page heading rhythm */}
-        <div className="mb-4">
-          <h1 className="text-xl sm:text-2xl font-semibold leading-tight">
-            Your Wallets
-          </h1>
-          <p className="text-sm text-gray-400">
-            Create, edit, and manage wallet balances (starting balance + transactions).
-          </p>
-        </div>
-
-        {errorMsg && <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>}
-
-        <section className="gl-card mb-8 p-4">
-          <h2 className="text-lg font-semibold mb-3">Add a Wallet</h2>
-
-          <form
-            onSubmit={handleCreateWallet}
-            className="grid gap-4 md:grid-cols-2"
+    <PageShell className="gl-page-stack" size="xl">
+      <PageHeader
+        eyebrow="Financial Assets"
+        title="Wallet Command Center"
+        description="Track cash, bank, mobile money, and other financial positions from one premium asset view."
+        action={
+          <Button
+            type="button"
+            variant={showCreatePanel ? "secondary" : "primary"}
+            onClick={() => setShowCreatePanel((value) => !value)}
           >
-            <div className="md:col-span-1">
-              <label className="block text-sm mb-1">Name</label>
-              <input
+            {showCreatePanel ? "Close Panel" : "+ Add Wallet"}
+          </Button>
+        }
+      />
+
+      {errorMsg ? <div className="gl-alert-error">{errorMsg}</div> : null}
+
+      <PageSection>
+        <Card variant="premium" className="overflow-hidden p-6 sm:p-7">
+          <div className="grid gap-6 lg:grid-cols-[1.25fr_1fr] lg:items-end">
+            <div>
+              <div className="mb-5 flex flex-wrap items-center gap-2">
+                <Badge>Asset Position</Badge>
+                <Badge variant={wallets.length > 0 ? "success" : "warning"}>
+                  {wallets.length > 0 ? "Live" : "Setup Needed"}
+                </Badge>
+              </div>
+
+              <p className="text-sm uppercase tracking-[0.28em] text-white/35">
+                Total registered position
+              </p>
+
+              <div className="mt-4 space-y-2">
+                {currencyTotals.length > 0 ? (
+                  currencyTotals.map(([currency, total]) => (
+                    <div key={currency} className="flex flex-wrap items-end gap-x-3 gap-y-1">
+                      <span className="text-4xl font-semibold tracking-[-0.05em] text-white sm:text-5xl">
+                        {formatMinorToAmount(total)}
+                      </span>
+                      <span className="pb-1.5 text-sm font-semibold uppercase tracking-[0.18em] text-white/70">
+                        {currency}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex flex-wrap items-end gap-x-3 gap-y-1">
+                    <span className="text-4xl font-semibold tracking-[-0.05em] text-white sm:text-5xl">
+                      0.00
+                    </span>
+                    <span className="pb-1.5 text-sm font-semibold uppercase tracking-[0.18em] text-white/70">
+                      SSP
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <p className="mt-4 max-w-2xl text-sm leading-6 text-white/55">
+                This command center is based on wallet starting positions. Transaction-adjusted balances remain visible on the dashboard.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+              <div className="gl-inner-card p-4">
+                <p className="text-xs uppercase tracking-[0.22em] text-white/35">Wallets</p>
+                <p className="mt-2 text-3xl font-semibold text-white">{wallets.length}</p>
+                <p className="mt-1 text-xs text-white/45">financial assets tracked</p>
+              </div>
+
+              <div className="gl-inner-card p-4">
+                <p className="text-xs uppercase tracking-[0.22em] text-white/35">Currency Exposure</p>
+                <p className="mt-2 text-3xl font-semibold text-white">{currencyTotals.length}</p>
+                <p className="mt-1 text-xs text-white/45">
+                  {currencyTotals.length > 0
+                    ? currencyTotals.map(([currency]) => currency).join(" • ")
+                    : "No currency yet"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </PageSection>
+
+      <PageSection>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card variant="inner" className="p-5">
+            <p className="text-xs uppercase tracking-[0.24em] text-white/35">Largest Wallet</p>
+            <p className="mt-3 truncate text-2xl font-semibold tracking-[-0.03em] text-white">
+              {largestWallet ? largestWallet.name : "—"}
+            </p>
+            <p className="mt-2 text-sm text-white/55">
+              {largestWallet
+                ? `${formatMinorToAmount(largestWallet.starting_balance_minor)} ${largestWallet.currency_code}`
+                : "Create a wallet to establish your first position."}
+            </p>
+          </Card>
+
+          <Card variant="inner" className="p-5">
+            <p className="text-xs uppercase tracking-[0.24em] text-white/35">Asset Types</p>
+            <p className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-white">
+              {walletTypeCount}
+            </p>
+            <p className="mt-2 text-sm text-white/55">
+              {walletTypeCount === 1 ? "single wallet class active" : "wallet classes active"}
+            </p>
+          </Card>
+
+          <Card variant="inner" className="p-5">
+            <p className="text-xs uppercase tracking-[0.24em] text-white/35">Ledger Readiness</p>
+            <p className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-white">
+              {wallets.length > 0 ? "Ready" : "Pending"}
+            </p>
+            <p className="mt-2 text-sm text-white/55">
+              {wallets.length > 0
+                ? "Transactions, budgets, and recurring flows can reference your wallets."
+                : "Add your first wallet to unlock the ledger workflow."}
+            </p>
+          </Card>
+        </div>
+      </PageSection>
+
+      {showCreatePanel ? (
+        <PageSection>
+          <Card variant="premium" className="p-5 sm:p-6">
+            <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <Badge>Add Asset</Badge>
+                <h2 className="mt-3 text-xl font-semibold text-white">Create a Wallet</h2>
+                <p className="mt-1 text-sm text-white/50">
+                  Add a cash, bank, mobile money, or custom wallet to your ledger.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateWallet} className="grid gap-4 md:grid-cols-2">
+              <Input
+                label="Wallet Name"
                 type="text"
-                className="gl-input"
                 placeholder="e.g. Cash, Mobile Money, Bank"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
               />
-            </div>
 
-            <div>
-              <label className="block text-sm mb-1">Type</label>
-              <select
-                className="gl-input"
+              <Select
+                label="Wallet Type"
                 value={type}
                 onChange={(e) => setType(e.target.value as Wallet["type"])}
               >
@@ -298,174 +479,207 @@ export default function WalletsPage() {
                     {t.label}
                   </option>
                 ))}
-              </select>
-            </div>
+              </Select>
 
-            <div>
-              <label className="block text-sm mb-1">Currency</label>
-              <input
+              <Input
+                label="Currency"
                 type="text"
-                className="gl-input"
                 value={currencyCode}
                 onChange={(e) => setCurrencyCode(e.target.value.toUpperCase())}
+                hint="Use the currency code, for example SSP or USD."
               />
-            </div>
 
-            <div>
-              <label className="block text-sm mb-1">Starting Balance</label>
-              <input
+              <Input
+                label="Starting Balance"
                 type="text"
-                className="gl-input"
                 value={startingBalance}
                 onChange={(e) => setStartingBalance(e.target.value)}
+                hint="This is the opening position for this wallet."
               />
-            </div>
 
-            <div className="md:col-span-2">
-              <button
-                type="submit"
-                disabled={saving}
-                className="gl-btn gl-btn-primary gl-btn-md"
-              >
-                {saving ? "Saving..." : "Create Wallet"}
-              </button>
-            </div>
-          </form>
-        </section>
+              <div className="flex flex-col gap-2 md:col-span-2 sm:flex-row sm:justify-end">
+                <Button type="button" variant="secondary" onClick={() => setShowCreatePanel(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={saving}>
+                  {saving ? "Saving..." : "Create Wallet"}
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </PageSection>
+      ) : null}
 
-        <section>
-          <h2 className="text-lg font-semibold mb-3">Wallet List</h2>
+      <PageSection
+        eyebrow="Asset Portfolio"
+        title="Wallets"
+        description="A premium view of your financial assets and opening ledger positions."
+      >
+        {loading ? (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Card key={index} variant="premium" className="min-h-72 animate-pulse p-6">
+                <div className="h-8 w-8 rounded-2xl bg-white/10" />
+                <div className="mt-8 h-5 w-2/3 rounded-full bg-white/10" />
+                <div className="mt-4 h-10 w-1/2 rounded-full bg-white/10" />
+                <div className="mt-10 h-20 rounded-3xl bg-white/5" />
+              </Card>
+            ))}
+          </div>
+        ) : wallets.length === 0 ? (
+          <EmptyState
+            eyebrow="No Assets Yet"
+            title="Create your first wallet"
+            description="Start with your main cash, bank, or mobile money wallet. Once created, transactions and budgets can reference it across Gorilla Ledger."
+            action={
+              <Button type="button" onClick={() => setShowCreatePanel(true)}>
+                Add Wallet
+              </Button>
+            }
+          />
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {wallets.map((wallet) => {
+              const isEditing = editingId === wallet.id;
+              const isBusy = rowBusyId === wallet.id;
+              const meta = WALLET_TYPE_META[wallet.type];
 
-          {loading ? (
-            <p className="text-gray-400 text-sm">Loading wallets...</p>
-          ) : wallets.length === 0 ? (
-            <p className="text-gray-500 text-sm">
-              You don’t have any wallets yet. Add one using the form above.
-            </p>
-          ) : (
-            <div className="gl-list-shell">
-              {wallets.map((wallet) => {
-                const isEditing = editingId === wallet.id;
-                const isBusy = rowBusyId === wallet.id;
-
-                return (
-                  <div key={wallet.id} className="px-4 py-3">
-                    {!isEditing ? (
-                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                        <div>
-                          <div className="font-medium">{wallet.name}</div>
-                          <div className="text-xs text-gray-400">
-                            {wallet.type.toUpperCase()} • {wallet.currency_code} • Starting{" "}
-                            {formatMinorToAmount(wallet.starting_balance_minor)}{" "}
-                            {wallet.currency_code}
+              return (
+                <Card key={wallet.id} variant="premium" interactive className="p-5 sm:p-6">
+                  {!isEditing ? (
+                    <div className="flex h-full min-h-72 flex-col">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.06] text-lg text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                            {meta.icon}
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="truncate text-lg font-semibold text-white">{wallet.name}</h3>
+                            <p className="text-xs text-white/45">{meta.description}</p>
                           </div>
                         </div>
 
-                        <div className="flex gap-2">
-                          <button
+                        <Badge>{meta.label}</Badge>
+                      </div>
+
+                      <div className="my-8">
+                        <p className="text-xs uppercase tracking-[0.24em] text-white/35">
+                          Opening Position
+                        </p>
+                        <div className="mt-3 flex flex-wrap items-end gap-x-2 gap-y-1">
+                          <span className="text-4xl font-semibold tracking-[-0.05em] text-white">
+                            {formatMinorToAmount(wallet.starting_balance_minor)}
+                          </span>
+                          <span className="pb-1 text-sm font-semibold uppercase tracking-[0.16em] text-white/65">
+                            {wallet.currency_code}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-auto space-y-3">
+                        <div className="rounded-3xl border border-white/10 bg-black/20 p-4">
+                          <div className="flex items-center justify-between gap-3 text-sm">
+                            <span className="text-white/45">Created</span>
+                            <span className="text-white/75">{formatWalletDate(wallet.created_at)}</span>
+                          </div>
+                          <div className="mt-2 flex items-center justify-between gap-3 text-sm">
+                            <span className="text-white/45">Currency</span>
+                            <span className="font-medium text-white/75">{wallet.currency_code}</span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button
                             type="button"
+                            variant="secondary"
+                            size="sm"
                             onClick={() => beginEdit(wallet.id)}
-                            className="gl-btn gl-btn-secondary gl-btn-sm"
                             disabled={isBusy}
                           >
-                            Edit
-                          </button>
-                          <button
+                            Manage
+                          </Button>
+                          <Button
                             type="button"
+                            variant="danger"
+                            size="sm"
                             onClick={() => handleDeleteWallet(wallet.id)}
-                            className="gl-btn gl-btn-danger gl-btn-sm"
                             disabled={isBusy}
                           >
                             {isBusy ? "Working..." : "Delete"}
-                          </button>
+                          </Button>
                         </div>
                       </div>
-                    ) : (
-                      <div className="grid gap-3 md:grid-cols-4">
-                        <div className="md:col-span-2">
-                          <label className="block text-xs mb-1 text-gray-400">
-                            Name
-                          </label>
-                          <input
-                            type="text"
-                            className="gl-input"
-                            value={editName}
-                            onChange={(e) => setEditName(e.target.value)}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs mb-1 text-gray-400">
-                            Type
-                          </label>
-                          <select
-                            className="gl-input"
-                            value={editType}
-                            onChange={(e) =>
-                              setEditType(e.target.value as Wallet["type"])
-                            }
-                          >
-                            {WALLET_TYPES.map((t) => (
-                              <option key={t.value} value={t.value}>
-                                {t.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs mb-1 text-gray-400">
-                            Currency
-                          </label>
-                          <input
-                            type="text"
-                            className="gl-input"
-                            value={editCurrencyCode}
-                            onChange={(e) =>
-                              setEditCurrencyCode(e.target.value.toUpperCase())
-                            }
-                          />
-                        </div>
-
-                        <div className="md:col-span-2">
-                          <label className="block text-xs mb-1 text-gray-400">
-                            Starting Balance
-                          </label>
-                          <input
-                            type="text"
-                            className="gl-input"
-                            value={editStartingBalance}
-                            onChange={(e) => setEditStartingBalance(e.target.value)}
-                          />
-                        </div>
-
-                        <div className="md:col-span-2 flex gap-2 md:justify-end">
-                          <button
-                            type="button"
-                            onClick={() => handleSaveEdit(wallet.id)}
-                            disabled={isBusy}
-                            className="gl-btn gl-btn-primary gl-btn-sm"
-                          >
-                            {isBusy ? "Saving..." : "Save"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={cancelEdit}
-                            disabled={isBusy}
-                            className="gl-btn gl-btn-secondary gl-btn-sm"
-                          >
-                            Cancel
-                          </button>
-                        </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div>
+                        <Badge>Manage Asset</Badge>
+                        <h3 className="mt-3 text-lg font-semibold text-white">Edit Wallet</h3>
+                        <p className="mt-1 text-sm text-white/50">
+                          Update the wallet profile and opening balance.
+                        </p>
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-      </main>
-    </div>
+
+                      <Input
+                        label="Wallet Name"
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                      />
+
+                      <Select
+                        label="Wallet Type"
+                        value={editType}
+                        onChange={(e) => setEditType(e.target.value as Wallet["type"])}
+                      >
+                        {WALLET_TYPES.map((t) => (
+                          <option key={t.value} value={t.value}>
+                            {t.label}
+                          </option>
+                        ))}
+                      </Select>
+
+                      <Input
+                        label="Currency"
+                        type="text"
+                        value={editCurrencyCode}
+                        onChange={(e) => setEditCurrencyCode(e.target.value.toUpperCase())}
+                      />
+
+                      <Input
+                        label="Starting Balance"
+                        type="text"
+                        value={editStartingBalance}
+                        onChange={(e) => setEditStartingBalance(e.target.value)}
+                      />
+
+                      <div className="grid grid-cols-2 gap-2 pt-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => handleSaveEdit(wallet.id)}
+                          disabled={isBusy}
+                        >
+                          {isBusy ? "Saving..." : "Save"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={cancelEdit}
+                          disabled={isBusy}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </PageSection>
+    </PageShell>
   );
 }
