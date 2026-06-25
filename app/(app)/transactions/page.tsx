@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { TransactionCommandCenter } from "@/components/transactions/TransactionCommandCenter";
 import { TransactionActivityCard } from "@/components/transactions/TransactionActivityCard";
+import { TransactionTimeline } from "@/components/transactions/TransactionTimeline";
 
 type Wallet = {
   id: string;
@@ -954,8 +955,9 @@ export default function TransactionsPage() {
               />
             ) : (
               <>
-                <div className="space-y-3 text-sm">
-                  {filteredTransactions.map((tx) => {
+                <TransactionTimeline
+                  transactions={filteredTransactions}
+                  renderTransaction={(tx) => {
                     const wallet = walletMap[tx.wallet_id];
                     const category = tx.category_id
                       ? categoryMap[tx.category_id]
@@ -1142,8 +1144,8 @@ export default function TransactionsPage() {
                         onDelete={handleDeleteTransaction}
                       />
                     );
-                  })}
-                </div>
+                  }}
+                />
 
                 {hasMore && (
                   <div className="flex justify-center mt-4">
