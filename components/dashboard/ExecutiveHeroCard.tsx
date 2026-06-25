@@ -1,3 +1,5 @@
+import TrustIndicator from "@/components/ui/TrustIndicator";
+
 type ExecutiveHeroCardProps = {
   monthLabel: string;
   healthScore: number;
@@ -79,6 +81,19 @@ export default function ExecutiveHeroCard({
             <span className={`rounded-full border bg-white/[0.035] px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${classes.pill}`}>
               {riskLevel}
             </span>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <TrustIndicator
+              status="success"
+              label="Live ledger data"
+              detail="Supabase-backed"
+            />
+            <TrustIndicator
+              status="info"
+              label="Updated just now"
+              detail="Refreshed on page load"
+            />
           </div>
 
           <h1 className="mt-4 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl lg:text-5xl">
