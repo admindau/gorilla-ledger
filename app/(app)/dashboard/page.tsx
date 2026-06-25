@@ -26,6 +26,7 @@ import SmartAlertsPanel from "@/components/dashboard/SmartAlertsPanel";
 import ExecutiveInsightsPanel from "@/components/dashboard/ExecutiveInsightsPanel";
 import ForecastMonthEndBalance from "@/components/dashboard/ForecastMonthEndBalance";
 import ExecutiveHeroCard from "@/components/dashboard/ExecutiveHeroCard";
+import DashboardAnalyticsAccordionItem from "@/components/dashboard/DashboardAnalyticsAccordionItem";
 
 import Skeleton from "@/components/ui/Skeleton";
 
@@ -1212,7 +1213,7 @@ export default function DashboardPage() {
         </section>
 
         {/* Spending trend */}
-        <section className="mb-12">
+        <DashboardAnalyticsAccordionItem title="Spending Trend" kicker="Spending signal" description="Daily expense movement for the selected month." defaultOpenOnMobile>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <span className="gl-section-eyebrow">Spending signal</span>
@@ -1236,10 +1237,10 @@ export default function DashboardPage() {
               <SpendingTrendChart data={monthlyIncomeExpenseData} />
             )}
           </div>
-        </section>
+        </DashboardAnalyticsAccordionItem>
 
         {/* Executive trend (Hero chart) */}
-        <section className="mb-12">
+        <DashboardAnalyticsAccordionItem title="Calendar-Year Income vs Expenses" kicker="Executive trend" description="Monthly income versus expenses for the selected year.">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <span className="gl-section-eyebrow">Executive trend</span>
@@ -1267,10 +1268,10 @@ export default function DashboardPage() {
               />
             </div>
           )}
-        </section>
+        </DashboardAnalyticsAccordionItem>
 
         {/* Total Balance by currency */}
-        <section className="mb-12">
+        <DashboardAnalyticsAccordionItem title="Net Worth by Currency" kicker="Wallet position" description="Current balances grouped by currency.">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <span className="gl-section-eyebrow">Wallet position</span>
@@ -1320,7 +1321,7 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
-        </section>
+        </DashboardAnalyticsAccordionItem>
 
         {/* Chart filters */}
         <section className="mb-12 sticky top-0 z-30 -mx-4 px-4 pt-4 pb-4 bg-black/75 backdrop-blur-xl border-b border-white/10">
@@ -1382,7 +1383,7 @@ export default function DashboardPage() {
         </section>
 
         {/* Composition */}
-        <section className="mb-12">
+        <DashboardAnalyticsAccordionItem title="Spending Composition" kicker="Category intelligence" description="Ranked category views for the selected filters.">
           <div className="mb-4 flex flex-col gap-2">
             <span className="gl-section-eyebrow">Category intelligence</span>
             <h2 className="text-xl font-semibold tracking-tight">Spending composition</h2>
@@ -1424,10 +1425,10 @@ export default function DashboardPage() {
               )}
             </div>
           </div>
-        </section>
+        </DashboardAnalyticsAccordionItem>
 
         {/* Budget control */}
-        <section className="mb-10">
+        <DashboardAnalyticsAccordionItem title="Budget Control" kicker="Budget intelligence" description="Budget health and budget-vs-actual performance.">
           <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-2">
             <div>
               <h2 className="text-lg font-semibold tracking-tight">
@@ -1592,10 +1593,10 @@ export default function DashboardPage() {
               </>
             )}
           </div>
-        </section>
+        </DashboardAnalyticsAccordionItem>
 
         {/* Advanced analytics */}
-        <section className="mb-12">
+        <DashboardAnalyticsAccordionItem title="Analytics Vault" kicker="Advanced analytics" description="Long-term charts for seasonality, history, and net flow.">
           <details className="group" open>
             <summary className="mb-5 flex cursor-pointer list-none flex-col gap-3 rounded-[1.35rem] border border-white/10 bg-white/[0.025] p-4 transition hover:border-white/20 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -1663,7 +1664,7 @@ export default function DashboardPage() {
               </div>
             </div>
           </details>
-        </section>
+        </DashboardAnalyticsAccordionItem>
       </main>
     </div>
   );
