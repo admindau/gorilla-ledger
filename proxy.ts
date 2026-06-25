@@ -1,4 +1,4 @@
-// middleware.ts
+// proxy.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
@@ -16,7 +16,7 @@ function isProtectedPath(pathname: string) {
   return PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const res = NextResponse.next();
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -26,7 +26,6 @@ export async function middleware(req: NextRequest) {
     return res;
   }
 
-  // Create a Supabase client that can read/write auth cookies via req/res
   const supabase = createServerClient(url, anonKey, {
     cookies: {
       getAll() {
@@ -40,12 +39,10 @@ export async function middleware(req: NextRequest) {
     },
   });
 
-  // Refresh session if needed (this is what keeps MFA/login stable)
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Apply no-store to protected pages to reduce "back button shows private screen"
   if (isProtectedPath(req.nextUrl.pathname)) {
     res.headers.set(
       "Cache-Control",
@@ -67,11 +64,6 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-      Run middleware on all routes except:
-      - Next.js internals
-      - static files
-    */
     "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)",
   ],
 };
