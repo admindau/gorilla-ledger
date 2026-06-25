@@ -11,6 +11,8 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
+import ChartTooltip from "@/components/charts/ChartTooltip";
+import { chartMargins, chartTheme } from "@/components/charts/chartTheme";
 
 type HistoricalPoint = {
   month?: string; // legacy
@@ -175,50 +177,44 @@ export default function HistoricalIncomeExpenseChart({
           Not enough data yet to show a 12-month trend.
         </p>
       ) : (
-        <div className="gl-card p-4 h-72">
+        <div className="gl-card gl-chart-surface h-80 p-4">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#222222" />
+            <LineChart data={chartData} margin={chartMargins.line}>
+              <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} />
 
               <XAxis
                 dataKey="label"
                 tickFormatter={(v) => formatDateLabel(String(v))}
-                tick={{ fontSize: 10, fill: "#9ca3af" }}
-                axisLine={{ stroke: "#374151" }}
-                tickLine={{ stroke: "#374151" }}
+                tick={{ fontSize: 10, fill: chartTheme.tickFill }}
+                axisLine={{ stroke: chartTheme.axisStroke }}
+                tickLine={{ stroke: chartTheme.axisStroke }}
                 minTickGap={18}
                 interval={xInterval}
               />
 
               <YAxis
-                tick={{ fontSize: 10, fill: "#9ca3af" }}
-                axisLine={{ stroke: "#374151" }}
-                tickLine={{ stroke: "#374151" }}
+                tick={{ fontSize: 10, fill: chartTheme.tickFill }}
+                axisLine={{ stroke: chartTheme.axisStroke }}
+                tickLine={{ stroke: chartTheme.axisStroke }}
                 tickFormatter={(v) => Number(v).toLocaleString()}
               />
 
               <Tooltip
-                contentStyle={{
-                  backgroundColor: "rgba(0,0,0,0.9)",
-                  border: "1px solid #374151",
-                  borderRadius: "0.5rem",
-                  fontSize: 11,
-                  color: "#f9fafb",
-                }}
-                labelStyle={{ color: "#e5e7eb" }}
-                itemStyle={{ color: "#f9fafb" }}
-                formatter={(value) => {
-                  if (value == null) return "";
+                wrapperStyle={chartTheme.tooltipWrapper}
+                content={                    
+                  <ChartTooltip
+                    labelFormatter={(label) =>
+                      `Date: ${formatDateLabel(String(label))}`
+                    }
+                    valueFormatter={(value) => {
+                      if (value == null) return "";
 
-                  const num =
-                    typeof value === "number" ? value : Number(value);
+                      const numeric =
+                        typeof value === "number" ? value : Number(value);
 
-                  if (!Number.isNaN(num)) return formatNumber(num);
-
-                  return String(value);
-                }}
-                labelFormatter={(label) =>
-                  `Date: ${formatDateLabel(String(label))}`
+                      return Number.isNaN(numeric) ? String(value) : formatNumber(numeric);
+                    }}
+                  />
                 }
               />
 
@@ -233,7 +229,7 @@ export default function HistoricalIncomeExpenseChart({
                 type="monotone"
                 dataKey="income"
                 name="Income"
-                stroke="#22c55e"
+                stroke={chartTheme.lineIncome}
                 strokeWidth={1.8}
                 dot={false}
               />
@@ -241,7 +237,7 @@ export default function HistoricalIncomeExpenseChart({
                 type="monotone"
                 dataKey="expense"
                 name="Expenses"
-                stroke="#ef4444"
+                stroke={chartTheme.lineExpense}
                 strokeWidth={1.8}
                 dot={false}
               />

@@ -943,3 +943,88 @@ body {
     transform: none !important;
   }
 }
+
+
+/* Gorilla Ledger premium chart layer */
+.gl-chart-surface {
+  position: relative;
+  overflow: visible;
+}
+
+.gl-chart-surface .recharts-wrapper,
+.gl-chart-surface .recharts-surface {
+  overflow: visible;
+}
+
+.gl-chart-surface .recharts-tooltip-wrapper {
+  z-index: 80 !important;
+  pointer-events: none;
+  filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.48));
+}
+
+.gl-chart-tooltip {
+  min-width: 10rem;
+  max-width: 18rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 0.9rem;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.035)),
+    rgba(4, 4, 5, 0.94);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 18px 45px rgba(0, 0, 0, 0.42);
+  padding: 0.7rem 0.8rem;
+  color: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+}
+
+.gl-chart-tooltip__label {
+  margin-bottom: 0.45rem;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.gl-chart-tooltip__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+  font-size: 0.74rem;
+  line-height: 1.25rem;
+}
+
+.gl-chart-tooltip__name {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.45rem;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.gl-chart-tooltip__dot {
+  height: 0.42rem;
+  width: 0.42rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.05);
+}
+
+.gl-chart-tooltip__value {
+  color: rgba(255, 255, 255, 0.96);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.gl-chart-axis-label {
+  fill: rgba(255, 255, 255, 0.64);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.gl-chart-axis-label-muted {
+  fill: rgba(255, 255, 255, 0.46);
+  font-size: 10px;
+}

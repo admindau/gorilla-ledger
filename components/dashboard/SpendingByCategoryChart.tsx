@@ -9,6 +9,8 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
+import ChartTooltip from "@/components/charts/ChartTooltip";
+import { chartMargins, chartTheme } from "@/components/charts/chartTheme";
 
 type TransactionType = "income" | "expense";
 
@@ -43,15 +45,7 @@ function isInternalTransferCategory(category?: Category | null): boolean {
   return n.startsWith("transfer");
 }
 
-const COLORS = [
-  "#facc15",
-  "#f97373",
-  "#38bdf8",
-  "#4ade80",
-  "#e879f9",
-  "#fb923c",
-  "#22c55e",
-];
+const COLORS = chartTheme.pieColors;
 
 export default function SpendingByCategoryChart({
   transactions,
@@ -203,7 +197,7 @@ export default function SpendingByCategoryChart({
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
+            <PieChart margin={chartMargins.pie}>
               {centerLabel}
               <Pie
                 data={pieData}
@@ -221,35 +215,24 @@ export default function SpendingByCategoryChart({
                 ))}
               </Pie>
 
-              {/* --- TOOLTIP SHOWING VALUE + PERCENTAGE --- */}
               <Tooltip
-                contentStyle={{
-                  backgroundColor: "rgba(0,0,0,0.9)",
-                  border: "1px solid #374151",
-                  borderRadius: "0.5rem",
-                  color: "#fff",
-                  fontSize: 12,
-                  padding: "6px 10px",
-                }}
-                itemStyle={{
-                  color: "#fff",
-                }}
-                labelStyle={{
-                  color: "#e5e7eb",
-                }}
-                formatter={(value, name) => {
-                  const numeric =
-                    typeof value === "number" ? value : Number(value ?? 0);
-                  const pct = total > 0 ? (numeric / total) * 100 : 0;
-                  const formattedValue = numeric.toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  });
-                  const formattedPct = pct.toFixed(1);
+                wrapperStyle={chartTheme.tooltipWrapper}
+                content={
+                  <ChartTooltip
+                    hideLabel
+                    valueFormatter={(value) => {
+                      const numeric =
+                        typeof value === "number" ? value : Number(value ?? 0);
+                      const pct = total > 0 ? (numeric / total) * 100 : 0;
+                      const formattedValue = numeric.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      });
 
-                  // Shows like: "12,345.67 (23.4%)"
-                  return [`${formattedValue} (${formattedPct}%)`, String(name)];
-                }}
+                      return `${formattedValue} (${pct.toFixed(1)}%)`;
+                    }}
+                  />
+                }
               />
               {/* --- END TOOLTIP --- */}
 

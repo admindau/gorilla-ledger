@@ -13,6 +13,7 @@ import {
   Line,
   ReferenceDot,
 } from "recharts";
+import { chartMargins, chartTheme } from "@/components/charts/chartTheme";
 
 type TransactionType = "income" | "expense" | "transfer";
 
@@ -108,20 +109,20 @@ function CustomTooltip({
   const ccy = currency ? ` ${currency}` : "";
 
   return (
-    <div className="rounded-lg border border-gray-700 bg-black/90 px-3 py-2 text-[11px] text-gray-100 shadow">
-      <div className="mb-1 text-gray-200 font-medium">{label}</div>
+    <div className="gl-chart-tooltip">
+      <div className="gl-chart-tooltip__label">{label}</div>
 
-      <div className="flex items-center justify-between gap-6">
-        <span className="text-gray-300">Income</span>
-        <span className="text-white">
+      <div className="gl-chart-tooltip__row">
+        <span className="gl-chart-tooltip__name">Income</span>
+        <span className="gl-chart-tooltip__value">
           {formatNumber(income)}
           {ccy}
         </span>
       </div>
 
-      <div className="flex items-center justify-between gap-6">
-        <span className="text-gray-300">Expenses</span>
-        <span className="text-white">
+      <div className="gl-chart-tooltip__row">
+        <span className="gl-chart-tooltip__name">Expenses</span>
+        <span className="gl-chart-tooltip__value">
           {formatNumber(expense)}
           {ccy}
         </span>
@@ -129,17 +130,17 @@ function CustomTooltip({
 
       <div className="my-1 h-px bg-gray-800" />
 
-      <div className="flex items-center justify-between gap-6">
-        <span className="text-gray-300">Net</span>
-        <span className="text-white">
+      <div className="gl-chart-tooltip__row">
+        <span className="gl-chart-tooltip__name">Net</span>
+        <span className="gl-chart-tooltip__value">
           {formatNumber(net)}
           {ccy}
         </span>
       </div>
 
-      <div className="flex items-center justify-between gap-6">
-        <span className="text-gray-300">Savings rate</span>
-        <span className="text-white">{calcSavingsRate(income, net)}</span>
+      <div className="gl-chart-tooltip__row">
+        <span className="gl-chart-tooltip__name">Savings rate</span>
+        <span className="gl-chart-tooltip__value">{calcSavingsRate(income, net)}</span>
       </div>
     </div>
   );
@@ -304,13 +305,13 @@ export default function YearlyIncomeExpenseBarChart({
           filters).
         </p>
       ) : (
-        <div className="gl-card p-4 h-72">
+        <div className="gl-card gl-chart-surface h-80 p-4">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={chartData}
               barCategoryGap={18}
               barGap={6}
-              margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+              margin={chartMargins.bar}
             >
               <defs>
                 <pattern
@@ -325,29 +326,31 @@ export default function YearlyIncomeExpenseBarChart({
                     y1="0"
                     x2="0"
                     y2="6"
-                    stroke="#ffffff"
+                    stroke="rgba(255,255,255,0.85)"
                     strokeWidth="2"
                   />
                 </pattern>
               </defs>
 
-              <CartesianGrid strokeDasharray="3 3" stroke="#222222" />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} />
 
               <XAxis
                 dataKey="month"
-                tick={{ fontSize: 10, fill: "#9ca3af" }}
-                axisLine={{ stroke: "#374151" }}
-                tickLine={{ stroke: "#374151" }}
+                tick={{ fontSize: 10, fill: chartTheme.tickFill }}
+                axisLine={{ stroke: chartTheme.axisStroke }}
+                tickLine={{ stroke: chartTheme.axisStroke }}
               />
 
               <YAxis
-                tick={{ fontSize: 10, fill: "#9ca3af" }}
-                axisLine={{ stroke: "#374151" }}
-                tickLine={{ stroke: "#374151" }}
+                tick={{ fontSize: 10, fill: chartTheme.tickFill }}
+                axisLine={{ stroke: chartTheme.axisStroke }}
+                tickLine={{ stroke: chartTheme.axisStroke }}
                 tickFormatter={(v) => compactNumber(Number(v))}
               />
 
               <Tooltip
+                wrapperStyle={chartTheme.tooltipWrapper}
+                cursor={{ fill: chartTheme.cursorFill }}
                 content={
                   <CustomTooltip
                     currency={hasCurrencyInfo ? activeCurrency : null}
@@ -366,7 +369,7 @@ export default function YearlyIncomeExpenseBarChart({
                 dataKey="expense"
                 name="Expenses"
                 fill="url(#expenseHatch)"
-                stroke="#ffffff"
+                stroke="rgba(255,255,255,0.85)"
                 strokeWidth={1}
                 opacity={0.9}
                 radius={[6, 6, 0, 0]}
@@ -374,7 +377,7 @@ export default function YearlyIncomeExpenseBarChart({
               <Bar
                 dataKey="income"
                 name="Income"
-                fill="#ffffff"
+                fill={chartTheme.barPrimary}
                 opacity={0.95}
                 radius={[6, 6, 0, 0]}
               />
@@ -383,7 +386,7 @@ export default function YearlyIncomeExpenseBarChart({
                 type="monotone"
                 dataKey="net"
                 name="Net"
-                stroke="#ffffff"
+                stroke="rgba(255,255,255,0.85)"
                 strokeWidth={2}
                 dot={false}
                 strokeDasharray="6 6"
@@ -395,8 +398,8 @@ export default function YearlyIncomeExpenseBarChart({
                   x={peaks.maxIncomeMonth}
                   y={peaks.maxIncome}
                   r={5}
-                  fill="#ffffff"
-                  stroke="#ffffff"
+                  fill={chartTheme.barPrimary}
+                  stroke="rgba(255,255,255,0.85)"
                   strokeWidth={1}
                 />
               )}
@@ -406,7 +409,7 @@ export default function YearlyIncomeExpenseBarChart({
                   y={peaks.maxExpense}
                   r={5}
                   fill="#000000"
-                  stroke="#ffffff"
+                  stroke="rgba(255,255,255,0.85)"
                   strokeWidth={2}
                 />
               )}

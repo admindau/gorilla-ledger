@@ -11,6 +11,8 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
+import ChartTooltip from "@/components/charts/ChartTooltip";
+import { chartMargins, chartTheme } from "@/components/charts/chartTheme";
 
 type Point = {
   // incoming shape (daily or monthly)
@@ -165,52 +167,46 @@ export default function FullHistoryIncomeExpenseChart({
           No transactions yet to build an all-time view.
         </p>
       ) : (
-        <div className="gl-card p-4 h-72">
+        <div className="gl-card gl-chart-surface h-80 p-4">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#222222" />
+            <LineChart data={chartData} margin={chartMargins.line}>
+              <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} />
 
               <XAxis
                 dataKey="label"
                 tickFormatter={formatMonthLabel}
-                tick={{ fontSize: 10, fill: "#9ca3af" }}
-                axisLine={{ stroke: "#374151" }}
-                tickLine={{ stroke: "#374151" }}
+                tick={{ fontSize: 10, fill: chartTheme.tickFill }}
+                axisLine={{ stroke: chartTheme.axisStroke }}
+                tickLine={{ stroke: chartTheme.axisStroke }}
               />
 
               <YAxis
-                tick={{ fontSize: 10, fill: "#9ca3af" }}
-                axisLine={{ stroke: "#374151" }}
-                tickLine={{ stroke: "#374151" }}
+                tick={{ fontSize: 10, fill: chartTheme.tickFill }}
+                axisLine={{ stroke: chartTheme.axisStroke }}
+                tickLine={{ stroke: chartTheme.axisStroke }}
                 tickFormatter={(v) => Number(v).toLocaleString()}
               />
 
               <Tooltip
-                contentStyle={{
-                  backgroundColor: "rgba(0,0,0,0.9)",
-                  border: "1px solid #374151",
-                  borderRadius: "0.5rem",
-                  fontSize: 11,
-                  color: "#f9fafb",
-                }}
-                labelStyle={{ color: "#e5e7eb" }}
-                itemStyle={{ color: "#f9fafb" }}
-                formatter={(value) => {
-                  if (value == null) return "";
+                wrapperStyle={chartTheme.tooltipWrapper}
+                content={                    
+                  <ChartTooltip
+                    labelFormatter={(label) =>
+                      `Month: ${formatMonthLabel(String(label))}`
+                    }
+                    valueFormatter={(value) => {
+                      const numeric =
+                        typeof value === "number" ? value : Number(value ?? 0);
 
-                  const parsed =
-                    typeof value === "number" ? value : Number(value);
-
-                  if (!Number.isNaN(parsed)) {
-                    return parsed.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    });
-                  }
-
-                  return String(value);
-                }}
-                labelFormatter={(label) => `Month: ${formatMonthLabel(label)}`}
+                      return Number.isNaN(numeric)
+                        ? String(value ?? "")
+                        : numeric.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          });
+                    }}
+                  />
+                }
               />
 
               <Legend
@@ -224,7 +220,7 @@ export default function FullHistoryIncomeExpenseChart({
                 type="monotone"
                 dataKey="income"
                 name="Income"
-                stroke="#22c55e"
+                stroke={chartTheme.lineIncome}
                 strokeWidth={1.8}
                 dot={false}
               />
@@ -232,7 +228,7 @@ export default function FullHistoryIncomeExpenseChart({
                 type="monotone"
                 dataKey="expense"
                 name="Expenses"
-                stroke="#ef4444"
+                stroke={chartTheme.lineExpense}
                 strokeWidth={1.8}
                 dot={false}
               />

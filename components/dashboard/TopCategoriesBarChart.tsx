@@ -10,6 +10,8 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
+import ChartTooltip from "@/components/charts/ChartTooltip";
+import { chartMargins, chartTheme } from "@/components/charts/chartTheme";
 
 type TransactionType = "income" | "expense";
 
@@ -193,48 +195,50 @@ export default function TopCategoriesBarChart({
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={dataForChart}
-              margin={{ top: 10, right: 10, bottom: 25, left: 0 }}
+              margin={chartMargins.compactBar}
             >
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="#1f2937"
+                stroke={chartTheme.gridStroke}
                 vertical={false}
               />
               <XAxis
                 dataKey="name"
-                tick={{ fontSize: 11, fill: "#d1d5db" }}
+                tick={{ fontSize: 11, fill: chartTheme.tickFillStrong }}
                 tickMargin={8}
                 interval={0}
-                angle={-25}
+                angle={-32}
                 textAnchor="end"
+                height={58}
               />
               <YAxis
-                tick={{ fontSize: 11, fill: "#9ca3af" }}
+                tick={{ fontSize: 11, fill: chartTheme.tickFill }}
                 tickMargin={6}
               />
               <Tooltip
-                cursor={{ fill: "rgba(255,255,255,0.03)" }}
-                contentStyle={{
-                  backgroundColor: "#020617",
-                  borderRadius: 8,
-                  border: "1px solid #1f2937",
-                  fontSize: 11,
-                  color: "#e5e7eb",
-                }}
-                formatter={(value) => {
-                  const numeric =
-                    typeof value === "number" ? value : Number(value ?? 0);
+                wrapperStyle={chartTheme.tooltipWrapper}
+                cursor={{ fill: chartTheme.cursorFill }}
+                content={
+                  <ChartTooltip
+                    valueFormatter={(value) => {
+                      const numeric =
+                        typeof value === "number" ? value : Number(value ?? 0);
 
-                  return [
-                    Number.isNaN(numeric) ? String(value ?? "") : numeric.toFixed(2),
-                    "total",
-                  ];
-                }}
+                      return Number.isNaN(numeric)
+                        ? String(value ?? "")
+                        : numeric.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          });
+                    }}
+                    nameFormatter={() => "Total spent"}
+                  />
+                }
               />
               <Bar
                 dataKey="value"
                 radius={[8, 8, 0, 0]}
-                fill="#22c55e" // bright green
+                fill={chartTheme.barPrimary}
               />
             </BarChart>
           </ResponsiveContainer>

@@ -227,7 +227,7 @@ export default function SpendingTrendChart({ data }: Props) {
         </div>
       </div>
 
-      <div className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-[radial-gradient(circle_at_22%_0%,rgba(255,255,255,0.115),transparent_21rem),linear-gradient(180deg,rgba(255,255,255,0.046),rgba(255,255,255,0.012)),rgba(0,0,0,0.74)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_70px_rgba(0,0,0,0.44)]">
+      <div className="relative overflow-visible rounded-[1.75rem] border border-white/10 bg-[radial-gradient(circle_at_22%_0%,rgba(255,255,255,0.115),transparent_21rem),linear-gradient(180deg,rgba(255,255,255,0.046),rgba(255,255,255,0.012)),rgba(0,0,0,0.74)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_70px_rgba(0,0,0,0.44)]">
         <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
         <div className="pointer-events-none absolute -left-24 -top-28 h-64 w-64 rounded-full bg-white/[0.055] blur-3xl" />
         <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black/55 to-transparent" />
@@ -404,7 +404,7 @@ export default function SpendingTrendChart({ data }: Props) {
 
         {activePoint ? (
           <div
-            className="pointer-events-none absolute top-5 z-10 min-w-[9rem] rounded-2xl border border-white/15 bg-black/85 px-3.5 py-3 text-xs shadow-[0_18px_60px_rgba(0,0,0,0.62)] backdrop-blur-xl"
+            className="pointer-events-none absolute top-5 z-[80] min-w-[9rem] rounded-2xl border border-white/15 bg-black/90 px-3.5 py-3 text-xs shadow-[0_18px_60px_rgba(0,0,0,0.62)] backdrop-blur-xl"
             style={{
               left: `calc(${(activePoint.x / width) * 100}% - ${
                 activePoint.x > width * 0.72 ? 150 : 20
