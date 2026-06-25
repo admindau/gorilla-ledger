@@ -39,7 +39,7 @@ function buttonClass({
   size = "md",
   className = "",
 }: Pick<CommonProps, "variant" | "size" | "className">) {
-  return ["gl-btn", variantClass[variant], sizeClass[size], className]
+  return ["gl-btn gl-motion", variantClass[variant], sizeClass[size], className]
     .filter(Boolean)
     .join(" ");
 }

@@ -31,6 +31,32 @@ body {
   color-scheme: dark;
 }
 
+:root {
+  --gl-motion-fast: 180ms;
+  --gl-motion-base: 240ms;
+  --gl-motion-slow: 320ms;
+  --gl-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.gl-motion {
+  transition:
+    transform var(--gl-motion-base) var(--gl-ease),
+    opacity var(--gl-motion-base) var(--gl-ease),
+    border-color var(--gl-motion-base) var(--gl-ease),
+    background-color var(--gl-motion-base) var(--gl-ease),
+    color var(--gl-motion-base) var(--gl-ease),
+    box-shadow var(--gl-motion-base) var(--gl-ease);
+}
+
+.gl-fade-in {
+  animation: gl-fade-in var(--gl-motion-base) var(--gl-ease) both;
+}
+
+.gl-soft-lift {
+  transform: translateY(-2px);
+}
+
+
 html {
   background: #020202;
 }
@@ -279,12 +305,16 @@ body {
   font-weight: 650;
   line-height: 1;
   white-space: nowrap;
-  transition: transform 160ms ease, border-color 160ms ease, background-color 160ms ease, color 160ms ease, opacity 160ms ease, box-shadow 160ms ease;
+  transition: transform var(--gl-motion-fast) var(--gl-ease), border-color var(--gl-motion-fast) var(--gl-ease), background-color var(--gl-motion-fast) var(--gl-ease), color var(--gl-motion-fast) var(--gl-ease), opacity var(--gl-motion-fast) var(--gl-ease), box-shadow var(--gl-motion-fast) var(--gl-ease);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
 }
 
 .gl-btn:hover:not(:disabled) {
   transform: translateY(-1px);
+}
+
+.gl-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
 }
 
 .gl-btn:focus-visible {
@@ -432,9 +462,11 @@ body {
 }
 
 .gl-card-interactive:hover {
-  transform: translateY(-1px);
-  border-color: rgba(255,255,255,0.17);
-  transition: transform 160ms ease, border-color 160ms ease;
+  transform: translateY(-2px);
+  border-color: rgba(255,255,255,0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.09),
+    0 28px 90px rgba(0,0,0,0.42);
 }
 
 .gl-card-header {
@@ -878,5 +910,36 @@ body {
 @keyframes gl-shimmer {
   100% {
     transform: translateX(100%);
+  }
+}
+
+
+@keyframes gl-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gl-motion,
+  .gl-fade-in,
+  .gl-premium-card,
+  .gl-card-interactive,
+  .gl-btn {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .gl-premium-card:hover,
+  .gl-card-interactive:hover,
+  .gl-btn:hover:not(:disabled),
+  .gl-btn:active:not(:disabled) {
+    transform: none !important;
   }
 }

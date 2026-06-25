@@ -17,7 +17,7 @@ export function Card({
     <div
       className={[
         variant === "premium" ? "gl-premium-card gl-card" : variant === "inner" ? "gl-inner-card gl-card" : "gl-card",
-        interactive ? "gl-card-interactive" : "",
+        interactive ? "gl-card-interactive gl-motion" : "",
         className,
       ]
         .filter(Boolean)

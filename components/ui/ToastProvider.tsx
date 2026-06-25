@@ -52,7 +52,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={{ showToast }}>
       {children}
       {/* Toast container */}
-      <div className="fixed bottom-4 right-4 z-50 space-y-2">
+      <div className="fixed bottom-4 right-4 z-50 space-y-2 px-3 sm:px-0">
         {toasts.map((toast) => {
           let borderColor = "border-gray-700";
           let textColor = "text-gray-100";
@@ -68,7 +68,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           return (
             <div
               key={toast.id}
-              className={`min-w-[220px] max-w-sm bg-black/90 border ${borderColor} rounded px-4 py-2 shadow-lg`}
+              className={`gl-motion gl-fade-in min-w-[220px] max-w-sm rounded-xl border ${borderColor} bg-black/90 px-4 py-2 shadow-lg backdrop-blur`}
             >
               <p className={`text-xs ${textColor}`}>{toast.message}</p>
             </div>

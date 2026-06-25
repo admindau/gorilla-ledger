@@ -41,7 +41,7 @@ export default function DashboardAnalyticsAccordionItem({
       <button
         type="button"
         onClick={() => setIsOpen((value) => !value)}
-        className="mb-3 flex w-full items-center justify-between gap-4 rounded-[1.25rem] border border-white/10 bg-white/[0.025] px-4 py-3 text-left transition hover:border-white/20 md:hidden"
+        className="gl-motion mb-3 flex w-full items-center justify-between gap-4 rounded-[1.25rem] border border-white/10 bg-white/[0.025] px-4 py-3 text-left hover:border-white/20 md:hidden"
         aria-expanded={expanded}
       >
         <span>
@@ -58,12 +58,20 @@ export default function DashboardAnalyticsAccordionItem({
           ) : null}
         </span>
 
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/50 text-lg leading-none text-gray-200">
+        <span className="gl-motion flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/50 text-lg leading-none text-gray-200">
           {expanded ? "−" : "+"}
         </span>
       </button>
 
-      {expanded ? <div>{children}</div> : null}
+      <div
+        className={[
+          "overflow-hidden transition-all duration-300 ease-out",
+          expanded ? "max-h-[5000px] opacity-100" : "max-h-0 opacity-0",
+        ].join(" ")}
+        aria-hidden={!expanded}
+      >
+        <div className={expanded ? "gl-fade-in" : ""}>{children}</div>
+      </div>
     </section>
   );
 }
