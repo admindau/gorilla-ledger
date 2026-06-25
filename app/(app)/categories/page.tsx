@@ -448,8 +448,16 @@ export default function CategoriesPage() {
             ) : incomeCategories.length === 0 ? (
               <EmptyState
                 compact
-                title="No income categories"
-                description="Create income categories such as Salary, Allowance, or Business Income."
+                title="No income categories yet"
+                description="Create your first income category to unlock richer reporting and forecasting."
+                action={
+                  <div className="flex flex-wrap justify-center gap-2 text-xs text-gray-400">
+                    <span className="rounded-full border border-white/10 px-3 py-1">Salary</span>
+                    <span className="rounded-full border border-white/10 px-3 py-1">Business Income</span>
+                    <span className="rounded-full border border-white/10 px-3 py-1">Allowance</span>
+                    <span className="rounded-full border border-white/10 px-3 py-1">Investments</span>
+                  </div>
+                }
               />
             ) : (
               <div className="space-y-3">{incomeCategories.map(renderCategoryCard)}</div>
@@ -470,8 +478,16 @@ export default function CategoriesPage() {
             ) : expenseCategories.length === 0 ? (
               <EmptyState
                 compact
-                title="No expense categories"
-                description="Create expense categories such as Food, Transport, Subscriptions, or Utilities."
+                title="No expense categories yet"
+                description="Create your first expense category to improve spending intelligence."
+                action={
+                  <div className="flex flex-wrap justify-center gap-2 text-xs text-gray-400">
+                    <span className="rounded-full border border-white/10 px-3 py-1">Housing</span>
+                    <span className="rounded-full border border-white/10 px-3 py-1">Utilities</span>
+                    <span className="rounded-full border border-white/10 px-3 py-1">Transport</span>
+                    <span className="rounded-full border border-white/10 px-3 py-1">Subscriptions</span>
+                  </div>
+                }
               />
             ) : (
               <div className="space-y-3">{expenseCategories.map(renderCategoryCard)}</div>

@@ -764,12 +764,24 @@ export default function DashboardPage() {
       ? "Watch"
       : "Healthy";
 
+  const transactionMonthsTracked = new Set(
+    transactions
+      .map((tx) => {
+        const date = new Date(tx.occurred_at);
+        if (Number.isNaN(date.getTime())) return null;
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      })
+      .filter(Boolean)
+  ).size;
+
   const forecastConfidence =
-    scheduledRecurringThisMonth.length >= 3 && selectedMonthActivityTransactions.length >= 5
-      ? "High"
-      : scheduledRecurringThisMonth.length > 0 || selectedMonthActivityTransactions.length >= 3
-      ? "Medium"
-      : "Low";
+    transactionMonthsTracked >= 12
+      ? "Established"
+      : transactionMonthsTracked >= 6
+      ? "Reliable"
+      : transactionMonthsTracked >= 3
+      ? "Emerging"
+      : "Building History";
 
   const executiveBalanceSummary =
     Object.entries(totalsByCurrency).length > 0
@@ -1142,7 +1154,7 @@ export default function DashboardPage() {
                 {executiveRiskLevel}
               </span>
               <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1 uppercase tracking-[0.16em]">
-                {forecastConfidence} confidence
+                {forecastConfidence}
               </span>
               <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1 uppercase tracking-[0.16em]">
                 {smartAlerts.length} alerts

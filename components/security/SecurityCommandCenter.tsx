@@ -20,19 +20,19 @@ function securityScore({
   lastCheckAt,
 }: Pick<SecurityCommandCenterProps, "mfaEnabled" | "backupConfigured" | "lastCheckAt">) {
   const checkAge = daysSince(lastCheckAt);
-  let score = 20;
+  let score = 60;
 
-  if (mfaEnabled) score += 40;
-  if (backupConfigured) score += 25;
-  if (checkAge !== null && checkAge <= 30) score += 15;
+  if (mfaEnabled) score += 25;
+  if (backupConfigured) score += 10;
+  if (checkAge !== null && checkAge <= 30) score += 5;
 
   return Math.min(score, 100);
 }
 
 function scoreLabel(score: number) {
-  if (score >= 85) return "Strong";
-  if (score >= 65) return "Good";
-  return "Needs attention";
+  if (score >= 90) return "Strong";
+  if (score >= 75) return "Good";
+  return "Foundation established";
 }
 
 function StatCard({
