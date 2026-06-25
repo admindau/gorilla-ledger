@@ -70,7 +70,7 @@ export default function ExecutiveHeroCard({
       className={`gl-hero-card rounded-[1.9rem] p-5 sm:p-7 ${classes.glow}`}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/40" />
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-3xl">
           <div className="flex flex-wrap items-center gap-2">
             <span className="gl-section-eyebrow">
@@ -81,7 +81,7 @@ export default function ExecutiveHeroCard({
             </span>
           </div>
 
-          <h1 className="mt-5 text-4xl font-semibold tracking-[-0.04em] text-white sm:text-5xl">
+          <h1 className="mt-4 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl lg:text-5xl">
             {monthLabel}
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-300">
@@ -89,7 +89,7 @@ export default function ExecutiveHeroCard({
           </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[420px]">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:min-w-[420px]">
           <div className="gl-inner-card rounded-2xl p-4">
             <div className="text-[10px] uppercase tracking-wide text-gray-500">
               Health Score
@@ -118,39 +118,39 @@ export default function ExecutiveHeroCard({
         </div>
       </div>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-gray-800 bg-black/35 p-4">
+      <div className="mt-5 grid grid-cols-2 gap-2 sm:mt-6 sm:gap-3 xl:grid-cols-4">
+        <div className="rounded-2xl border border-gray-800 bg-black/35 p-3 sm:p-4">
           <div className="text-[10px] uppercase tracking-wide text-gray-500">
             Total Balance
           </div>
-          <div className="mt-2 truncate text-sm font-semibold text-white">
+          <div className="mt-2 truncate text-xs font-semibold text-white sm:text-sm">
             {balanceSummary}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-800 bg-black/35 p-4">
+        <div className="rounded-2xl border border-gray-800 bg-black/35 p-3 sm:p-4">
           <div className="text-[10px] uppercase tracking-wide text-gray-500">
             Net Cash Flow
           </div>
-          <div className="mt-2 truncate text-sm font-semibold text-white">
+          <div className="mt-2 truncate text-xs font-semibold text-white sm:text-sm">
             {netFlowSummary}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-800 bg-black/35 p-4">
+        <div className="rounded-2xl border border-gray-800 bg-black/35 p-3 sm:p-4">
           <div className="text-[10px] uppercase tracking-wide text-gray-500">
             Month-End Forecast
           </div>
-          <div className="mt-2 truncate text-sm font-semibold text-white">
+          <div className="mt-2 truncate text-xs font-semibold text-white sm:text-sm">
             {forecastSummary}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-800 bg-black/35 p-4">
+        <div className="rounded-2xl border border-gray-800 bg-black/35 p-3 sm:p-4">
           <div className="text-[10px] uppercase tracking-wide text-gray-500">
             Alerts
           </div>
-          <div className="mt-2 text-sm font-semibold text-white">
+          <div className="mt-2 text-xs font-semibold text-white sm:text-sm">
             {criticalAlertsCount > 0
               ? `${criticalAlertsCount} critical`
               : `${alertsCount} active`}
