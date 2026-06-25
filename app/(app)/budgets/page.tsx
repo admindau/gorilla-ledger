@@ -2,6 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
+import { BudgetCard } from "@/components/budgets/BudgetCard";
+import { BudgetCommandCenter, type BudgetSummary } from "@/components/budgets/BudgetCommandCenter";
+import { BudgetInsights } from "@/components/budgets/BudgetInsights";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 type Wallet = {
   id: string;
@@ -25,6 +30,16 @@ type Budget = {
   created_at: string;
 };
 
+type Transaction = {
+  id: string;
+  wallet_id: string;
+  category_id: string | null;
+  type: "income" | "expense";
+  amount_minor: number;
+  currency_code: string;
+  occurred_at: string;
+};
+
 function parseAmountToMinor(amount: string): number {
   const cleaned = amount.replace(",", "").trim();
   const [whole, fractional = ""] = cleaned.split(".");
@@ -38,18 +53,16 @@ function formatMinorToAmount(minor: number): string {
   return (minor / 100).toFixed(2);
 }
 
-function formatDaysAgo(days: number) {
-  if (days <= 0) return "0 day(s) ago";
-  if (days === 1) return "1 day ago";
-  return `${days} day(s) ago`;
-}
-
 function computeDaysAgo(iso: string) {
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return null;
   const now = Date.now();
   const diffDays = Math.floor((now - t) / (1000 * 60 * 60 * 24));
   return Math.max(0, diffDays);
+}
+
+function monthKeyFromParts(year: number, month: number): string {
+  return `${year}-${String(month).padStart(2, "0")}`;
 }
 
 export default function BudgetsPage() {
@@ -60,11 +73,12 @@ export default function BudgetsPage() {
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   // Header/security UI state
-  const [userEmail, setUserEmail] = useState<string>("");
-  const [mfaEnabled, setMfaEnabled] = useState<boolean>(false);
-  const [lastSecurityCheckDays, setLastSecurityCheckDays] = useState<number | null>(null);
+  const [, setUserEmail] = useState<string>("");
+  const [, setMfaEnabled] = useState<boolean>(false);
+  const [, setLastSecurityCheckDays] = useState<number | null>(null);
 
   // Form + filter state
   const now = new Date();
@@ -73,6 +87,7 @@ export default function BudgetsPage() {
   const [walletId, setWalletId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [amount, setAmount] = useState("0");
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
   // Edit state (per-row)
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -178,6 +193,20 @@ export default function BudgetsPage() {
 
       setBudgets(budgetData as Budget[]);
 
+      const { data: transactionData, error: transactionError } = await supabaseBrowserClient
+        .from("transactions")
+        .select("id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at")
+        .eq("type", "expense")
+        .order("occurred_at", { ascending: false })
+        .limit(1000);
+
+      if (transactionError) {
+        console.warn("Unable to load budget spending context:", transactionError.message);
+        setTransactions([]);
+      } else {
+        setTransactions(transactionData as Transaction[]);
+      }
+
       if (walletData && walletData.length > 0 && !walletId) setWalletId(walletData[0].id);
       if (categoryData && categoryData.length > 0 && !categoryId) setCategoryId(categoryData[0].id);
 
@@ -187,14 +216,6 @@ export default function BudgetsPage() {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  async function handleLogout() {
-    try {
-      await supabaseBrowserClient.auth.signOut();
-    } finally {
-      window.location.href = "/";
-    }
-  }
 
   const walletMap = useMemo(() => Object.fromEntries(wallets.map((w) => [w.id, w] as const)), [
     wallets,
@@ -214,6 +235,34 @@ export default function BudgetsPage() {
     month: "long",
     year: "numeric",
   });
+
+  const budgetSummaries = useMemo<BudgetSummary[]>(() => {
+    const selectedMonthKey = monthKeyFromParts(year, month);
+
+    return budgetsForPeriod.map((budget) => {
+      const matchingSpend = transactions
+        .filter((tx) => {
+          const sameMonth = tx.occurred_at.slice(0, 7) === selectedMonthKey;
+          const sameCategory = tx.category_id === budget.category_id;
+          const sameWallet = budget.wallet_id ? tx.wallet_id === budget.wallet_id : true;
+          return sameMonth && sameCategory && sameWallet;
+        })
+        .reduce((sum, tx) => sum + tx.amount_minor, 0);
+
+      const remainingMinor = budget.amount_minor - matchingSpend;
+      const usedRatio = budget.amount_minor > 0 ? matchingSpend / budget.amount_minor : 0;
+
+      return {
+        id: budget.id,
+        amountMinor: budget.amount_minor,
+        actualMinor: matchingSpend,
+        remainingMinor,
+        usedRatio,
+        wallet: budget.wallet_id ? walletMap[budget.wallet_id] ?? null : null,
+        category: categoryMap[budget.category_id] ?? null,
+      };
+    });
+  }, [budgetsForPeriod, categoryMap, month, transactions, walletMap, year]);
 
   async function handleCreateBudget(e: React.FormEvent) {
     e.preventDefault();
@@ -266,6 +315,7 @@ export default function BudgetsPage() {
 
     setBudgets((prev) => [data as Budget, ...prev]);
     setAmount("0");
+    setShowCreateForm(false);
     setSaving(false);
   }
 
@@ -355,231 +405,207 @@ export default function BudgetsPage() {
     setRowBusyId(null);
   }
 
-  const NavLink = ({
-    href,
-    label,
-    active,
-  }: {
-    href: string;
-    label: string;
-    active?: boolean;
-  }) => {
-    return (
-      <a
-        href={href}
-        className={[
-          "px-2.5 py-1.5 rounded-md border text-xs transition",
-          active
-            ? "border-white/30 bg-white/10 text-white"
-            : "border-gray-800 bg-black/40 text-gray-300 hover:bg-white/5 hover:text-white",
-        ].join(" ")}
-      >
-        {label}
-      </a>
-    );
-  };
-
   return (
     <div className="gl-page-migrated">
-      {/* Hardened header (tight app-shell) */}
-<main className="gl-page-shell max-w-5xl">
-        <div className="mb-4">
-          <div className="text-[10px] uppercase tracking-widest text-gray-500">Planning</div>
-          <h1 className="text-2xl font-semibold leading-tight">Budgets</h1>
-          <p className="text-sm text-gray-400 mt-1">
-            Define monthly budgets per wallet and category.
-          </p>
-        </div>
-
-        {errorMsg && <p className="mb-4 text-red-400 text-sm">{errorMsg}</p>}
-
-        <section className="mb-4 flex flex-wrap gap-4 items-center text-sm">
-          <div>
-            <label className="block text-xs mb-1">Year</label>
-            <input
-              type="number"
-              className="gl-input w-24 py-1"
-              value={year}
-              onChange={(e) => setYear(Number(e.target.value) || year)}
-            />
-          </div>
-          <div>
-            <label className="block text-xs mb-1">Month</label>
-            <select
-              className="gl-input w-32 py-1"
-              value={month}
-              onChange={(e) => setMonth(Number(e.target.value))}
+      <main className="gl-page-shell max-w-5xl">
+        <PageHeader
+          eyebrow="Planning"
+          title="Budget Command Center"
+          description="Set monthly targets, monitor budget health and identify spending pressure across wallets."
+          action={
+            <button
+              type="button"
+              onClick={() => setShowCreateForm((value) => !value)}
+              className="gl-btn gl-btn-primary gl-btn-sm"
             >
-              <option value={1}>January</option>
-              <option value={2}>February</option>
-              <option value={3}>March</option>
-              <option value={4}>April</option>
-              <option value={5}>May</option>
-              <option value={6}>June</option>
-              <option value={7}>July</option>
-              <option value={8}>August</option>
-              <option value={9}>September</option>
-              <option value={10}>October</option>
-              <option value={11}>November</option>
-              <option value={12}>December</option>
-            </select>
-          </div>
-          <div className="text-gray-400 mt-4 md:mt-6">
-            Viewing budgets for <span className="font-semibold">{monthLabel}</span>
+              {showCreateForm ? "Hide Form" : "+ Create Budget"}
+            </button>
+          }
+        />
+
+        {errorMsg && <p className="text-sm text-red-400">{errorMsg}</p>}
+
+        <section className="gl-inner-card rounded-2xl p-4">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs text-gray-400">Year</label>
+                <input
+                  type="number"
+                  className="gl-input w-28 py-1"
+                  value={year}
+                  onChange={(e) => setYear(Number(e.target.value) || year)}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-gray-400">Month</label>
+                <select
+                  className="gl-input w-40 py-1"
+                  value={month}
+                  onChange={(e) => setMonth(Number(e.target.value))}
+                >
+                  <option value={1}>January</option>
+                  <option value={2}>February</option>
+                  <option value={3}>March</option>
+                  <option value={4}>April</option>
+                  <option value={5}>May</option>
+                  <option value={6}>June</option>
+                  <option value={7}>July</option>
+                  <option value={8}>August</option>
+                  <option value={9}>September</option>
+                  <option value={10}>October</option>
+                  <option value={11}>November</option>
+                  <option value={12}>December</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="text-sm text-gray-400">
+              Viewing budget health for <span className="font-semibold text-white">{monthLabel}</span>
+            </div>
           </div>
         </section>
 
-        <section className="gl-card mb-8 p-4">
-          <h2 className="text-lg font-semibold mb-3">Add Budget</h2>
+        <BudgetCommandCenter summaries={budgetSummaries} monthLabel={monthLabel} />
 
-          {wallets.length === 0 || categories.length === 0 ? (
-            <p className="text-sm text-yellow-300">
-              You need at least one wallet and one category to set a budget.
-            </p>
-          ) : (
-            <form onSubmit={handleCreateBudget} className="grid gap-4 md:grid-cols-3">
-              <div>
-                <label className="block text-sm mb-1">Wallet</label>
-                <select
-                  className="gl-input"
-                  value={walletId}
-                  onChange={(e) => setWalletId(e.target.value)}
-                >
-                  {wallets.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name} ({w.currency_code})
-                    </option>
-                  ))}
-                </select>
-              </div>
+        <BudgetInsights summaries={budgetSummaries} />
 
-              <div>
-                <label className="block text-sm mb-1">Category</label>
-                <select
-                  className="gl-input"
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                >
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.type})
-                    </option>
-                  ))}
-                </select>
-              </div>
+        <section className="gl-card p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.22em] text-gray-500">Budget Setup</p>
+              <h2 className="mt-1 text-lg font-semibold">Create Budget</h2>
+              <p className="mt-1 text-sm text-gray-400">
+                Add a monthly target for a wallet and expense category.
+              </p>
+            </div>
 
-              <div>
-                <label className="block text-sm mb-1">Budget Amount</label>
-                <input
-                  type="text"
-                  className="gl-input"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                />
-              </div>
+            <button
+              type="button"
+              onClick={() => setShowCreateForm((value) => !value)}
+              className="gl-btn gl-btn-secondary gl-btn-sm"
+            >
+              {showCreateForm ? "Collapse" : "Open Form"}
+            </button>
+          </div>
 
-              <div className="md:col-span-3">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="gl-btn gl-btn-primary gl-btn-md"
-                >
-                  {saving ? "Saving..." : "Save Budget"}
-                </button>
-              </div>
-            </form>
-          )}
+          {showCreateForm ? (
+            <div className="mt-5 border-t border-white/10 pt-5">
+              {wallets.length === 0 || categories.length === 0 ? (
+                <p className="text-sm text-yellow-300">
+                  You need at least one wallet and one category to set a budget.
+                </p>
+              ) : (
+                <form onSubmit={handleCreateBudget} className="grid gap-4 md:grid-cols-3">
+                  <div>
+                    <label className="mb-1 block text-sm">Wallet</label>
+                    <select
+                      className="gl-input"
+                      value={walletId}
+                      onChange={(e) => setWalletId(e.target.value)}
+                    >
+                      {wallets.map((w) => (
+                        <option key={w.id} value={w.id}>
+                          {w.name} ({w.currency_code})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-sm">Category</label>
+                    <select
+                      className="gl-input"
+                      value={categoryId}
+                      onChange={(e) => setCategoryId(e.target.value)}
+                    >
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} ({c.type})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-sm">Budget Amount</label>
+                    <input
+                      type="text"
+                      className="gl-input"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="md:col-span-3">
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="gl-btn gl-btn-primary gl-btn-md"
+                    >
+                      {saving ? "Saving..." : "Save Budget"}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          ) : null}
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold mb-3">Budgets for {monthLabel}</h2>
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.22em] text-gray-500">Budget Health</p>
+              <h2 className="mt-1 text-lg font-semibold">Budgets for {monthLabel}</h2>
+            </div>
+            <p className="text-sm text-gray-500">
+              {budgetSummaries.length} active budget{budgetSummaries.length === 1 ? "" : "s"}
+            </p>
+          </div>
 
           {loading ? (
-            <p className="text-gray-400 text-sm">Loading...</p>
+            <p className="text-sm text-gray-400">Loading...</p>
           ) : budgetsForPeriod.length === 0 ? (
-            <p className="text-gray-500 text-sm">You have no budgets set for this period yet.</p>
+            <EmptyState
+              eyebrow="Budget Command Center"
+              title="No budgets yet"
+              description="Create your first budget and start tracking spending goals for this month."
+              action={
+                <button
+                  type="button"
+                  onClick={() => setShowCreateForm(true)}
+                  className="gl-btn gl-btn-primary gl-btn-sm"
+                >
+                  Create Budget
+                </button>
+              }
+            />
           ) : (
-            <div className="gl-list-shell text-sm">
-              {budgetsForPeriod.map((b) => {
-                const wallet = b.wallet_id ? walletMap[b.wallet_id] : null;
-                const category = categoryMap[b.category_id];
-                const currency = wallet?.currency_code ?? "";
-                const isEditing = editingId === b.id;
-                const isBusy = rowBusyId === b.id;
+            <div className="grid gap-4">
+              {budgetsForPeriod.map((budget) => {
+                const summary = budgetSummaries.find((item) => item.id === budget.id);
+                const isEditing = editingId === budget.id;
+                const isBusy = rowBusyId === budget.id;
+
+                if (!summary) return null;
 
                 return (
-                  <div key={b.id} className="px-4 py-3">
-                    {!isEditing ? (
-                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                        <div>
-                          <div className="font-medium">
-                            {category ? category.name : "Unknown category"}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            {wallet ? wallet.name : "All wallets"} • {currency || "—"} • {year}-
-                            {String(month).padStart(2, "0")}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                          <div className="font-semibold">
-                            {formatMinorToAmount(b.amount_minor)} {currency}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => beginEdit(b)}
-                            disabled={isBusy}
-                            className="gl-btn gl-btn-secondary gl-btn-sm"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteBudget(b)}
-                            disabled={isBusy}
-                            className="gl-btn gl-btn-danger gl-btn-sm"
-                          >
-                            {isBusy ? "Working..." : "Delete"}
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="grid gap-3 md:grid-cols-3 items-end">
-                        <div className="md:col-span-2">
-                          <div className="text-xs text-gray-400 mb-1">
-                            {category ? category.name : "Unknown category"} •{" "}
-                            {wallet ? wallet.name : "All wallets"} • {currency || "—"}
-                          </div>
-                          <label className="block text-xs mb-1 text-gray-400">Amount</label>
-                          <input
-                            type="text"
-                            className="gl-input"
-                            value={editAmount}
-                            onChange={(e) => setEditAmount(e.target.value)}
-                          />
-                        </div>
-
-                        <div className="flex gap-2 md:justify-end">
-                          <button
-                            type="button"
-                            onClick={() => handleSaveEdit(b)}
-                            disabled={isBusy}
-                            className="gl-btn gl-btn-primary gl-btn-sm"
-                          >
-                            {isBusy ? "Saving..." : "Save"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={cancelEdit}
-                            disabled={isBusy}
-                            className="gl-btn gl-btn-secondary gl-btn-sm"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <BudgetCard
+                    key={budget.id}
+                    summary={{
+                      ...summary,
+                      year: budget.year,
+                      month: budget.month,
+                    }}
+                    isEditing={isEditing}
+                    isBusy={isBusy}
+                    editAmount={editAmount}
+                    onEditAmountChange={setEditAmount}
+                    onBeginEdit={() => beginEdit(budget)}
+                    onSaveEdit={() => handleSaveEdit(budget)}
+                    onCancelEdit={cancelEdit}
+                    onDelete={() => handleDeleteBudget(budget)}
+                  />
                 );
               })}
             </div>
