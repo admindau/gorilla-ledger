@@ -31,10 +31,7 @@ import DashboardAnalyticsAccordionItem from "@/components/dashboard/DashboardAna
 import Skeleton from "@/components/ui/Skeleton";
 
 import { isInternalTransfer } from "@/lib/transactions/classification";
-import {
-  buildDashboardReconciliation,
-  reconciliationMoneyEntries,
-} from "@/lib/dashboard/reconciliation";
+import { buildDashboardReconciliation } from "@/lib/dashboard/reconciliation";
 import {
   buildDailyIncomeExpenseSeries,
   buildDensifiedMonthSeries,
@@ -103,26 +100,6 @@ type SmartAlert = {
   tone: "good" | "watch" | "danger" | "neutral";
   title: string;
   detail: string;
-};
-
-type CurrencyHealthEntry = {
-  currencyCode: string;
-  score: number;
-  label: string;
-  riskLevel: "Healthy" | "Watch" | "Warning" | "Critical";
-  cashFlowMinor: number;
-  budgetPressureCount: number;
-  activeBudgetsCount: number;
-};
-
-type ForecastEntry = {
-  currencyCode: string;
-  currentBalanceMinor: number;
-  projectedBalanceMinor: number;
-  scheduledIncomeMinor: number;
-  scheduledExpenseMinor: number;
-  scheduledOccurrencesCount: number;
-  scheduledRuleCount: number;
 };
 
 
@@ -595,39 +572,6 @@ export default function DashboardPage() {
     budgetStatsByCurrency,
   });
 
-  const reconciledBalanceEntries = reconciliationMoneyEntries(
-    reconciliationEntries,
-    "balanceMinor"
-  );
-  const reconciledIncomeEntries = reconciliationMoneyEntries(
-    reconciliationEntries,
-    "incomeMinor"
-  );
-  const reconciledExpenseEntries = reconciliationMoneyEntries(
-    reconciliationEntries,
-    "expenseMinor"
-  );
-  const reconciledNetEntries = reconciliationMoneyEntries(
-    reconciliationEntries,
-    "netMinor"
-  );
-
-  const largestExpenseItems = reconciliationEntries
-    .filter((entry) => entry.largestExpense)
-    .map((entry) => {
-      const tx = entry.largestExpense as Transaction;
-      return {
-        id: tx.id,
-        amountMinor: tx.amount_minor,
-        currencyCode: entry.currencyCode,
-        occurredAt: tx.occurred_at,
-        categoryName: tx.category_id
-          ? categoryMap[tx.category_id]?.name ?? "Uncategorized"
-          : "Uncategorized",
-        walletName: walletMap[tx.wallet_id]?.name ?? "Unknown wallet",
-      };
-    });
-
   const activeCategoryCount = categories.filter((c) => c.type === "expense").length;
 
   // GL-QA-01B.3: current balances and recurring schedules now flow through
@@ -640,17 +584,6 @@ export default function DashboardPage() {
     selectedYear,
     selectedMonth0: selectedMonth,
   });
-  const forecastEntries: ForecastEntry[] = forecastReconciliation.entries;
-  const recurringForecast = {
-    totalOccurrences: forecastReconciliation.totalOccurrences,
-    activeRuleCount: forecastReconciliation.activeRuleCount,
-    entries: forecastReconciliation.entries.map((entry) => ({
-      currencyCode: entry.currencyCode,
-      scheduledRuleIds: [] as string[],
-    })),
-  };
-
-  const scheduledRecurringRuleCount = forecastReconciliation.activeRuleCount;
   const selectedDate = new Date(selectedYear, selectedMonth, 1);
   const monthLabel = selectedDate.toLocaleString("en", {
     month: "long",
@@ -698,34 +631,16 @@ export default function DashboardPage() {
     }),
   });
 
-  const currencyHealthEntries: CurrencyHealthEntry[] =
-    dashboardInsightModel.currencies.map((currency) => ({
-      currencyCode: currency.currencyCode,
-      score: currency.health.score,
-      label: currency.health.label,
-      riskLevel:
-        currency.health.riskLevel === "healthy"
-          ? "Healthy"
-          : currency.health.riskLevel === "warning"
-          ? "Warning"
-          : currency.health.riskLevel === "critical"
-          ? "Critical"
-          : "Watch",
-      cashFlowMinor: currency.netMinor,
-      budgetPressureCount: currency.health.budgetPressureCount,
-      activeBudgetsCount: currency.budget.total,
-    }));
+  const weakestCurrencyInsight =
+    dashboardInsightModel.currencies.find(
+      (currency) =>
+        currency.currencyCode === dashboardInsightModel.weakestCurrencyCode
+    ) ?? null;
 
-  const weakestCurrencyHealth = currencyHealthEntries.find(
-    (entry) => entry.currencyCode === dashboardInsightModel.weakestCurrencyCode
-  ) ?? {
-    currencyCode: "—",
-    score: 0,
-    label: "No activity",
-    riskLevel: "Watch" as const,
-    cashFlowMinor: 0,
-    budgetPressureCount: 0,
-    activeBudgetsCount: 0,
+  const weakestCurrencyHealth = {
+    currencyCode: weakestCurrencyInsight?.currencyCode ?? "—",
+    score: weakestCurrencyInsight?.health.score ?? 0,
+    label: weakestCurrencyInsight?.health.label ?? "No activity",
   };
   const financialHealthScore = weakestCurrencyHealth.score;
   const financialHealthLabel = weakestCurrencyHealth.label;
@@ -819,28 +734,37 @@ export default function DashboardPage() {
       : "Building History";
 
   const executiveBalanceSummary =
-    Object.entries(totalsByCurrency).length > 0
-      ? Object.entries(totalsByCurrency)
+    dashboardInsightModel.currencies.length > 0
+      ? dashboardInsightModel.currencies
           .slice(0, 2)
-          .map(([currency, minor]) => `${formatMinorToAmount(minor)} ${currency}`)
+          .map(
+            (currency) =>
+              `${formatMinorToAmount(currency.balanceMinor)} ${currency.currencyCode}`
+          )
           .join(" · ")
       : "No wallet balance yet";
 
   const executiveNetFlowSummary =
-    reconciledNetEntries.length > 0
-      ? reconciledNetEntries
+    dashboardInsightModel.currencies.length > 0
+      ? dashboardInsightModel.currencies
           .slice(0, 2)
-          .map(([currency, minor]) => `${formatMinorToAmount(minor)} ${currency}`)
+          .map(
+            (currency) =>
+              `${formatMinorToAmount(currency.netMinor)} ${currency.currencyCode}`
+          )
           .join(" · ")
       : "0.00";
 
+  const forecastableCurrencies = dashboardInsightModel.currencies.filter(
+    (currency) => currency.forecast.availability === "available"
+  );
   const forecastSummary =
-    forecastEntries.length > 0
-      ? forecastEntries
+    forecastableCurrencies.length > 0
+      ? forecastableCurrencies
           .slice(0, 2)
           .map(
-            (entry) =>
-              `${formatMinorToAmount(entry.projectedBalanceMinor)} ${entry.currencyCode}`
+            (currency) =>
+              `${formatMinorToAmount(currency.forecast.projectedBalanceMinor)} ${currency.currencyCode}`
           )
           .join(" · ")
       : "Create a wallet to unlock forecast";

@@ -22,6 +22,7 @@ import type {
   IntelligenceTransactionSummary,
 } from "./types";
 import { normalizeCurrencyCode, normalizeCurrencyCodes } from "./currency";
+import { certifyDashboardInsightModel } from "./certification";
 
 type TransactionPresentation = {
   categoryName: string | null;
@@ -422,7 +423,7 @@ export function buildDashboardInsightModel({
     });
   }
 
-  return {
+  const draftModel: DashboardInsightModel = {
     metadata: {
       generatedAt: generatedAt.toISOString(),
       modelVersion: DASHBOARD_INTELLIGENCE_MODEL_VERSION,
@@ -430,8 +431,8 @@ export function buildDashboardInsightModel({
       sourceWalletCount: sourceCounts.wallets,
       sourceBudgetCount: sourceCounts.budgets,
       sourceRecurringRuleCount: sourceCounts.recurringRules,
-      isComplete: warnings.length === 0,
-      warnings: [...warnings],
+      isComplete: false,
+      warnings: [],
     },
     filters,
     currencies,
@@ -445,5 +446,17 @@ export function buildDashboardInsightModel({
         : null,
     alerts: globalAlerts,
     recommendations: globalRecommendations,
+  };
+
+  const certification = certifyDashboardInsightModel(draftModel);
+  const allWarnings = [...warnings, ...certification.warnings];
+
+  return {
+    ...draftModel,
+    metadata: {
+      ...draftModel.metadata,
+      isComplete: certification.errors.length === 0 && allWarnings.length === 0,
+      warnings: [...allWarnings, ...certification.errors],
+    },
   };
 }
