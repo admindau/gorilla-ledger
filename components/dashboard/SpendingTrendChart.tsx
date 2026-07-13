@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState, type PointerEvent } from "react";
+import { useEffect, useId, useMemo, useState, type PointerEvent } from "react";
 
 type TrendPoint = {
   day: string;
@@ -32,6 +32,19 @@ function formatCompactAmount(value: number) {
   return new Intl.NumberFormat("en", {
     maximumFractionDigits: value >= 100 ? 0 : 2,
   }).format(value);
+}
+
+function sortCurrencies(currencies: string[]) {
+  const priority = new Map([
+    ["SSP", 0],
+    ["USD", 1],
+  ]);
+
+  return [...currencies].sort((a, b) => {
+    const rankA = priority.get(a.toUpperCase()) ?? 99;
+    const rankB = priority.get(b.toUpperCase()) ?? 99;
+    return rankA - rankB || a.localeCompare(b);
+  });
 }
 
 function buildLinearPath(points: ChartPoint[]) {
@@ -70,14 +83,44 @@ export default function SpendingTrendChart({ data }: Props) {
   const lineGlowId = `spending-line-glow-${reactId}`;
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-  const model = useMemo(() => {
-    const currencies = Array.from(
-      new Set(data.map((row) => row.currencyCode).filter(Boolean))
-    ).sort();
+  const currencies = useMemo(
+    () =>
+      sortCurrencies(
+        Array.from(
+          new Set(
+            data
+              .map((row) => row.currencyCode?.trim().toUpperCase())
+              .filter((currency): currency is string => Boolean(currency))
+          )
+        )
+      ),
+    [data]
+  );
 
-    const selectedCurrency = currencies[0] ?? data[0]?.currencyCode ?? "";
+  const [selectedCurrency, setSelectedCurrency] = useState(
+    () => currencies[0] ?? data[0]?.currencyCode?.trim().toUpperCase() ?? ""
+  );
+
+  useEffect(() => {
+    if (currencies.length === 0) {
+      setSelectedCurrency("");
+      return;
+    }
+
+    if (!currencies.includes(selectedCurrency)) {
+      setSelectedCurrency(currencies[0]);
+    }
+  }, [currencies, selectedCurrency]);
+
+  useEffect(() => {
+    setActiveIndex(null);
+  }, [selectedCurrency]);
+
+  const model = useMemo(() => {
     const filtered = selectedCurrency
-      ? data.filter((row) => row.currencyCode === selectedCurrency)
+      ? data.filter(
+          (row) => row.currencyCode?.trim().toUpperCase() === selectedCurrency
+        )
       : data;
 
     const rows = filtered
@@ -102,8 +145,6 @@ export default function SpendingTrendChart({ data }: Props) {
     >((peak, row) => (!peak || row.expense > peak.expense ? row : peak), null);
 
     return {
-      currencies,
-      selectedCurrency,
       rows,
       maxExpense,
       totalExpense,
@@ -111,11 +152,9 @@ export default function SpendingTrendChart({ data }: Props) {
       activeDays,
       peakRow,
     };
-  }, [data]);
+  }, [data, selectedCurrency]);
 
   const {
-    currencies,
-    selectedCurrency,
     rows,
     maxExpense,
     totalExpense,
@@ -199,13 +238,46 @@ export default function SpendingTrendChart({ data }: Props) {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 text-xs sm:min-w-[25rem]">
+        <div className="flex flex-col gap-3 sm:items-end">
+          {currencies.length > 1 ? (
+            <div
+              className="inline-flex w-fit rounded-full border border-white/10 bg-black/45 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+              role="group"
+              aria-label="Spending trend currency"
+            >
+              {currencies.map((currency) => {
+                const active = currency === selectedCurrency;
+                return (
+                  <button
+                    key={currency}
+                    type="button"
+                    onClick={() => setSelectedCurrency(currency)}
+                    aria-pressed={active}
+                    className={`min-w-[4.25rem] rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+                      active
+                        ? "bg-white text-black shadow-[0_8px_24px_rgba(255,255,255,0.14)]"
+                        : "text-gray-400 hover:bg-white/[0.06] hover:text-white"
+                    }`}
+                  >
+                    {currency}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+
+          <div className="grid grid-cols-2 gap-2 text-xs sm:min-w-[34rem] sm:grid-cols-4">
           <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
             <div className="text-[10px] uppercase tracking-[0.16em] text-gray-500">
               Total spent
             </div>
             <div className="mt-1 text-base font-semibold tabular-nums text-white">
               {formatCompactAmount(totalExpense)}
+              {selectedCurrency ? (
+                <span className="ml-1 text-[10px] font-medium uppercase text-gray-500">
+                  {selectedCurrency}
+                </span>
+              ) : null}
             </div>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
@@ -214,6 +286,11 @@ export default function SpendingTrendChart({ data }: Props) {
             </div>
             <div className="mt-1 text-base font-semibold tabular-nums text-white">
               {formatCompactAmount(averageExpense)}
+              {selectedCurrency ? (
+                <span className="ml-1 text-[10px] font-medium uppercase text-gray-500">
+                  {selectedCurrency}
+                </span>
+              ) : null}
             </div>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
@@ -224,6 +301,20 @@ export default function SpendingTrendChart({ data }: Props) {
               {activeDays}
             </div>
           </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+            <div className="text-[10px] uppercase tracking-[0.16em] text-gray-500">
+              Peak day
+            </div>
+            <div className="mt-1 truncate text-base font-semibold tabular-nums text-white">
+              {peakRow ? formatCompactAmount(peakRow.expense) : "—"}
+              {selectedCurrency && peakRow ? (
+                <span className="ml-1 text-[10px] font-medium uppercase text-gray-500">
+                  {selectedCurrency}
+                </span>
+              ) : null}
+            </div>
+          </div>
+        </div>
         </div>
       </div>
 
