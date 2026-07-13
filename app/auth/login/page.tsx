@@ -1,13 +1,19 @@
 import { LoginForm } from "@/components/auth/LoginForm";
 
 type LoginPageProps = {
-  searchParams?: {
-    next?: string;
-  };
+  searchParams?: Promise<{
+    next?: string | string[];
+  }>;
 };
 
-export default function LoginPage({ searchParams }: LoginPageProps) {
-  const nextParam = searchParams?.next;
+export default async function LoginPage({
+  searchParams,
+}: LoginPageProps) {
+  const resolvedSearchParams = searchParams
+    ? await searchParams
+    : undefined;
+
+  const nextParam = resolvedSearchParams?.next;
 
   const next =
     typeof nextParam === "string" && nextParam.length > 0
@@ -15,7 +21,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
       : "/dashboard";
 
   return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+    <div className="flex min-h-screen items-center justify-center bg-black px-4 text-white">
       <LoginForm next={next} />
     </div>
   );
