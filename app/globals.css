@@ -1420,3 +1420,72 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* RC-02A.1 — Keyboard & Focus Foundation */
+.gl-skip-link {
+  position: fixed;
+  left: 1rem;
+  top: 1rem;
+  z-index: 1000;
+  transform: translateY(-200%);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #050505;
+  padding: 0.7rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 750;
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.55);
+  transition: transform 160ms var(--gl-ease);
+}
+
+.gl-skip-link:focus {
+  transform: translateY(0);
+  outline: 3px solid rgba(255, 255, 255, 0.45);
+  outline-offset: 3px;
+}
+
+#main-content:focus {
+  outline: none;
+}
+
+:where(
+  a[href],
+  button,
+  input,
+  select,
+  textarea,
+  summary,
+  [role="button"],
+  [tabindex]:not([tabindex="-1"])
+):focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.95);
+  outline-offset: 3px;
+  border-radius: 0.45rem;
+}
+
+.gl-app-brand:focus-visible,
+.gl-app-nav-link:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.95);
+  outline-offset: 4px;
+}
+
+.gl-input:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 2px;
+  border-color: rgba(255, 255, 255, 0.65);
+  background: rgba(0, 0, 0, 0.82);
+  box-shadow:
+    0 0 0 4px rgba(255, 255, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.gl-field-error {
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gl-skip-link {
+    transition: none;
+  }
+}

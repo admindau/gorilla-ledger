@@ -57,8 +57,14 @@ export function Button(props: NativeButtonProps | LinkButtonProps) {
     );
   }
 
+  const buttonProps = rest as ButtonHTMLAttributes<HTMLButtonElement>;
+
   return (
-    <button className={classes} {...(rest as ButtonHTMLAttributes<HTMLButtonElement>)}>
+    <button
+      type={buttonProps.type ?? "button"}
+      className={classes}
+      {...buttonProps}
+    >
       {children}
     </button>
   );
