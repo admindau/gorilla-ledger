@@ -445,27 +445,6 @@ export default function DashboardPage() {
     router.replace("/auth/login");
   }
 
-  if (checkingSession) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <div className="w-full max-w-md px-6">
-          <div className="border border-gray-800 bg-black/40 rounded-2xl p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]">
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-sm font-semibold">Gorilla Ledger™</div>
-              <Skeleton className="h-6 w-24" rounded="full" />
-            </div>
-            <Skeleton className="h-4 w-2/3 mb-2" />
-            <Skeleton className="h-4 w-1/2 mb-6" />
-            <Skeleton className="h-10 w-full rounded-xl" />
-            <div className="mt-4 text-xs text-gray-400">
-              Checking your session…
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // ----- Derived data -----
 
   const walletMap = useMemo(
@@ -918,6 +897,28 @@ export default function DashboardPage() {
   const SK_HERO = "h-[320px] sm:h-[360px]";
   const SK_CHART = "h-[300px] sm:h-[320px]";
   const SK_CHART_TALL = "h-[320px] sm:h-[360px]";
+
+
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <div className="w-full max-w-md px-6">
+          <div className="border border-gray-800 bg-black/40 rounded-2xl p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-sm font-semibold">Gorilla Ledger™</div>
+              <Skeleton className="h-6 w-24" rounded="full" />
+            </div>
+            <Skeleton className="h-4 w-2/3 mb-2" />
+            <Skeleton className="h-4 w-1/2 mb-6" />
+            <Skeleton className="h-10 w-full rounded-xl" />
+            <div className="mt-4 text-xs text-gray-400">
+              Checking your session…
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="gl-page-migrated gl-dashboard-shell">
