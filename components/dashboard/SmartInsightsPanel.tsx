@@ -352,58 +352,6 @@ export default function SmartInsightsPanel({
     year: "numeric",
   });
 
-  // --- Monthly summary (AI-style one liner) ---
-  let summaryParts: string[] = [];
-
-  if (biggestTotalDecrease && biggestTotalDecrease.pctChange < 0) {
-    const pct = Math.round(Math.abs(biggestTotalDecrease.pctChange));
-    summaryParts.push(
-      `${biggestTotalDecrease.label} is down ${pct}% vs last month`
-    );
-  }
-
-  if (biggestTotalIncrease && biggestTotalIncrease.pctChange > 0) {
-    const pct = Math.round(Math.abs(biggestTotalIncrease.pctChange));
-    summaryParts.push(
-      `${biggestTotalIncrease.label} is up ${pct}% vs last month`
-    );
-  }
-
-  if (!biggestTotalIncrease && biggestCategoryIncrease) {
-    const pct = Math.round(Math.abs(biggestCategoryIncrease.pctChange));
-    summaryParts.push(
-      `${biggestCategoryIncrease.label} is up ${pct}% vs last month`
-    );
-  }
-
-  if (!biggestTotalDecrease && biggestCategoryDecrease) {
-    const pct = Math.round(Math.abs(biggestCategoryDecrease.pctChange));
-    summaryParts.push(
-      `${biggestCategoryDecrease.label} is down ${pct}% vs last month`
-    );
-  }
-
-  if (stoppedCategoryCount > 0) {
-    summaryParts.push(
-      `spending dropped to zero in ${stoppedCategoryCount} categor${
-        stoppedCategoryCount === 1 ? "y" : "ies"
-      }`
-    );
-  }
-
-  if (newCategoryCount > 0) {
-    summaryParts.push(
-      `new spending appeared in ${newCategoryCount} categor${
-        newCategoryCount === 1 ? "y" : "ies"
-      }`
-    );
-  }
-
-  const summaryText =
-    summaryParts.length > 0
-      ? summaryParts.join(". ") + "."
-      : null;
-
   // --- "What to pay attention to" box ---
   const attentionItems: string[] = [];
 
@@ -473,37 +421,6 @@ export default function SmartInsightsPanel({
     );
   }
 
-  // --- Collapsible list of insights ---
-  const VISIBLE_COUNT = 10;
-  const visibleInsights = showAll
-    ? insights
-    : insights.slice(0, VISIBLE_COUNT);
-
-  const isTotalKind = (kind: InsightKind) =>
-    kind === "total_new" ||
-    kind === "total_zero" ||
-    kind === "total_increase" ||
-    kind === "total_decrease";
-
-  const getIconForKind = (kind: InsightKind): string => {
-    switch (kind) {
-      case "increase":
-      case "total_increase":
-        return "🔺";
-      case "decrease":
-      case "total_decrease":
-        return "🔻";
-      case "new":
-      case "total_new":
-        return "🆕";
-      case "stopped":
-      case "total_zero":
-        return "⚫";
-      default:
-        return "•";
-    }
-  };
-
   const getTypeLabel = (kind: InsightKind): string => {
     switch (kind) {
       case "increase":
@@ -523,109 +440,166 @@ export default function SmartInsightsPanel({
     }
   };
 
+
+  const topInsight = insights[0] ?? null;
+  const secondaryInsights = insights.slice(1, 4);
+
+  const changeTone = (kind: InsightKind) => {
+    if (kind === "increase" || kind === "total_increase") {
+      return "border-white/20 bg-white/[0.075] text-white";
+    }
+    if (kind === "decrease" || kind === "total_decrease") {
+      return "border-white/10 bg-white/[0.035] text-gray-300";
+    }
+    return "border-white/15 bg-white/[0.05] text-gray-200";
+  };
+
   return (
-    <section className="mb-6">
-      <div className="gl-card p-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-          <h2 className="text-sm font-semibold">
-            Smart Insights – {currentLabel}
-          </h2>
-          <p className="text-[11px] text-gray-400">
-            Comparing this month&apos;s spending to {prevLabel} using your
-            current wallet &amp; category filters.
+    <div className="flex h-full min-h-[22rem] flex-col">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-gray-500">
+            Month-on-month analysis
+          </span>
+          <h3 className="mt-2 text-base font-semibold tracking-tight text-white">
+            Smart Insights
+          </h3>
+          <p className="mt-1 text-[11px] leading-5 text-gray-400">
+            {currentLabel} compared with {prevLabel}.
           </p>
         </div>
-
-        {summaryText && (
-          <div className="mb-2 text-[11px] text-gray-300">
-            {summaryText}
-          </div>
-        )}
-
-        {attentionItems.length > 0 && (
-          <div className="mb-3 border border-gray-800/70 rounded-md p-2 bg-black/60">
-            <p className="text-[11px] font-semibold mb-1 text-gray-200">
-              What to pay attention to
-            </p>
-            <ul className="text-[11px] text-gray-300 space-y-0.5 list-disc list-inside">
-              {attentionItems.map((item, idx) => (
-                <li key={idx}>{item}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {suggestions.length > 0 && (
-          <div className="mb-3 text-[11px] text-gray-300">
-            <p className="font-semibold mb-1">Suggested next steps</p>
-            <ul className="space-y-0.5 list-disc list-inside">
-              {suggestions.map((s, idx) => (
-                <li key={idx}>{s}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {insights.length === 0 ? (
-          <p className="text-xs text-gray-500">
-            No major changes vs last month with the current filters.
-          </p>
-        ) : (
-          <>
-            <ul className="text-xs text-gray-200 space-y-1.5">
-              {visibleInsights.map((insight, idx) => {
-                const globalIndex = insights.indexOf(insight);
-                const isHighImpact = globalIndex > -1 && globalIndex < 5;
-                const icon = getIconForKind(insight.kind);
-                const typeLabel = getTypeLabel(insight.kind);
-
-                return (
-                  <li key={idx}>
-                    <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
-                      <span className="flex-1">
-                        {icon} {insight.text}
-                      </span>
-                      <div className="flex flex-wrap gap-1 text-[10px] text-gray-400 sm:ml-2 mt-0.5 sm:mt-0">
-                        {isHighImpact && (
-                          <span className="px-1.5 py-0.5 border border-gray-700 rounded-full">
-                            High impact
-                          </span>
-                        )}
-                        {insight.currency && (
-                          <span className="px-1.5 py-0.5 border border-gray-700 rounded-full">
-                            {insight.currency}
-                          </span>
-                        )}
-                        {!isTotalKind(insight.kind) &&
-                          insight.categoryName && (
-                            <span className="px-1.5 py-0.5 border border-gray-700 rounded-full">
-                              {insight.categoryName}
-                            </span>
-                          )}
-                        <span className="px-1.5 py-0.5 border border-gray-700 rounded-full">
-                          {typeLabel}
-                        </span>
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-
-            {insights.length > VISIBLE_COUNT && (
-              <button
-                type="button"
-                className="mt-2 text-[11px] text-gray-400 underline"
-                onClick={() => setShowAll((prev) => !prev)}
-              >
-                {showAll
-                  ? "Show fewer insights"
-                  : `Show all insights (${insights.length})`}
-              </button>
-            )}
-          </>
-        )}
+        <span className="w-fit rounded-full border border-white/10 bg-white/[0.035] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.15em] text-gray-400">
+          {insights.length} signal{insights.length === 1 ? "" : "s"}
+        </span>
       </div>
-    </section>
+
+      {insights.length === 0 ? (
+        <div className="mt-5 flex flex-1 items-center justify-center rounded-2xl border border-dashed border-white/10 bg-black/15 p-6 text-center">
+          <div>
+            <div className="mx-auto h-8 w-8 rounded-full border border-white/10 bg-white/[0.035]" />
+            <p className="mt-3 text-sm font-medium text-gray-300">
+              Spending is stable
+            </p>
+            <p className="mt-1 max-w-xs text-[11px] leading-5 text-gray-500">
+              No material month-on-month changes were detected with the current filters.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="mt-5 grid grid-cols-3 gap-2">
+            <div className="rounded-xl border border-white/[0.07] bg-black/20 p-3">
+              <p className="text-[9px] uppercase tracking-[0.14em] text-gray-500">New</p>
+              <p className="mt-1 text-lg font-semibold tabular-nums text-white">{newCategoryCount}</p>
+              <p className="text-[9px] text-gray-500">categories</p>
+            </div>
+            <div className="rounded-xl border border-white/[0.07] bg-black/20 p-3">
+              <p className="text-[9px] uppercase tracking-[0.14em] text-gray-500">Stopped</p>
+              <p className="mt-1 text-lg font-semibold tabular-nums text-white">{stoppedCategoryCount}</p>
+              <p className="text-[9px] text-gray-500">categories</p>
+            </div>
+            <div className="rounded-xl border border-white/[0.07] bg-black/20 p-3">
+              <p className="text-[9px] uppercase tracking-[0.14em] text-gray-500">Material</p>
+              <p className="mt-1 text-lg font-semibold tabular-nums text-white">{insights.length}</p>
+              <p className="text-[9px] text-gray-500">changes</p>
+            </div>
+          </div>
+
+          {topInsight && (
+            <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`rounded-full border px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] ${changeTone(topInsight.kind)}`}>
+                  {getTypeLabel(topInsight.kind)}
+                </span>
+                {topInsight.currency && (
+                  <span className="rounded-full border border-white/10 px-2 py-1 text-[9px] font-medium text-gray-400">
+                    {topInsight.currency}
+                  </span>
+                )}
+              </div>
+              <p className="mt-3 text-sm font-semibold leading-5 text-white">
+                {topInsight.text}
+              </p>
+              <p className="mt-2 text-[10px] uppercase tracking-[0.14em] text-gray-500">
+                Highest-impact movement
+              </p>
+            </div>
+          )}
+
+          {secondaryInsights.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {secondaryInsights.map((insight, index) => (
+                <div
+                  key={`${insight.kind}-${insight.categoryName ?? "total"}-${index}`}
+                  className="flex items-start gap-3 rounded-xl border border-white/[0.07] bg-black/20 px-3 py-2.5"
+                >
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-white/10 text-[9px] font-semibold text-gray-400">
+                    {index + 2}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] leading-5 text-gray-300">{insight.text}</p>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      <span className="text-[9px] uppercase tracking-[0.12em] text-gray-500">
+                        {getTypeLabel(insight.kind)}
+                      </span>
+                      {insight.categoryName && (
+                        <span className="text-[9px] text-gray-600">• {insight.categoryName}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {(attentionItems.length > 0 || suggestions.length > 0) && (
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+              {attentionItems[0] && (
+                <div className="rounded-xl border border-white/[0.07] bg-black/20 p-3">
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-gray-500">
+                    Watch
+                  </p>
+                  <p className="mt-1.5 text-[10px] leading-4 text-gray-300">
+                    {attentionItems[0]}
+                  </p>
+                </div>
+              )}
+              {suggestions[0] && (
+                <div className="rounded-xl border border-white/[0.07] bg-black/20 p-3">
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-gray-500">
+                    Next action
+                  </p>
+                  <p className="mt-1.5 text-[10px] leading-4 text-gray-300">
+                    {suggestions[0]}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {insights.length > 4 && (
+            <button
+              type="button"
+              className="mt-auto pt-4 text-left text-[10px] font-medium text-gray-500 transition hover:text-gray-300"
+              onClick={() => setShowAll((prev) => !prev)}
+              aria-expanded={showAll}
+            >
+              {showAll ? "Hide detailed signals" : `Review ${insights.length - 4} additional signal${insights.length - 4 === 1 ? "" : "s"}`}
+            </button>
+          )}
+
+          {showAll && insights.length > 4 && (
+            <div className="mt-3 max-h-48 space-y-2 overflow-y-auto border-t border-white/[0.07] pt-3 pr-1">
+              {insights.slice(4).map((insight, index) => (
+                <div key={`${insight.kind}-${index}`} className="flex gap-2 text-[10px] leading-4 text-gray-400">
+                  <span className="text-gray-600">{index + 5}.</span>
+                  <span>{insight.text}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }
