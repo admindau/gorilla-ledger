@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
@@ -468,179 +468,222 @@ export default function DashboardPage() {
 
   // ----- Derived data -----
 
-  const walletMap = Object.fromEntries(wallets.map((w) => [w.id, w] as const));
-  const categoryMap = Object.fromEntries(
-    categories.map((c) => [c.id, c] as const)
+  const walletMap = useMemo(
+    () => Object.fromEntries(wallets.map((wallet) => [wallet.id, wallet] as const)),
+    [wallets]
+  );
+  const categoryMap = useMemo(
+    () => Object.fromEntries(categories.map((category) => [category.id, category] as const)),
+    [categories]
+  );
+  const walletNamesById = useMemo(
+    () => Object.fromEntries(wallets.map((wallet) => [wallet.id, wallet.name] as const)),
+    [wallets]
   );
 
-  // Per-wallet balance in O(transactions + wallets). Transfers intentionally
-  // remain included because they change individual wallet balances.
-  const deltaByWallet: Record<string, number> = {};
-  for (const tx of transactions) {
-    const sign = tx.type === "income" ? 1 : -1;
-    deltaByWallet[tx.wallet_id] =
-      (deltaByWallet[tx.wallet_id] ?? 0) + sign * tx.amount_minor;
-  }
+  // Per-wallet balances and currency totals are derived once per source-data
+  // change instead of being rebuilt by every unrelated UI interaction.
+  const totalsByCurrency = useMemo(() => {
+    const deltaByWallet: Record<string, number> = {};
 
-  const walletBalances = wallets.map((wallet) => ({
-    ...wallet,
-    balanceMinor:
-      wallet.starting_balance_minor + (deltaByWallet[wallet.id] ?? 0),
-  }));
-
-  // Totals per currency
-  const totalsByCurrency: Record<string, number> = {};
-  for (const wb of walletBalances) {
-    if (!totalsByCurrency[wb.currency_code]) {
-      totalsByCurrency[wb.currency_code] = 0;
+    for (const tx of transactions) {
+      const sign = tx.type === "income" ? 1 : -1;
+      deltaByWallet[tx.wallet_id] =
+        (deltaByWallet[tx.wallet_id] ?? 0) + sign * tx.amount_minor;
     }
-    totalsByCurrency[wb.currency_code] += wb.balanceMinor;
-  }
 
-  function isSelectedMonth(dateStr: string): boolean {
-    const d = new Date(dateStr);
-    return d.getFullYear() === selectedYear && d.getMonth() === selectedMonth;
-  }
+    const balances = wallets.map((wallet) => ({
+      ...wallet,
+      balanceMinor:
+        wallet.starting_balance_minor + (deltaByWallet[wallet.id] ?? 0),
+    }));
 
-  // Current (selected) month income/expense totals — per currency (pure multi-currency)
-  const monthIncomeByCurrency: Record<string, number> = {};
-  const monthExpenseByCurrency: Record<string, number> = {};
-
-  for (const tx of transactions) {
-    if (!isSelectedMonth(tx.occurred_at)) continue;
-
-    const category = tx.category_id ? categoryMap[tx.category_id] : null;
-    if (isInternalTransfer(tx, category)) continue;
-
-    if (tx.type === "income") {
-      if (!monthIncomeByCurrency[tx.currency_code]) {
-        monthIncomeByCurrency[tx.currency_code] = 0;
-      }
-      monthIncomeByCurrency[tx.currency_code] += tx.amount_minor;
-    } else if (tx.type === "expense") {
-      if (!monthExpenseByCurrency[tx.currency_code]) {
-        monthExpenseByCurrency[tx.currency_code] = 0;
-      }
-      monthExpenseByCurrency[tx.currency_code] += tx.amount_minor;
+    const totals: Record<string, number> = {};
+    for (const wallet of balances) {
+      totals[wallet.currency_code] =
+        (totals[wallet.currency_code] ?? 0) + wallet.balanceMinor;
     }
-  }
 
-  // GL-QA-01B.3: authoritative budget-vs-actual reconciliation.
+    return totals;
+  }, [transactions, wallets]);
+
+  // One selected-month pass now supplies both KPI totals and activity widgets.
+  const {
+    monthIncomeByCurrency,
+    monthExpenseByCurrency,
+    selectedMonthActivityTransactions,
+  } = useMemo(() => {
+    const incomeByCurrency: Record<string, number> = {};
+    const expenseByCurrency: Record<string, number> = {};
+    const activityTransactions: Transaction[] = [];
+
+    for (const tx of transactions) {
+      const date = new Date(tx.occurred_at);
+      if (
+        Number.isNaN(date.getTime()) ||
+        date.getFullYear() !== selectedYear ||
+        date.getMonth() !== selectedMonth
+      ) {
+        continue;
+      }
+
+      const category = tx.category_id ? categoryMap[tx.category_id] : null;
+      if (isInternalTransfer(tx, category)) continue;
+
+      activityTransactions.push(tx);
+      if (tx.type === "income") {
+        incomeByCurrency[tx.currency_code] =
+          (incomeByCurrency[tx.currency_code] ?? 0) + tx.amount_minor;
+      } else {
+        expenseByCurrency[tx.currency_code] =
+          (expenseByCurrency[tx.currency_code] ?? 0) + tx.amount_minor;
+      }
+    }
+
+    return {
+      monthIncomeByCurrency: incomeByCurrency,
+      monthExpenseByCurrency: expenseByCurrency,
+      selectedMonthActivityTransactions: activityTransactions,
+    };
+  }, [categoryMap, selectedMonth, selectedYear, transactions]);
+
   const RISK_THRESHOLD = 0.8;
-  const budgetReconciliation = buildBudgetReconciliation({
-    budgets,
-    wallets,
-    categories,
-    transactions,
-    selectedYear,
-    selectedMonth0: selectedMonth,
-    riskThreshold: RISK_THRESHOLD,
-    isInternalTransfer,
-  });
+  const budgetReconciliation = useMemo(
+    () =>
+      buildBudgetReconciliation({
+        budgets,
+        wallets,
+        categories,
+        transactions,
+        selectedYear,
+        selectedMonth0: selectedMonth,
+        riskThreshold: RISK_THRESHOLD,
+        isInternalTransfer,
+      }),
+    [budgets, categories, selectedMonth, selectedYear, transactions, wallets]
+  );
 
   const budgetSummaries = budgetReconciliation.summaries;
   const budgetStatsByCurrency = budgetReconciliation.statsByCurrency;
   const totalBudgets = budgetReconciliation.totalBudgets;
-  const unscoredBudgets = budgetReconciliation.unscoredBudgets;
   const budgetsOnTrack = budgetReconciliation.budgetsOnTrack;
   const budgetsAtRisk = budgetReconciliation.budgetsAtRisk;
   const budgetsOver = budgetReconciliation.budgetsOver;
 
+  const recentTransactions = useMemo(
+    () =>
+      selectedMonthActivityTransactions.slice(0, 5).map((tx) => ({
+        id: tx.id,
+        type: tx.type,
+        amountMinor: tx.amount_minor,
+        currencyCode: tx.currency_code,
+        occurredAt: tx.occurred_at,
+        categoryName: tx.category_id
+          ? categoryMap[tx.category_id]?.name ?? "Uncategorized"
+          : "Uncategorized",
+        walletName: walletMap[tx.wallet_id]?.name ?? "Unknown wallet",
+      })),
+    [categoryMap, selectedMonthActivityTransactions, walletMap]
+  );
 
-  // Dashboard Intelligence A.2: activity snapshot widgets
-  const selectedMonthActivityTransactions = transactions.filter((tx) => {
-    if (!isSelectedMonth(tx.occurred_at)) return false;
+  const reconciliationEntries = useMemo(
+    () =>
+      buildDashboardReconciliation({
+        totalsByCurrency,
+        incomeByCurrency: monthIncomeByCurrency,
+        expenseByCurrency: monthExpenseByCurrency,
+        monthTransactions: selectedMonthActivityTransactions,
+        budgetStatsByCurrency,
+      }),
+    [
+      budgetStatsByCurrency,
+      monthExpenseByCurrency,
+      monthIncomeByCurrency,
+      selectedMonthActivityTransactions,
+      totalsByCurrency,
+    ]
+  );
 
-    const category = tx.category_id ? categoryMap[tx.category_id] : null;
-    if (isInternalTransfer(tx, category)) return false;
+  const activeCategoryCount = useMemo(
+    () => categories.filter((category) => category.type === "expense").length,
+    [categories]
+  );
 
-    return true;
-  });
+  const forecastReconciliation = useMemo(
+    () =>
+      buildMonthEndForecastReconciliation({
+        totalsByCurrency,
+        recurringRules,
+        selectedYear,
+        selectedMonth0: selectedMonth,
+      }),
+    [recurringRules, selectedMonth, selectedYear, totalsByCurrency]
+  );
 
-  // Transactions arrive in deterministic newest-first order from the paged
-  // query, so no additional O(n log n) sort is required for the recent list.
-  const recentTransactions = selectedMonthActivityTransactions
-    .slice(0, 5)
-    .map((tx) => ({
-      id: tx.id,
-      type: tx.type,
-      amountMinor: tx.amount_minor,
-      currencyCode: tx.currency_code,
-      occurredAt: tx.occurred_at,
-      categoryName: tx.category_id
-        ? categoryMap[tx.category_id]?.name ?? "Uncategorized"
-        : "Uncategorized",
-      walletName: walletMap[tx.wallet_id]?.name ?? "Unknown wallet",
-    }));
+  const monthLabel = useMemo(
+    () =>
+      new Date(selectedYear, selectedMonth, 1).toLocaleString("en", {
+        month: "long",
+        year: "numeric",
+      }),
+    [selectedMonth, selectedYear]
+  );
 
-  // GL-QA-01B.1: one authoritative per-currency reconciliation ledger now
-  // drives KPI values, largest transactions, and financial-health scoring.
-  const reconciliationEntries = buildDashboardReconciliation({
-    totalsByCurrency,
-    incomeByCurrency: monthIncomeByCurrency,
-    expenseByCurrency: monthExpenseByCurrency,
-    monthTransactions: selectedMonthActivityTransactions,
-    budgetStatsByCurrency,
-  });
-
-  const activeCategoryCount = categories.filter((c) => c.type === "expense").length;
-
-  // GL-QA-01B.3: current balances and recurring schedules now flow through
-  // one forecast contract. Future month forecasts include every occurrence
-  // between now and the selected month-end; historical months are explicitly
-  // unavailable rather than being projected from today's balance.
-  const forecastReconciliation = buildMonthEndForecastReconciliation({
-    totalsByCurrency,
-    recurringRules,
-    selectedYear,
-    selectedMonth0: selectedMonth,
-  });
-  const selectedDate = new Date(selectedYear, selectedMonth, 1);
-  const monthLabel = selectedDate.toLocaleString("en", {
-    month: "long",
-    year: "numeric",
-  });
-
-  // GL-ARCH-08B: construct one generic multi-currency intelligence model
-  // from the certified reconciliation layers. Subsequent intelligence modules
-  // will consume this contract directly instead of rescanning raw data.
-  const dashboardInsightModel = buildDashboardInsightModel({
-    reconciliationEntries,
-    budgetReconciliation,
-    forecastReconciliation,
-    filters: {
-      walletId: walletFilter === "all" ? null : walletFilter,
-      categoryId: categoryFilter === "all" ? null : categoryFilter,
-      currencyCode: null,
-      period: {
-        start: new Date(selectedYear, selectedMonth, 1).toISOString(),
-        end: new Date(
-          selectedYear,
-          selectedMonth + 1,
-          0,
-          23,
-          59,
-          59,
-          999
-        ).toISOString(),
-        label: monthLabel,
-        year: selectedYear,
-        month0: selectedMonth,
-      },
-    },
-    sourceCounts: {
-      transactions: transactions.length,
-      wallets: wallets.length,
-      budgets: budgets.length,
-      recurringRules: recurringRules.length,
-    },
-    resolveTransactionPresentation: (transaction) => ({
-      categoryName: transaction?.category_id
-        ? categoryMap[transaction.category_id]?.name ?? "Uncategorized"
-        : "Uncategorized",
-      description: null,
-    }),
-  });
+  const dashboardInsightModel = useMemo(
+    () =>
+      buildDashboardInsightModel({
+        reconciliationEntries,
+        budgetReconciliation,
+        forecastReconciliation,
+        filters: {
+          walletId: walletFilter === "all" ? null : walletFilter,
+          categoryId: categoryFilter === "all" ? null : categoryFilter,
+          currencyCode: null,
+          period: {
+            start: new Date(selectedYear, selectedMonth, 1).toISOString(),
+            end: new Date(
+              selectedYear,
+              selectedMonth + 1,
+              0,
+              23,
+              59,
+              59,
+              999
+            ).toISOString(),
+            label: monthLabel,
+            year: selectedYear,
+            month0: selectedMonth,
+          },
+        },
+        sourceCounts: {
+          transactions: transactions.length,
+          wallets: wallets.length,
+          budgets: budgets.length,
+          recurringRules: recurringRules.length,
+        },
+        resolveTransactionPresentation: (transaction) => ({
+          categoryName: transaction?.category_id
+            ? categoryMap[transaction.category_id]?.name ?? "Uncategorized"
+            : "Uncategorized",
+          description: null,
+        }),
+      }),
+    [
+      budgetReconciliation,
+      budgets.length,
+      categoryFilter,
+      categoryMap,
+      forecastReconciliation,
+      monthLabel,
+      reconciliationEntries,
+      recurringRules.length,
+      selectedMonth,
+      selectedYear,
+      transactions.length,
+      walletFilter,
+      wallets.length,
+    ]
+  );
 
   const weakestCurrencyInsight =
     dashboardInsightModel.currencies.find(
@@ -794,38 +837,56 @@ export default function DashboardPage() {
   type IncomeExpenseDailyPoint = DailyIncomeExpensePoint;
 
   // Years available in transactions (for year filter)
-  const chartYearOptions = Array.from(
-    new Set(
-      transactions.map((tx) => {
-        const date = new Date(tx.occurred_at);
-        return Number.isNaN(date.getTime()) ? null : String(date.getFullYear());
-      })
-    )
-  )
-    .filter((year): year is string => Boolean(year))
-    .sort();
+  const chartYearOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          transactions.map((tx) => {
+            const date = new Date(tx.occurred_at);
+            return Number.isNaN(date.getTime())
+              ? null
+              : String(date.getFullYear());
+          })
+        )
+      )
+        .filter((year): year is string => Boolean(year))
+        .sort(),
+    [transactions]
+  );
 
-  // All trend charts now consume one shared filter, transfer, currency, and
-  // local-calendar aggregation contract. This prevents silent differences
-  // between monthly, historical, all-time, cumulative, and spending charts.
-  const incomeExpenseTrendData: IncomeExpenseDailyPoint[] =
-    buildDailyIncomeExpenseSeries(transactions, categoryMap, {
-      walletFilter,
+  const incomeExpenseTrendData: IncomeExpenseDailyPoint[] = useMemo(
+    () =>
+      buildDailyIncomeExpenseSeries(transactions, categoryMap, {
+        walletFilter,
+        categoryFilter,
+        yearFilter,
+      }),
+    [categoryFilter, categoryMap, transactions, walletFilter, yearFilter]
+  );
+
+  const incomeExpenseTrendLast12: IncomeExpenseDailyPoint[] = useMemo(
+    () => takeTrailingTwelveMonths(incomeExpenseTrendData),
+    [incomeExpenseTrendData]
+  );
+
+  const monthlyIncomeExpenseData: IncomeExpenseDailyPoint[] = useMemo(
+    () =>
+      buildDensifiedMonthSeries(
+        transactions,
+        categoryMap,
+        { walletFilter, categoryFilter },
+        selectedYear,
+        selectedMonth
+      ),
+    [
       categoryFilter,
-      yearFilter,
-    });
-
-  const incomeExpenseTrendLast12: IncomeExpenseDailyPoint[] =
-    takeTrailingTwelveMonths(incomeExpenseTrendData);
-
-  const monthlyIncomeExpenseData: IncomeExpenseDailyPoint[] =
-    buildDensifiedMonthSeries(
-      transactions,
       categoryMap,
-      { walletFilter, categoryFilter },
+      selectedMonth,
       selectedYear,
-      selectedMonth
-    );
+      transactions,
+      walletFilter,
+    ]
+  );
 
   // Calendar-year selection for the new bar chart:
   // - if Year filter is "all", default to current calendar year
@@ -949,9 +1010,7 @@ export default function DashboardPage() {
                 <div className={CARD}>
                   <LargestExpenseWidget
                     model={dashboardInsightModel}
-                    walletNamesById={Object.fromEntries(
-                      wallets.map((wallet) => [wallet.id, wallet.name])
-                    )}
+                    walletNamesById={walletNamesById}
                   />
                 </div>
 
