@@ -26,6 +26,14 @@ const INTERNAL_TRANSFER_KEYS = new Set([
   "internal_transfer",
   "wallet_transfer",
   "account_transfer",
+  "transfer_in",
+  "transfer_out",
+  "internal_transfer_in",
+  "internal_transfer_out",
+  "wallet_transfer_in",
+  "wallet_transfer_out",
+  "account_transfer_in",
+  "account_transfer_out",
 ]);
 
 const INTERNAL_TRANSFER_NAMES = new Set([
@@ -37,6 +45,14 @@ const INTERNAL_TRANSFER_NAMES = new Set([
   "wallet transfers",
   "account transfer",
   "account transfers",
+  "transfer in",
+  "transfer out",
+  "internal transfer in",
+  "internal transfer out",
+  "wallet transfer in",
+  "wallet transfer out",
+  "account transfer in",
+  "account transfer out",
 ]);
 
 function normalizeKey(value?: string | null): string {
