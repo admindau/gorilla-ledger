@@ -13,6 +13,7 @@ import {
   Line,
   ReferenceDot,
 } from "recharts";
+import StableChartContainer from "@/components/charts/StableChartContainer";
 import { chartMargins, chartTheme } from "@/components/charts/chartTheme";
 
 import { isInternalTransfer } from "@/lib/transactions/classification";
@@ -303,8 +304,8 @@ export default function YearlyIncomeExpenseBarChart({
           filters).
         </p>
       ) : (
-        <div className="gl-card gl-chart-surface h-80 p-4">
-          <ResponsiveContainer width="100%" height="100%">
+        <StableChartContainer className="gl-card gl-chart-surface h-80 min-h-80 w-full p-4">
+          <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
             <BarChart
               data={chartData}
               barCategoryGap={18}
@@ -413,7 +414,7 @@ export default function YearlyIncomeExpenseBarChart({
               )}
             </BarChart>
           </ResponsiveContainer>
-        </div>
+        </StableChartContainer>
       )}
     </section>
   );

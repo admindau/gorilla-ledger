@@ -11,6 +11,7 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
+import StableChartContainer from "@/components/charts/StableChartContainer";
 import ChartTooltip from "@/components/charts/ChartTooltip";
 import ChartLegend from "@/components/charts/ChartLegend";
 import { chartMargins, chartTheme } from "@/components/charts/chartTheme";
@@ -153,8 +154,8 @@ export default function MonthlyIncomeExpenseChart({
           No transactions yet to build this trend.
         </p>
       ) : (
-        <div className="gl-card gl-chart-surface h-80 p-4">
-          <ResponsiveContainer width="100%" height="100%">
+        <StableChartContainer className="gl-card gl-chart-surface h-80 min-h-80 w-full p-4">
+          <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
             <LineChart data={chartData} margin={chartMargins.line}>
               <CartesianGrid
                 vertical={false}
@@ -229,7 +230,7 @@ export default function MonthlyIncomeExpenseChart({
               />
             </LineChart>
           </ResponsiveContainer>
-        </div>
+        </StableChartContainer>
       )}
     </section>
   );

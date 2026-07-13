@@ -10,6 +10,7 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
+import StableChartContainer from "@/components/charts/StableChartContainer";
 import ChartTooltip from "@/components/charts/ChartTooltip";
 import { chartMargins, chartTheme } from "@/components/charts/chartTheme";
 
@@ -184,13 +185,13 @@ export default function TopCategoriesBarChart({
         </div>
       </div>
 
-      <div className="h-72 w-full">
+      <StableChartContainer className="h-72 min-h-72 w-full min-w-0">
         {!hasData ? (
           <div className="flex h-full items-center justify-center text-xs text-gray-500">
             No expense data for this year with the current filters.
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
             <BarChart
               data={dataForChart}
               margin={chartMargins.compactBar}
@@ -241,7 +242,7 @@ export default function TopCategoriesBarChart({
             </BarChart>
           </ResponsiveContainer>
         )}
-      </div>
+      </StableChartContainer>
     </div>
   );
 }
