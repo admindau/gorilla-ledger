@@ -19,9 +19,13 @@ import SmartAlertsPanel from "@/components/dashboard/SmartAlertsPanel";
 import ExecutiveInsightsPanel from "@/components/dashboard/ExecutiveInsightsPanel";
 import ForecastMonthEndBalance from "@/components/dashboard/ForecastMonthEndBalance";
 import ExecutiveHeroCard from "@/components/dashboard/ExecutiveHeroCard";
-import DashboardAnalyticsAccordionItem from "@/components/dashboard/DashboardAnalyticsAccordionItem";
 
 import Skeleton from "@/components/ui/Skeleton";
+
+const DashboardAnalyticsAccordionItem = dynamic(
+  () => import("@/components/dashboard/DashboardAnalyticsAccordionItem"),
+  { ssr: false }
+);
 
 const ChartModuleLoading = () => (
   <div className="flex min-h-72 items-center justify-center rounded-2xl border border-white/10 bg-black/20 text-xs text-gray-500">
@@ -338,7 +342,9 @@ export default function DashboardPage() {
 
       setEmail(session.user.email ?? null);
 
-      // UI/UX hardening: read last security check
+      // The authenticated shell should not wait for secondary security metadata.
+      // Release the session gate immediately, then load MFA status in parallel
+      // with the financial datasets.
       try {
         const raw = localStorage.getItem(LAST_SECURITY_CHECK_AT_KEY);
         const val = raw ? Number(raw) : 0;
@@ -347,24 +353,11 @@ export default function DashboardPage() {
         setLastCheckAt(null);
       }
 
-      // UI/UX hardening: load MFA status + backup factor state
-      try {
-        const { data: factorsData } =
-          await supabaseBrowserClient.auth.mfa.listFactors();
-        const verified =
-          factorsData?.totp?.filter((f) => f.status === "verified") ?? [];
-        setMfaEnabled(verified.length > 0);
-        setHasBackupFactor(verified.length >= 2);
-      } catch {
-        // If MFA API errors for any reason, keep UI conservative.
-        setMfaEnabled(false);
-        setHasBackupFactor(false);
-      }
-
       setCheckingSession(false);
-
-      // 2) Load wallets, categories, transactions, budgets + daily income/expense
       setLoadingData(true);
+
+      const securityMetadataPromise =
+        supabaseBrowserClient.auth.mfa.listFactors();
 
       const [walletRes, categoryRes, txRes, budgetRes, recurringRes] =
         await Promise.all([
@@ -382,6 +375,19 @@ export default function DashboardPage() {
           fetchAllBudgets(),
           fetchAllActiveRecurringRules(),
         ]);
+
+      void securityMetadataPromise
+        .then(({ data: factorsData }) => {
+          const verified =
+            factorsData?.totp?.filter((factor) => factor.status === "verified") ?? [];
+          setMfaEnabled(verified.length > 0);
+          setHasBackupFactor(verified.length >= 2);
+        })
+        .catch(() => {
+          // Security metadata is non-blocking; keep the UI conservative on failure.
+          setMfaEnabled(false);
+          setHasBackupFactor(false);
+        });
 
       if (walletRes.error) {
         console.error(walletRes.error);
@@ -551,12 +557,9 @@ export default function DashboardPage() {
     return true;
   });
 
+  // Transactions arrive in deterministic newest-first order from the paged
+  // query, so no additional O(n log n) sort is required for the recent list.
   const recentTransactions = selectedMonthActivityTransactions
-    .slice()
-    .sort(
-      (a, b) =>
-        new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime()
-    )
     .slice(0, 5)
     .map((tx) => ({
       id: tx.id,

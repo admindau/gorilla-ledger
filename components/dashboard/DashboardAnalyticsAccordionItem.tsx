@@ -10,6 +10,12 @@ type DashboardAnalyticsAccordionItemProps = {
   children: ReactNode;
 };
 
+function matchesMobileViewport() {
+  return typeof window !== "undefined"
+    ? window.matchMedia("(max-width: 767px)").matches
+    : false;
+}
+
 export default function DashboardAnalyticsAccordionItem({
   title,
   kicker = "Analytics",
@@ -18,11 +24,14 @@ export default function DashboardAnalyticsAccordionItem({
   children,
 }: DashboardAnalyticsAccordionItemProps) {
   const contentId = useId();
-  const [isMobile, setIsMobile] = useState(false);
-  const [isOpen, setIsOpen] = useState(defaultOpenOnMobile);
+  const [isMobile, setIsMobile] = useState(matchesMobileViewport);
+  const [isOpen, setIsOpen] = useState(() =>
+    matchesMobileViewport() ? defaultOpenOnMobile : true
+  );
 
   useEffect(() => {
     const query = window.matchMedia("(max-width: 767px)");
+
     const update = () => {
       const mobile = query.matches;
       setIsMobile(mobile);
@@ -63,15 +72,25 @@ export default function DashboardAnalyticsAccordionItem({
           className={`gl-dashboard-accordion-icon ${expanded ? "is-open" : ""}`}
           aria-hidden="true"
         >
-          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            viewBox="0 0 20 20"
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="m5 7.5 5 5 5-5" />
           </svg>
         </span>
       </button>
 
-      <div id={contentId} hidden={!expanded} aria-hidden={!expanded}>
-        <div className={expanded ? "gl-fade-in" : ""}>{children}</div>
-      </div>
+      {expanded ? (
+        <div id={contentId} className="gl-fade-in">
+          {children}
+        </div>
+      ) : null}
     </section>
   );
 }
