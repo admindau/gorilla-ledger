@@ -4,11 +4,14 @@ type ForecastEntry = {
   projectedBalanceMinor: number;
   scheduledIncomeMinor: number;
   scheduledExpenseMinor: number;
+  scheduledOccurrencesCount: number;
+  scheduledRuleCount: number;
 };
 
 type ForecastMonthEndBalanceProps = {
   entries: ForecastEntry[];
-  scheduledRulesCount: number;
+  scheduledOccurrencesCount: number;
+  activeScheduledRuleCount: number;
   monthLabel: string;
   confidence?: string;
 };
@@ -29,7 +32,8 @@ function confidenceHelper(confidence?: string) {
 
 export default function ForecastMonthEndBalance({
   entries,
-  scheduledRulesCount,
+  scheduledOccurrencesCount,
+  activeScheduledRuleCount,
   monthLabel,
   confidence = "Low",
 }: ForecastMonthEndBalanceProps) {
@@ -43,7 +47,7 @@ export default function ForecastMonthEndBalance({
             Forecasted Month-End
           </h3>
           <p className="mt-1 text-[11px] text-gray-400">
-            Projection using current balances and active recurring rules.
+            Projection using current balances and every active recurring occurrence due in the period.
           </p>
         </div>
         <span className="rounded-full border border-gray-800 px-2 py-1 text-[10px] uppercase tracking-wide text-gray-300">
@@ -83,7 +87,7 @@ export default function ForecastMonthEndBalance({
                     {entry.currencyCode}
                   </div>
                   <div className="text-[11px] text-gray-400">
-                    {scheduledRulesCount} scheduled
+                    {entry.scheduledOccurrencesCount} occurrence{entry.scheduledOccurrencesCount === 1 ? "" : "s"}
                   </div>
                 </div>
 
@@ -102,6 +106,18 @@ export default function ForecastMonthEndBalance({
                     </span>
                   </div>
                   <div className="flex justify-between gap-3">
+                    <span>Scheduled income</span>
+                    <span className="tabular-nums text-gray-200">
+                      {formatMinor(entry.scheduledIncomeMinor)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span>Scheduled expense</span>
+                    <span className="tabular-nums text-gray-200">
+                      {formatMinor(entry.scheduledExpenseMinor)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3 border-t border-white/5 pt-2">
                     <span>Scheduled movement</span>
                     <span className="tabular-nums text-gray-200">
                       {formatMinor(movementMinor)}
@@ -113,6 +129,11 @@ export default function ForecastMonthEndBalance({
           })}
         </div>
       )}
+
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500">
+        <span>{scheduledOccurrencesCount} total occurrence{scheduledOccurrencesCount === 1 ? "" : "s"}</span>
+        <span>{activeScheduledRuleCount} active rule{activeScheduledRuleCount === 1 ? "" : "s"}</span>
+      </div>
 
       {entries.length > visibleEntries.length && (
         <div className="mt-3 text-[11px] text-gray-500">

@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
+import { advanceRecurringDate } from "@/lib/recurring/forecast";
 
 /**
  * Match your recurring_rules schema.
@@ -69,28 +70,15 @@ function isAuthorizedCron(req: NextRequest): boolean {
 function advanceNextRunAt(
   currentIso: string,
   frequency: Frequency,
-  interval: number | null
+  interval: number | null,
+  dayOfMonth: number | null
 ): string {
-  const step = interval && interval > 0 ? interval : 1;
-  const d = new Date(currentIso);
-
-  switch (frequency) {
-    case "daily":
-      d.setUTCDate(d.getUTCDate() + step);
-      break;
-    case "weekly":
-      d.setUTCDate(d.getUTCDate() + step * 7);
-      break;
-    case "monthly":
-      d.setUTCMonth(d.getUTCMonth() + step);
-      break;
-    case "yearly":
-    default:
-      d.setUTCFullYear(d.getUTCFullYear() + step);
-      break;
-  }
-
-  return d.toISOString();
+  return advanceRecurringDate(
+    new Date(currentIso),
+    frequency,
+    interval,
+    dayOfMonth
+  ).toISOString();
 }
 
 async function writeRunLog(input: {
@@ -229,7 +217,8 @@ async function handler(req: NextRequest) {
         currentRunAt = advanceNextRunAt(
           currentRunAt,
           rule.frequency,
-          rule.interval
+          rule.interval,
+          rule.day_of_month
         );
         continue;
       }
@@ -332,7 +321,8 @@ async function handler(req: NextRequest) {
       currentRunAt = advanceNextRunAt(
         currentRunAt,
         rule.frequency,
-        rule.interval
+        rule.interval,
+        rule.day_of_month
       );
     }
 

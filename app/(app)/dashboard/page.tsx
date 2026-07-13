@@ -31,6 +31,7 @@ import DashboardAnalyticsAccordionItem from "@/components/dashboard/DashboardAna
 import Skeleton from "@/components/ui/Skeleton";
 
 import { isInternalTransfer } from "@/lib/transactions/classification";
+import { buildRecurringForecast } from "@/lib/recurring/forecast";
 
 type Wallet = {
   id: string;
@@ -73,7 +74,13 @@ type RecurringRule = {
   type: TransactionType;
   amount_minor: number;
   currency_code: string;
-  next_run_at: string;
+  frequency: "daily" | "weekly" | "monthly" | "yearly";
+  interval: number | null;
+  day_of_month: number | null;
+  day_of_week: number | null;
+  start_date: string | null;
+  end_date: string | null;
+  next_run_at: string | null;
   is_active: boolean;
 };
 
@@ -107,6 +114,8 @@ type ForecastEntry = {
   projectedBalanceMinor: number;
   scheduledIncomeMinor: number;
   scheduledExpenseMinor: number;
+  scheduledOccurrencesCount: number;
+  scheduledRuleCount: number;
 };
 
 type DailyIncomeExpense = {
@@ -239,7 +248,7 @@ async function fetchAllActiveRecurringRules(): Promise<
     const result = await supabaseBrowserClient
       .from("recurring_rules")
       .select(
-        "id, wallet_id, category_id, type, amount_minor, currency_code, next_run_at, is_active"
+        "id, wallet_id, category_id, type, amount_minor, currency_code, frequency, interval, day_of_month, day_of_week, start_date, end_date, next_run_at, is_active"
       )
       .eq("is_active", true)
       .order("next_run_at", { ascending: true })
@@ -780,55 +789,65 @@ export default function DashboardPage() {
   const financialHealthLabel = weakestCurrencyHealth.label;
 
   const selectedMonthStart = new Date(selectedYear, selectedMonth, 1);
-  const selectedMonthEnd = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999);
+  const selectedMonthEnd = new Date(
+    selectedYear,
+    selectedMonth + 1,
+    0,
+    23,
+    59,
+    59,
+    999
+  );
   const now = new Date();
-  const forecastWindowStart =
-    selectedYear === now.getFullYear() && selectedMonth === now.getMonth()
-      ? now
-      : selectedMonthStart;
+  const selectedMonthIsCurrent =
+    selectedYear === now.getFullYear() && selectedMonth === now.getMonth();
+  const selectedMonthIsFuture = selectedMonthStart.getTime() > now.getTime();
+  const forecastWindowStart = selectedMonthIsCurrent
+    ? now
+    : selectedMonthIsFuture
+    ? selectedMonthStart
+    : new Date(selectedMonthEnd.getTime() + 1);
 
-  const scheduledRecurringThisMonth = recurringRules.filter((rule) => {
-    const nextRun = new Date(rule.next_run_at);
-    if (Number.isNaN(nextRun.getTime())) return false;
-    return nextRun >= forecastWindowStart && nextRun <= selectedMonthEnd;
-  });
-
-  const recurringIncomeByCurrency: Record<string, number> = {};
-  const recurringExpenseByCurrency: Record<string, number> = {};
-
-  for (const rule of scheduledRecurringThisMonth) {
-    if (rule.type === "income") {
-      recurringIncomeByCurrency[rule.currency_code] =
-        (recurringIncomeByCurrency[rule.currency_code] ?? 0) + rule.amount_minor;
-    } else {
-      recurringExpenseByCurrency[rule.currency_code] =
-        (recurringExpenseByCurrency[rule.currency_code] ?? 0) + rule.amount_minor;
-    }
-  }
+  const recurringForecast = buildRecurringForecast(
+    recurringRules,
+    forecastWindowStart,
+    selectedMonthEnd
+  );
+  const recurringForecastByCurrency = Object.fromEntries(
+    recurringForecast.entries.map((entry) => [entry.currencyCode, entry] as const)
+  );
 
   const forecastCurrencies = Array.from(
     new Set([
       ...Object.keys(totalsByCurrency),
-      ...Object.keys(recurringIncomeByCurrency),
-      ...Object.keys(recurringExpenseByCurrency),
+      ...recurringForecast.entries.map((entry) => entry.currencyCode),
     ])
   ).sort();
 
   const forecastEntries: ForecastEntry[] = forecastCurrencies.map((currencyCode) => {
     const currentBalanceMinor = totalsByCurrency[currencyCode] ?? 0;
-    const scheduledIncomeMinor = recurringIncomeByCurrency[currencyCode] ?? 0;
-    const scheduledExpenseMinor = recurringExpenseByCurrency[currencyCode] ?? 0;
+    const recurringEntry = recurringForecastByCurrency[currencyCode];
+    const scheduledIncomeMinor = recurringEntry?.scheduledIncomeMinor ?? 0;
+    const scheduledExpenseMinor = recurringEntry?.scheduledExpenseMinor ?? 0;
 
     return {
       currencyCode,
       currentBalanceMinor,
       scheduledIncomeMinor,
       scheduledExpenseMinor,
+      scheduledOccurrencesCount:
+        recurringEntry?.scheduledOccurrencesCount ?? 0,
+      scheduledRuleCount: recurringEntry?.scheduledRuleIds.length ?? 0,
       projectedBalanceMinor:
         currentBalanceMinor + scheduledIncomeMinor - scheduledExpenseMinor,
     };
   });
 
+  const scheduledRecurringThisMonth = recurringRules.filter((rule) =>
+    recurringForecast.entries.some((entry) =>
+      entry.scheduledRuleIds.includes(rule.id)
+    )
+  );
   const selectedDate = new Date(selectedYear, selectedMonth, 1);
   const monthLabel = selectedDate.toLocaleString("en", {
     month: "long",
@@ -1381,7 +1400,8 @@ export default function DashboardPage() {
               <div className={`${CARD} xl:col-span-4`}>
                 <ForecastMonthEndBalance
                   entries={forecastEntries}
-                  scheduledRulesCount={scheduledRecurringThisMonth.length}
+                  scheduledOccurrencesCount={recurringForecast.totalOccurrences}
+                  activeScheduledRuleCount={recurringForecast.activeRuleCount}
                   monthLabel={monthLabel}
                   confidence={forecastConfidence}
                 />
