@@ -2,21 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
 // Dashboard charts
-import SpendingByCategoryChart from "@/components/dashboard/SpendingByCategoryChart";
-import MonthlyIncomeExpenseChart from "@/components/dashboard/MonthlyIncomeExpenseChart";
-import TopCategoriesBarChart from "@/components/dashboard/TopCategoriesBarChart";
-import HistoricalIncomeExpenseChart from "@/components/dashboard/HistoricalIncomeExpenseChart";
-import FullHistoryIncomeExpenseChart from "@/components/dashboard/FullHistoryIncomeExpenseChart";
-import CumulativeNetBalanceChart from "@/components/dashboard/CumulativeNetBalanceChart";
 import SmartInsightsPanel from "@/components/dashboard/SmartInsightsPanel";
 import BudgetInsightsPanel from "@/components/dashboard/BudgetInsightsPanel";
 import AiInsightsSidebar from "@/components/dashboard/AiInsightsSidebar";
-import YearlyIncomeExpenseBarChart from "@/components/dashboard/YearlyIncomeExpenseBarChart";
 import ExecutiveKpiCards from "@/components/dashboard/ExecutiveKpiCards";
-import SpendingTrendChart from "@/components/dashboard/SpendingTrendChart";
 import QuickStatsRow from "@/components/dashboard/QuickStatsRow";
 import RecentTransactionsWidget from "@/components/dashboard/RecentTransactionsWidget";
 import LargestExpenseWidget from "@/components/dashboard/LargestExpenseWidget";
@@ -29,6 +22,45 @@ import ExecutiveHeroCard from "@/components/dashboard/ExecutiveHeroCard";
 import DashboardAnalyticsAccordionItem from "@/components/dashboard/DashboardAnalyticsAccordionItem";
 
 import Skeleton from "@/components/ui/Skeleton";
+
+const ChartModuleLoading = () => (
+  <div className="flex min-h-72 items-center justify-center rounded-2xl border border-white/10 bg-black/20 text-xs text-gray-500">
+    Loading chart…
+  </div>
+);
+
+const SpendingByCategoryChart = dynamic(
+  () => import("@/components/dashboard/SpendingByCategoryChart"),
+  { ssr: false, loading: ChartModuleLoading }
+);
+const MonthlyIncomeExpenseChart = dynamic(
+  () => import("@/components/dashboard/MonthlyIncomeExpenseChart"),
+  { ssr: false, loading: ChartModuleLoading }
+);
+const TopCategoriesBarChart = dynamic(
+  () => import("@/components/dashboard/TopCategoriesBarChart"),
+  { ssr: false, loading: ChartModuleLoading }
+);
+const HistoricalIncomeExpenseChart = dynamic(
+  () => import("@/components/dashboard/HistoricalIncomeExpenseChart"),
+  { ssr: false, loading: ChartModuleLoading }
+);
+const FullHistoryIncomeExpenseChart = dynamic(
+  () => import("@/components/dashboard/FullHistoryIncomeExpenseChart"),
+  { ssr: false, loading: ChartModuleLoading }
+);
+const CumulativeNetBalanceChart = dynamic(
+  () => import("@/components/dashboard/CumulativeNetBalanceChart"),
+  { ssr: false, loading: ChartModuleLoading }
+);
+const YearlyIncomeExpenseBarChart = dynamic(
+  () => import("@/components/dashboard/YearlyIncomeExpenseBarChart"),
+  { ssr: false, loading: ChartModuleLoading }
+);
+const SpendingTrendChart = dynamic(
+  () => import("@/components/dashboard/SpendingTrendChart"),
+  { ssr: false, loading: ChartModuleLoading }
+);
 
 import { isInternalTransfer } from "@/lib/transactions/classification";
 import { buildDashboardReconciliation } from "@/lib/dashboard/reconciliation";
@@ -252,9 +284,6 @@ export default function DashboardPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
-  const [dailyIncomeExpense, setDailyIncomeExpense] = useState<
-    DailyIncomeExpensePoint[]
-  >([]);
   const [errorMsg, setErrorMsg] = useState("");
 
   // UI/UX hardening: MFA status + backup + last security check
@@ -337,7 +366,7 @@ export default function DashboardPage() {
       // 2) Load wallets, categories, transactions, budgets + daily income/expense
       setLoadingData(true);
 
-      const [walletRes, categoryRes, txRes, budgetRes, recurringRes, dailyRes] =
+      const [walletRes, categoryRes, txRes, budgetRes, recurringRes] =
         await Promise.all([
           supabaseBrowserClient
             .from("wallets")
@@ -352,10 +381,6 @@ export default function DashboardPage() {
           fetchAllTransactions(),
           fetchAllBudgets(),
           fetchAllActiveRecurringRules(),
-          supabaseBrowserClient
-            .from("daily_income_expense")
-            .select("day, income, expense, currency_code")
-            .order("day", { ascending: true }),
         ]);
 
       if (walletRes.error) {
@@ -388,22 +413,6 @@ export default function DashboardPage() {
         setRecurringRules([]);
       } else {
         setRecurringRules(recurringRes.data as RecurringRule[]);
-      }
-
-      if (dailyRes.error) {
-        // Not fatal – we can fall back to monthly derivation
-        console.error("Error loading daily_income_expense view:", dailyRes.error);
-      } else {
-        const normalizedDailyIncomeExpense: DailyIncomeExpensePoint[] = (
-          dailyRes.data ?? []
-        ).map((row) => ({
-          day: String(row.day),
-          income: Number(row.income ?? 0),
-          expense: Number(row.expense ?? 0),
-          currencyCode: String(row.currency_code ?? "SSP").toUpperCase(),
-        }));
-
-        setDailyIncomeExpense(normalizedDailyIncomeExpense);
       }
 
       setWallets(walletRes.data as Wallet[]);
@@ -458,21 +467,20 @@ export default function DashboardPage() {
     categories.map((c) => [c.id, c] as const)
   );
 
-  // Per-wallet balance (transfers DO affect balances, so we include them)
-  const walletBalances = wallets.map((w) => {
-    const walletTxs = transactions.filter((tx) => tx.wallet_id === w.id);
-    const delta = walletTxs.reduce((sum, tx) => {
-      const sign = tx.type === "income" ? 1 : -1;
-      return sum + sign * tx.amount_minor;
-    }, 0);
+  // Per-wallet balance in O(transactions + wallets). Transfers intentionally
+  // remain included because they change individual wallet balances.
+  const deltaByWallet: Record<string, number> = {};
+  for (const tx of transactions) {
+    const sign = tx.type === "income" ? 1 : -1;
+    deltaByWallet[tx.wallet_id] =
+      (deltaByWallet[tx.wallet_id] ?? 0) + sign * tx.amount_minor;
+  }
 
-    const balanceMinor = w.starting_balance_minor + delta;
-
-    return {
-      ...w,
-      balanceMinor,
-    };
-  });
+  const walletBalances = wallets.map((wallet) => ({
+    ...wallet,
+    balanceMinor:
+      wallet.starting_balance_minor + (deltaByWallet[wallet.id] ?? 0),
+  }));
 
   // Totals per currency
   const totalsByCurrency: Record<string, number> = {};
