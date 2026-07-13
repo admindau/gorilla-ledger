@@ -13,6 +13,8 @@ import {
 import ChartTooltip from "@/components/charts/ChartTooltip";
 import { chartMargins, chartTheme } from "@/components/charts/chartTheme";
 
+import { isInternalTransfer } from "@/lib/transactions/classification";
+
 type TransactionType = "income" | "expense";
 
 type Transaction = {
@@ -39,11 +41,6 @@ type Props = {
   yearFilter: string;     // "all" or specific year like "2025"
 };
 
-function isInternalTransferCategory(category?: Category | null): boolean {
-  if (!category) return false;
-  const n = category.name.toLowerCase().trim();
-  return n.startsWith("transfer");
-}
 
 type ChartPoint = {
   name: string;
@@ -88,7 +85,7 @@ export default function TopCategoriesBarChart({
       }
 
       const category = tx.category_id ? categoryMap[tx.category_id] : null;
-      if (isInternalTransferCategory(category)) continue;
+      if (isInternalTransfer(tx, category)) continue;
 
       const currency = tx.currency_code;
       if (!sums[currency]) sums[currency] = {};

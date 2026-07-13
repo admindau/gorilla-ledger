@@ -3,6 +3,8 @@
 import Link from "next/link";
 import React from "react";
 
+import { isInternalTransfer } from "@/lib/transactions/classification";
+
 type TransactionType = "income" | "expense";
 
 type Transaction = {
@@ -37,10 +39,6 @@ type MonthAgg = {
 
 type CoachTone = "positive" | "attention" | "neutral";
 
-function isInternalTransferCategory(category?: Category | null): boolean {
-  if (!category) return false;
-  return category.name.toLowerCase().trim().startsWith("transfer");
-}
 
 function toMonthKey(year: number, month: number): string {
   return `${year}-${String(month + 1).padStart(2, "0")}`;
@@ -121,7 +119,7 @@ export default function AiInsightsSidebar({
       if (categoryFilter !== "all" && transaction.category_id !== categoryFilter) continue;
 
       const category = categoryMap[transaction.category_id];
-      if (isInternalTransferCategory(category)) continue;
+      if (isInternalTransfer(transaction, category)) continue;
 
       const occurredAt = new Date(transaction.occurred_at);
       if (Number.isNaN(occurredAt.getTime())) continue;

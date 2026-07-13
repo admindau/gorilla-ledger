@@ -30,6 +30,8 @@ import DashboardAnalyticsAccordionItem from "@/components/dashboard/DashboardAna
 
 import Skeleton from "@/components/ui/Skeleton";
 
+import { isInternalTransfer } from "@/lib/transactions/classification";
+
 type Wallet = {
   id: string;
   name: string;
@@ -118,16 +120,6 @@ function formatMinorToAmount(minor: number): string {
   return (minor / 100).toFixed(2);
 }
 
-/**
- * Treat any category whose name starts with "transfer"
- * as an internal transfer that should NOT affect
- * income / expense analytics.
- */
-function isInternalTransferCategory(category?: Category | null): boolean {
-  if (!category) return false;
-  const n = category.name.toLowerCase().trim();
-  return n.startsWith("transfer");
-}
 
 // UI/UX hardening: last security check key
 const LAST_SECURITY_CHECK_AT_KEY = "gl_last_security_check_at_v1";
@@ -521,7 +513,7 @@ export default function DashboardPage() {
     if (!isSelectedMonth(tx.occurred_at)) continue;
 
     const category = tx.category_id ? categoryMap[tx.category_id] : null;
-    if (isInternalTransferCategory(category)) continue;
+    if (isInternalTransfer(tx, category)) continue;
 
     if (tx.type === "income") {
       if (!monthIncomeByCurrency[tx.currency_code]) {
@@ -574,7 +566,7 @@ export default function DashboardPage() {
           if (tx.currency_code !== currencyCode) return false;
 
           const txCategory = tx.category_id ? categoryMap[tx.category_id] : null;
-          if (isInternalTransferCategory(txCategory)) return false;
+          if (isInternalTransfer(tx, txCategory)) return false;
 
           return true;
         })
@@ -642,7 +634,7 @@ export default function DashboardPage() {
     if (!isSelectedMonth(tx.occurred_at)) return false;
 
     const category = tx.category_id ? categoryMap[tx.category_id] : null;
-    if (isInternalTransferCategory(category)) return false;
+    if (isInternalTransfer(tx, category)) return false;
 
     return true;
   });
@@ -1049,7 +1041,7 @@ export default function DashboardPage() {
     if (walletFilter !== "all" && tx.wallet_id !== walletFilter) return false;
 
     const category = tx.category_id ? categoryMap[tx.category_id] : null;
-    if (isInternalTransferCategory(category)) return false;
+    if (isInternalTransfer(tx, category)) return false;
 
     if (categoryFilter !== "all" && tx.category_id !== categoryFilter)
       return false;
@@ -1124,7 +1116,7 @@ export default function DashboardPage() {
       if (walletFilter !== "all" && tx.wallet_id !== walletFilter) return false;
 
       const category = tx.category_id ? categoryMap[tx.category_id] : null;
-      if (isInternalTransferCategory(category)) return false;
+      if (isInternalTransfer(tx, category)) return false;
 
       if (categoryFilter !== "all" && tx.category_id !== categoryFilter)
         return false;

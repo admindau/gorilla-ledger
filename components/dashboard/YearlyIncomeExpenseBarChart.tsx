@@ -15,6 +15,8 @@ import {
 } from "recharts";
 import { chartMargins, chartTheme } from "@/components/charts/chartTheme";
 
+import { isInternalTransfer } from "@/lib/transactions/classification";
+
 type TransactionType = "income" | "expense" | "transfer";
 
 type Transaction = {
@@ -49,11 +51,6 @@ type ChartRow = {
   net: number;
 };
 
-function isInternalTransferCategory(category?: Category | null): boolean {
-  if (!category) return false;
-  const n = category.name.toLowerCase().trim();
-  return n.startsWith("transfer");
-}
 
 function monthLabelShort(monthIndex0: number): string {
   const d = new Date(2000, monthIndex0, 1);
@@ -203,7 +200,7 @@ export default function YearlyIncomeExpenseBarChart({
       }
 
       const cat = tx.category_id ? categoryMap[tx.category_id] : null;
-      if (isInternalTransferCategory(cat)) return false;
+      if (isInternalTransfer(tx, cat)) return false;
 
       return true;
     });

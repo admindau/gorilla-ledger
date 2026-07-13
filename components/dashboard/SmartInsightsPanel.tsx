@@ -2,6 +2,8 @@
 
 import React from "react";
 
+import { isInternalTransfer } from "@/lib/transactions/classification";
+
 type TransactionType = "income" | "expense";
 
 type Transaction = {
@@ -29,11 +31,6 @@ type SmartInsightsPanelProps = {
   categoryFilter: string; // "all" or category id
 };
 
-function isInternalTransferCategory(category?: Category | null): boolean {
-  if (!category) return false;
-  const n = category.name.toLowerCase().trim();
-  return n.startsWith("transfer");
-}
 
 function isSameMonth(dateStr: string, year: number, month: number): boolean {
   const d = new Date(dateStr);
@@ -120,7 +117,7 @@ export default function SmartInsightsPanel({
     }
 
     const category = categoryMap[tx.category_id];
-    if (isInternalTransferCategory(category)) continue;
+    if (isInternalTransfer(tx, category)) continue;
 
     const inCurrent = isSameMonth(tx.occurred_at, selectedYear, selectedMonth);
     const inPrevious = isSameMonth(tx.occurred_at, prevYear, prevMonth);
