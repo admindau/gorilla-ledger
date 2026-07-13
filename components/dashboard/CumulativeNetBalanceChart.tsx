@@ -12,6 +12,7 @@ import {
   Legend,
 } from "recharts";
 import StableChartContainer from "@/components/charts/StableChartContainer";
+import AccessibleChartSummary from "@/components/charts/AccessibleChartSummary";
 import ChartTooltip from "@/components/charts/ChartTooltip";
 import ChartLegend from "@/components/charts/ChartLegend";
 import { chartMargins, chartTheme } from "@/components/charts/chartTheme";
@@ -128,6 +129,14 @@ export default function CumulativeNetBalanceChart({
 
   const hasData = chartData.length > 0;
 
+  const accessibleSummary = useMemo(() => {
+    if (!hasData) return "Cumulative net flow: no data is available for the current filters.";
+    const currencyLabel = activeCurrency ? ` in ${activeCurrency}` : "";
+    const firstLabel = String(chartData[0]?.label ?? "");
+    const lastLabel = String(chartData[chartData.length - 1]?.label ?? "");
+    const finalValue = Number(chartData[chartData.length - 1]?.cumulativeNetFlow ?? 0);
+    return `Cumulative net flow${currencyLabel} from ${firstLabel} to ${lastLabel}. Final cumulative net flow is ${formatNumber(finalValue)}.`;
+  }, [hasData, chartData, activeCurrency]);
 
   return (
     <section className="mt-2">
@@ -170,7 +179,12 @@ export default function CumulativeNetBalanceChart({
           No transactions yet to build a cumulative net flow view.
         </p>
       ) : (
-        <StableChartContainer className="gl-card gl-chart-surface h-80 min-h-80 w-full p-4">
+        <>
+          <AccessibleChartSummary summary={accessibleSummary} status="polite" />
+          <StableChartContainer
+            className="gl-card gl-chart-surface h-80 min-h-80 w-full p-4"
+            ariaLabel={accessibleSummary}
+          >
           <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
             <LineChart data={chartData} margin={chartMargins.line}>
               <CartesianGrid
@@ -235,7 +249,8 @@ export default function CumulativeNetBalanceChart({
               />
             </LineChart>
           </ResponsiveContainer>
-        </StableChartContainer>
+          </StableChartContainer>
+        </>
       )}
     </section>
   );

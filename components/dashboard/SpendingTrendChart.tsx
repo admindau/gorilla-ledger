@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useState, type PointerEvent } from "react";
+import AccessibleChartSummary from "@/components/charts/AccessibleChartSummary";
 
 type TrendPoint = {
   day: string;
@@ -201,6 +202,13 @@ export default function SpendingTrendChart({ data }: Props) {
 
   const highlightPoints = points.filter((point) => point.row.expense > 0);
   const yTicks = [1, 0.66, 0.33, 0];
+  const accessibleSummary = useMemo(() => {
+    if (rows.length === 0 || maxExpense <= 0) {
+      return "Daily spending trend: no expense data is available for the current period.";
+    }
+    return `Daily spending trend${selectedCurrency ? ` in ${selectedCurrency}` : ""} from ${first.label} to ${last.label}. Total spending ${formatCompactAmount(totalExpense)}, daily average ${formatCompactAmount(averageExpense)}, ${activeDays} active spending days, and peak spending ${peakRow ? formatCompactAmount(peakRow.expense) : "none"}${peakRow ? ` on ${peakRow.label}` : ""}.`;
+  }, [rows.length, maxExpense, selectedCurrency, first.label, last.label, totalExpense, averageExpense, activeDays, peakRow]);
+
 
   function handlePointerMove(event: PointerEvent<SVGSVGElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -216,6 +224,7 @@ export default function SpendingTrendChart({ data }: Props) {
 
   return (
     <div className="w-full">
+      <AccessibleChartSummary summary={accessibleSummary} status="polite" />
       <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -326,7 +335,7 @@ export default function SpendingTrendChart({ data }: Props) {
         <svg
           viewBox={`0 0 ${width} ${height}`}
           role="img"
-          aria-label="Daily spending trend"
+          aria-label={accessibleSummary}
           className="relative h-[250px] w-full sm:h-[310px]"
           preserveAspectRatio="none"
           onPointerMove={handlePointerMove}

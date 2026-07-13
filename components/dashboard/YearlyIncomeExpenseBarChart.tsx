@@ -14,6 +14,7 @@ import {
   ReferenceDot,
 } from "recharts";
 import StableChartContainer from "@/components/charts/StableChartContainer";
+import AccessibleChartSummary from "@/components/charts/AccessibleChartSummary";
 import { chartMargins, chartTheme } from "@/components/charts/chartTheme";
 
 import { isInternalTransfer } from "@/lib/transactions/classification";
@@ -256,6 +257,14 @@ export default function YearlyIncomeExpenseBarChart({
     return { maxIncome, maxIncomeMonth, maxExpense, maxExpenseMonth };
   }, [chartData]);
 
+  const accessibleSummary = useMemo(() => {
+    if (!hasAnyActivity) return `Income versus expenses for ${targetYear}: no activity is available for the current filters.`;
+    const income = chartData.reduce((sum, row) => sum + row.income, 0);
+    const expense = chartData.reduce((sum, row) => sum + row.expense, 0);
+    const net = income - expense;
+    return `Income versus expenses for ${targetYear}${activeCurrency ? ` in ${activeCurrency}` : ""}. Total income ${formatNumber(income)}, total expenses ${formatNumber(expense)}, net ${formatNumber(net)}. Peak income month ${peaks.maxIncomeMonth ?? "none"}; peak expense month ${peaks.maxExpenseMonth ?? "none"}.`;
+  }, [hasAnyActivity, targetYear, chartData, activeCurrency, peaks]);
+
   const yearSourceLabel =
     yearSource === "filter" ? "from Year filter" : "current year";
 
@@ -307,7 +316,9 @@ export default function YearlyIncomeExpenseBarChart({
           filters).
         </p>
       ) : (
-        <StableChartContainer className="gl-card gl-chart-surface h-80 min-h-80 w-full p-4">
+        <>
+          <AccessibleChartSummary summary={accessibleSummary} status="polite" />
+          <StableChartContainer className="gl-card gl-chart-surface h-80 min-h-80 w-full p-4" ariaLabel={accessibleSummary}>
           <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
             <BarChart
               data={chartData}
@@ -417,7 +428,8 @@ export default function YearlyIncomeExpenseBarChart({
               )}
             </BarChart>
           </ResponsiveContainer>
-        </StableChartContainer>
+          </StableChartContainer>
+        </>
       )}
     </section>
   );

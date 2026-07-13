@@ -12,6 +12,7 @@ import {
   Legend,
 } from "recharts";
 import StableChartContainer from "@/components/charts/StableChartContainer";
+import AccessibleChartSummary from "@/components/charts/AccessibleChartSummary";
 import ChartTooltip from "@/components/charts/ChartTooltip";
 import ChartLegend from "@/components/charts/ChartLegend";
 import { chartMargins, chartTheme } from "@/components/charts/chartTheme";
@@ -21,6 +22,12 @@ import {
   formatMonthlyTooltipLabel,
   getAdaptiveTickGap,
 } from "@/components/charts/chartUtils";
+
+const formatNumber = (value: number) =>
+  value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
 type Point = {
   // incoming shape (daily or monthly)
@@ -127,6 +134,15 @@ export default function FullHistoryIncomeExpenseChart({
   }, [data, hasRawData, hasCurrencyInfo, activeCurrency]);
 
   const hasData = chartData.length > 0;
+  const accessibleSummary = useMemo(() => {
+    if (!hasData) return "All-time income versus expenses: no data is available for the current filters.";
+    const totalIncome = chartData.reduce((sum, row) => sum + Number(row.income || 0), 0);
+    const totalExpense = chartData.reduce((sum, row) => sum + Number(row.expense || 0), 0);
+    const currencyLabel = activeCurrency ? ` in ${activeCurrency}` : "";
+    const firstLabel = String(chartData[0]?.label ?? "");
+    const lastLabel = String(chartData[chartData.length - 1]?.label ?? "");
+    return `All-time income versus expenses${currencyLabel} from ${firstLabel} to ${lastLabel}. Total income ${formatNumber(totalIncome)}; total expenses ${formatNumber(totalExpense)}.`;
+  }, [hasData, chartData, activeCurrency]);
 
   return (
     <section className="mt-2">
@@ -167,7 +183,12 @@ export default function FullHistoryIncomeExpenseChart({
           No transactions yet to build an all-time view.
         </p>
       ) : (
-        <StableChartContainer className="gl-card gl-chart-surface h-80 min-h-80 w-full p-4">
+        <>
+          <AccessibleChartSummary summary={accessibleSummary} status="polite" />
+          <StableChartContainer
+            className="gl-card gl-chart-surface h-80 min-h-80 w-full p-4"
+            ariaLabel={accessibleSummary}
+          >
           <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
             <LineChart data={chartData} margin={chartMargins.line}>
               <CartesianGrid
@@ -246,7 +267,8 @@ export default function FullHistoryIncomeExpenseChart({
               />
             </LineChart>
           </ResponsiveContainer>
-        </StableChartContainer>
+          </StableChartContainer>
+        </>
       )}
     </section>
   );

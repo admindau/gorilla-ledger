@@ -12,6 +12,7 @@ import {
   Legend,
 } from "recharts";
 import StableChartContainer from "@/components/charts/StableChartContainer";
+import AccessibleChartSummary from "@/components/charts/AccessibleChartSummary";
 import ChartTooltip from "@/components/charts/ChartTooltip";
 import ChartLegend from "@/components/charts/ChartLegend";
 import { chartMargins, chartTheme } from "@/components/charts/chartTheme";
@@ -115,6 +116,15 @@ export default function MonthlyIncomeExpenseChart({
 
   const hasData = chartData.length > 0;
 
+  const accessibleSummary = useMemo(() => {
+    if (!hasData) return "Monthly income versus expenses: no data is available for the current filters.";
+    const totalIncome = chartData.reduce((sum, row) => sum + Number(row.income || 0), 0);
+    const totalExpense = chartData.reduce((sum, row) => sum + Number(row.expense || 0), 0);
+    const currencyLabel = activeCurrency ? ` in ${activeCurrency}` : "";
+    const firstLabel = String(chartData[0]?.label ?? "");
+    const lastLabel = String(chartData[chartData.length - 1]?.label ?? "");
+    return `Monthly income versus expenses${currencyLabel} from ${firstLabel} to ${lastLabel}. Total income ${formatNumber(totalIncome)}; total expenses ${formatNumber(totalExpense)}.`;
+  }, [hasData, chartData, activeCurrency]);
 
   return (
     <section className="mt-2">
@@ -157,7 +167,12 @@ export default function MonthlyIncomeExpenseChart({
           No transactions yet to build this trend.
         </p>
       ) : (
-        <StableChartContainer className="gl-card gl-chart-surface h-80 min-h-80 w-full p-4">
+        <>
+          <AccessibleChartSummary summary={accessibleSummary} status="polite" />
+          <StableChartContainer
+            className="gl-card gl-chart-surface h-80 min-h-80 w-full p-4"
+            ariaLabel={accessibleSummary}
+          >
           <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
             <LineChart data={chartData} margin={chartMargins.line}>
               <CartesianGrid
@@ -233,7 +248,8 @@ export default function MonthlyIncomeExpenseChart({
               />
             </LineChart>
           </ResponsiveContainer>
-        </StableChartContainer>
+          </StableChartContainer>
+        </>
       )}
     </section>
   );

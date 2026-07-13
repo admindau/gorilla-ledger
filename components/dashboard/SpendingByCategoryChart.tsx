@@ -10,6 +10,7 @@ import {
   Legend,
 } from "recharts";
 import StableChartContainer from "@/components/charts/StableChartContainer";
+import AccessibleChartSummary from "@/components/charts/AccessibleChartSummary";
 import ChartTooltip from "@/components/charts/ChartTooltip";
 import { chartMargins, chartTheme } from "@/components/charts/chartTheme";
 
@@ -151,6 +152,13 @@ export default function SpendingByCategoryChart({
 
   const hasData = pieData.length > 0;
 
+  const accessibleSummary = useMemo(() => {
+    if (!hasData) return "Spending by category: no expense data is available for the current filters.";
+    const ranked = [...pieData].sort((a, b) => b.value - a.value);
+    const top = ranked[0];
+    return `Spending by category in ${activeCurrency ?? "the selected currency"}. Total spending ${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Largest category ${top?.name ?? "unknown"} at ${Number(top?.value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`;
+  }, [hasData, pieData, activeCurrency, total]);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
@@ -197,7 +205,9 @@ export default function SpendingByCategoryChart({
         </div>
       </div>
 
-      <StableChartContainer className="h-72 min-h-72 w-full min-w-0">
+      <>
+        <AccessibleChartSummary summary={accessibleSummary} status="polite" />
+        <StableChartContainer className="h-72 min-h-72 w-full min-w-0" ariaLabel={accessibleSummary}>
         {!hasData ? (
           <div className="flex h-full items-center justify-center text-xs text-gray-500">
             No expense data for this month with the current filters.
@@ -254,7 +264,8 @@ export default function SpendingByCategoryChart({
             </PieChart>
           </ResponsiveContainer>
         )}
-      </StableChartContainer>
+        </StableChartContainer>
+      </>
     </div>
   );
 }

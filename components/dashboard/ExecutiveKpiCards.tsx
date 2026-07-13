@@ -61,13 +61,18 @@ function KpiCard({
   label,
   value,
   helper,
+  accessibleLabel,
 }: {
   label: string;
   value: ReactNode;
   helper: string;
+  accessibleLabel: string;
 }) {
   return (
-    <div className="gl-premium-card flex min-h-[9.75rem] min-w-0 flex-col rounded-[1.25rem] p-4 sm:p-5">
+    <section
+      className="gl-premium-card flex min-h-[9.75rem] min-w-0 flex-col rounded-[1.25rem] p-4 sm:p-5"
+      aria-label={accessibleLabel}
+    >
       <div className="text-[10px] text-gray-500 uppercase tracking-[0.18em] mb-3">
         {label}
       </div>
@@ -75,8 +80,16 @@ function KpiCard({
         {value}
       </div>
       <div className="mt-auto pt-3 text-xs leading-relaxed text-gray-500">{helper}</div>
-    </div>
+    </section>
   );
+}
+
+function describeValues(label: string, values: Array<{ currencyCode: string; minor: number }>) {
+  if (values.length === 0) return `${label}: no values available.`;
+  const details = values
+    .map(({ currencyCode, minor }) => `${formatMinor(minor)} ${currencyCode}`)
+    .join(", ");
+  return `${label}: ${details}.`;
 }
 
 export default function ExecutiveKpiCards({
@@ -86,7 +99,7 @@ export default function ExecutiveKpiCards({
 }: Props) {
   if (loading) {
     return (
-      <div className="grid gap-3 min-[520px]:grid-cols-2 sm:gap-4 xl:grid-cols-4">
+      <div className="grid gap-3 min-[520px]:grid-cols-2 sm:gap-4 xl:grid-cols-4" role="status" aria-label="Loading executive financial indicators">
         {Array.from({ length: 4 }).map((_, index) => (
           <div key={index} className="gl-premium-card rounded-[1.25rem] p-4">
             <div className="h-3 w-24 rounded bg-gray-900 animate-pulse mb-4" />
@@ -122,21 +135,25 @@ export default function ExecutiveKpiCards({
         label="Total Balance"
         value={<MoneyList values={balanceValues} />}
         helper={`${walletsCount} ${walletsCount === 1 ? "wallet" : "wallets"} tracked. Transfers included.`}
+        accessibleLabel={`${describeValues("Total balance", balanceValues)} ${walletsCount} ${walletsCount === 1 ? "wallet" : "wallets"} tracked.`}
       />
       <KpiCard
         label={`Income – ${monthLabel}`}
         value={<MoneyList values={incomeValues} />}
         helper="Income this month, excluding internal transfers."
+        accessibleLabel={describeValues(`Income for ${monthLabel}`, incomeValues)}
       />
       <KpiCard
         label={`Expenses – ${monthLabel}`}
         value={<MoneyList values={expenseValues} />}
         helper="Expenses this month, excluding internal transfers."
+        accessibleLabel={describeValues(`Expenses for ${monthLabel}`, expenseValues)}
       />
       <KpiCard
         label="Net Cash Flow"
         value={<MoneyList values={netValues} emphasizeNegative />}
         helper="Income minus expenses for the selected month."
+        accessibleLabel={describeValues("Net cash flow", netValues)}
       />
     </div>
   );

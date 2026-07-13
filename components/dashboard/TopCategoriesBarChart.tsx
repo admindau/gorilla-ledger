@@ -11,6 +11,7 @@ import {
   CartesianGrid,
 } from "recharts";
 import StableChartContainer from "@/components/charts/StableChartContainer";
+import AccessibleChartSummary from "@/components/charts/AccessibleChartSummary";
 import ChartTooltip from "@/components/charts/ChartTooltip";
 import { chartMargins, chartTheme } from "@/components/charts/chartTheme";
 
@@ -143,6 +144,13 @@ export default function TopCategoriesBarChart({
 
   const hasData = dataForChart.length > 0;
 
+  const accessibleSummary = useMemo(() => {
+    if (!hasData) return "Top spending categories: no expense data is available for the current filters.";
+    const top = dataForChart[0];
+    const total = dataForChart.reduce((sum, row) => sum + row.value, 0);
+    return `Top spending categories in ${activeCurrency ?? "the selected currency"}. ${dataForChart.length} categories shown, totalling ${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Largest category ${top?.name ?? "unknown"} at ${Number(top?.value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`;
+  }, [hasData, dataForChart, activeCurrency]);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
@@ -190,7 +198,9 @@ export default function TopCategoriesBarChart({
         </div>
       </div>
 
-      <StableChartContainer className="h-72 min-h-72 w-full min-w-0">
+      <>
+        <AccessibleChartSummary summary={accessibleSummary} status="polite" />
+        <StableChartContainer className="h-72 min-h-72 w-full min-w-0" ariaLabel={accessibleSummary}>
         {!hasData ? (
           <div className="flex h-full items-center justify-center text-xs text-gray-500">
             No expense data for this year with the current filters.
@@ -247,7 +257,8 @@ export default function TopCategoriesBarChart({
             </BarChart>
           </ResponsiveContainer>
         )}
-      </StableChartContainer>
+        </StableChartContainer>
+      </>
     </div>
   );
 }
