@@ -105,13 +105,6 @@ type SmartAlert = {
   detail: string;
 };
 
-type ExecutiveInsight = {
-  id: string;
-  label: string;
-  value: string;
-  helper: string;
-};
-
 type CurrencyHealthEntry = {
   currencyCode: string;
   score: number;
@@ -777,37 +770,6 @@ export default function DashboardPage() {
     });
   }
 
-  const executiveInsights: ExecutiveInsight[] =
-    dashboardInsightModel.currencies.map((currency) => {
-      const budgetSummary =
-        currency.budget.total > 0
-          ? `${currency.budget.healthy} healthy · ${currency.budget.atRisk} at risk · ${currency.budget.over} over`
-          : "No currency-safe budgets";
-
-      return {
-        id: `currency-summary-${currency.currencyCode}`,
-        label: `${currency.currencyCode} overview`,
-        value: `${formatMinorToAmount(currency.netMinor)} ${currency.currencyCode} net`,
-        helper: [
-          currency.largestIncome
-            ? `Largest income: ${
-                currency.largestIncome.categoryName ?? "Uncategorized"
-              }, ${formatMinorToAmount(currency.largestIncome.amountMinor)} ${
-                currency.currencyCode
-              }.`
-            : "No income recorded.",
-          currency.largestExpense
-            ? `Largest expense: ${
-                currency.largestExpense.categoryName ?? "Uncategorized"
-              }, ${formatMinorToAmount(currency.largestExpense.amountMinor)} ${
-                currency.currencyCode
-              }.`
-            : "No expense recorded.",
-          `Budgets: ${budgetSummary}.`,
-        ].join(" "),
-      };
-    });
-
   // Dashboard Intelligence A.4: executive polish and prioritization
   const alertSeverityRank: Record<SmartAlert["tone"], number> = {
     neutral: 0,
@@ -1149,29 +1111,15 @@ export default function DashboardPage() {
               </div>
 
               <div className={`${CARD} xl:col-span-4`}>
-                <ExecutiveInsightsPanel insights={executiveInsights} riskLevel={executiveRiskLevel} />
+                <ExecutiveInsightsPanel model={dashboardInsightModel} />
               </div>
 
               <div className={`${CARD} xl:col-span-4`}>
-                <SmartInsightsPanel
-                  transactions={transactions}
-                  categories={categories}
-                  selectedYear={selectedYear}
-                  selectedMonth={selectedMonth}
-                  walletFilter={walletFilter}
-                  categoryFilter={categoryFilter}
-                />
+                <SmartInsightsPanel model={dashboardInsightModel} />
               </div>
 
               <div className={`${CARD} xl:col-span-4`}>
-                <AiInsightsSidebar
-                  transactions={transactions}
-                  categories={categories}
-                  selectedYear={selectedYear}
-                  selectedMonth={selectedMonth}
-                  walletFilter={walletFilter}
-                  categoryFilter={categoryFilter}
-                />
+                <AiInsightsSidebar model={dashboardInsightModel} />
               </div>
             </div>
           )}

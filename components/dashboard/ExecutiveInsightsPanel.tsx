@@ -1,121 +1,130 @@
-type ExecutiveInsight = {
-  id: string;
-  label: string;
-  value: string;
-  helper: string;
-};
+import type {
+  CurrencyInsight,
+  DashboardInsightModel,
+  IntelligenceRiskLevel,
+} from "@/lib/dashboard/intelligence";
 
 type ExecutiveInsightsPanelProps = {
-  insights: ExecutiveInsight[];
-  riskLevel?: string;
+  model: DashboardInsightModel;
 };
 
-function riskTone(riskLevel?: string) {
-  const value = (riskLevel ?? "").toLowerCase();
-  if (value.includes("high") || value.includes("critical")) {
-    return "border-white/20 bg-white/[0.08] text-white";
-  }
-  if (value.includes("medium") || value.includes("watch")) {
-    return "border-white/15 bg-white/[0.055] text-gray-200";
-  }
-  return "border-white/10 bg-white/[0.035] text-gray-300";
+function formatMoney(amountMinor: number, currencyCode: string): string {
+  return `${new Intl.NumberFormat("en", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amountMinor / 100)} ${currencyCode}`;
 }
 
-export default function ExecutiveInsightsPanel({
-  insights,
-  riskLevel,
-}: ExecutiveInsightsPanelProps) {
-  const primaryInsight = insights[0];
-  const supportingInsights = insights.slice(1, 4);
-  const additionalCount = Math.max(0, insights.length - 4);
+function riskLabel(level: IntelligenceRiskLevel): string {
+  return level === "healthy"
+    ? "Healthy"
+    : level === "critical"
+      ? "Critical"
+      : level === "warning"
+        ? "Warning"
+        : "Watch";
+}
+
+function riskTone(level: IntelligenceRiskLevel): string {
+  if (level === "critical") return "border-white/25 bg-white/[0.09] text-white";
+  if (level === "warning") return "border-white/20 bg-white/[0.065] text-gray-100";
+  if (level === "watch") return "border-white/15 bg-white/[0.045] text-gray-200";
+  return "border-white/10 bg-white/[0.03] text-gray-300";
+}
+
+function CurrencyBrief({ currency }: { currency: CurrencyInsight }) {
+  const largestExpense = currency.largestExpense;
+  const largestIncome = currency.largestIncome;
+
+  return (
+    <article className="rounded-2xl border border-white/[0.08] bg-black/20 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold tracking-[0.14em] text-gray-200">
+          {currency.currencyCode}
+        </span>
+        <span className={`rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.15em] ${riskTone(currency.health.riskLevel)}`}>
+          {riskLabel(currency.health.riskLevel)} · {currency.health.score}
+        </span>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <div>
+          <p className="text-[9px] font-medium uppercase tracking-[0.15em] text-gray-500">Net flow</p>
+          <p className="mt-1 break-words text-sm font-semibold text-white">
+            {formatMoney(currency.netMinor, currency.currencyCode)}
+          </p>
+        </div>
+        <div>
+          <p className="text-[9px] font-medium uppercase tracking-[0.15em] text-gray-500">Balance</p>
+          <p className="mt-1 break-words text-sm font-semibold text-white">
+            {formatMoney(currency.balanceMinor, currency.currencyCode)}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-2 border-t border-white/[0.06] pt-3">
+        <div className="flex items-start justify-between gap-3 text-[11px]">
+          <span className="text-gray-500">Largest income</span>
+          <span className="max-w-[65%] text-right font-medium text-gray-200">
+            {largestIncome
+              ? `${largestIncome.categoryName ?? "Uncategorized"} · ${formatMoney(largestIncome.amountMinor, currency.currencyCode)}`
+              : "No income recorded"}
+          </span>
+        </div>
+        <div className="flex items-start justify-between gap-3 text-[11px]">
+          <span className="text-gray-500">Largest expense</span>
+          <span className="max-w-[65%] text-right font-medium text-gray-200">
+            {largestExpense
+              ? `${largestExpense.categoryName ?? "Uncategorized"} · ${formatMoney(largestExpense.amountMinor, currency.currencyCode)}`
+              : "No expense recorded"}
+          </span>
+        </div>
+        <div className="flex items-start justify-between gap-3 text-[11px]">
+          <span className="text-gray-500">Budgets</span>
+          <span className="max-w-[65%] text-right font-medium text-gray-200">
+            {currency.budget.total > 0
+              ? `${currency.budget.healthy} healthy · ${currency.budget.atRisk} at risk · ${currency.budget.over} over`
+              : "No scored budgets"}
+          </span>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+export default function ExecutiveInsightsPanel({ model }: ExecutiveInsightsPanelProps) {
+  const activeCurrencies = model.currencies.filter(
+    (currency) => currency.health.hasActivity || currency.forecast.scheduledOccurrencesCount > 0
+  );
 
   return (
     <div className="flex h-full min-h-[22rem] flex-col">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-gray-500">
-            Decision brief
-          </span>
-          <h3 className="mt-2 text-base font-semibold tracking-tight text-white">
-            Executive Insights
-          </h3>
+          <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-gray-500">Decision brief</span>
+          <h3 className="mt-2 text-base font-semibold tracking-tight text-white">Executive Insights</h3>
           <p className="mt-1 text-[11px] leading-5 text-gray-400">
-            The most important signals, reduced to a quick read.
+            Certified financial signals for each active currency.
           </p>
         </div>
-
-        {riskLevel && (
-          <span
-            className={`shrink-0 rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] ${riskTone(
-              riskLevel
-            )}`}
-          >
-            {riskLevel}
-          </span>
-        )}
+        <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.035] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-gray-400">
+          {activeCurrencies.length} {activeCurrencies.length === 1 ? "currency" : "currencies"}
+        </span>
       </div>
 
-      {primaryInsight ? (
-        <>
-          <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-gray-500">
-                Priority signal
-              </span>
-              <span className="h-1.5 w-1.5 rounded-full bg-white shadow-[0_0_12px_rgba(255,255,255,0.55)]" />
-            </div>
-            <p className="mt-3 break-words text-lg font-semibold leading-6 tracking-tight text-white">
-              {primaryInsight.value}
-            </p>
-            <p className="mt-2 text-[11px] leading-5 text-gray-400">
-              {primaryInsight.helper}
-            </p>
-            <div className="mt-4 inline-flex rounded-full border border-white/10 bg-black/25 px-2.5 py-1 text-[9px] font-medium uppercase tracking-[0.14em] text-gray-300">
-              {primaryInsight.label}
-            </div>
-          </div>
-
-          <div className="mt-3 grid gap-2">
-            {supportingInsights.map((insight, index) => (
-              <div
-                key={insight.id}
-                className="group flex items-start gap-3 rounded-xl border border-white/[0.07] bg-black/20 px-3 py-2.5 transition-colors hover:bg-white/[0.035]"
-              >
-                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-white/10 text-[9px] font-semibold text-gray-400">
-                  {index + 2}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-500">
-                      {insight.label}
-                    </p>
-                    <p className="max-w-[58%] text-right text-xs font-semibold leading-4 text-gray-100">
-                      {insight.value}
-                    </p>
-                  </div>
-                  <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-gray-500">
-                    {insight.helper}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {additionalCount > 0 && (
-            <p className="mt-auto pt-4 text-[10px] text-gray-500">
-              +{additionalCount} additional signal{additionalCount === 1 ? "" : "s"} included in the wider dashboard analysis.
-            </p>
-          )}
-        </>
+      {activeCurrencies.length > 0 ? (
+        <div className="mt-5 grid gap-3">
+          {activeCurrencies.map((currency) => (
+            <CurrencyBrief key={currency.currencyCode} currency={currency} />
+          ))}
+        </div>
       ) : (
         <div className="mt-5 flex flex-1 items-center justify-center rounded-2xl border border-dashed border-white/10 bg-black/15 p-6 text-center">
           <div>
             <div className="mx-auto h-8 w-8 rounded-full border border-white/10 bg-white/[0.035]" />
-            <p className="mt-3 text-sm font-medium text-gray-300">
-              No executive signals yet
-            </p>
+            <p className="mt-3 text-sm font-medium text-gray-300">No executive signals yet</p>
             <p className="mt-1 text-[11px] leading-5 text-gray-500">
-              Insights will appear when enough activity is available.
+              Insights will appear when financial activity is available.
             </p>
           </div>
         </div>
