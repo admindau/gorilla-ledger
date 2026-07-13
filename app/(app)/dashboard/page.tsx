@@ -151,6 +151,129 @@ function daysInMonth(year: number, month0: number) {
   return new Date(year, month0 + 1, 0).getDate();
 }
 
+const DASHBOARD_PAGE_SIZE = 1000;
+const DASHBOARD_MAX_PAGES = 250;
+
+type PagedResult<T> = {
+  data: T[];
+  error: Error | null;
+};
+
+/**
+ * Fetches a complete, deterministically ordered dataset in bounded pages.
+ *
+ * The previous dashboard query used fixed `.limit(...)` clauses, which made
+ * balances and historical analytics silently incomplete after the limit was
+ * exceeded. Pagination preserves completeness without issuing one unbounded
+ * browser request.
+ */
+async function fetchAllTransactions(): Promise<PagedResult<Transaction>> {
+  const rows: Transaction[] = [];
+
+  for (let page = 0; page < DASHBOARD_MAX_PAGES; page += 1) {
+    const from = page * DASHBOARD_PAGE_SIZE;
+    const to = from + DASHBOARD_PAGE_SIZE - 1;
+    const result = await supabaseBrowserClient
+      .from("transactions")
+      .select(
+        "id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at"
+      )
+      .order("occurred_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(from, to);
+
+    if (result.error) {
+      return { data: [], error: new Error(result.error.message) };
+    }
+
+    const pageRows = (result.data ?? []) as Transaction[];
+    rows.push(...pageRows);
+
+    if (pageRows.length < DASHBOARD_PAGE_SIZE) {
+      return { data: rows, error: null };
+    }
+  }
+
+  return {
+    data: [],
+    error: new Error(
+      "Dashboard transaction history exceeded the supported pagination safety limit."
+    ),
+  };
+}
+
+async function fetchAllBudgets(): Promise<PagedResult<Budget>> {
+  const rows: Budget[] = [];
+
+  for (let page = 0; page < DASHBOARD_MAX_PAGES; page += 1) {
+    const from = page * DASHBOARD_PAGE_SIZE;
+    const to = from + DASHBOARD_PAGE_SIZE - 1;
+    const result = await supabaseBrowserClient
+      .from("budgets")
+      .select("id, wallet_id, category_id, year, month, amount_minor")
+      .order("year", { ascending: false })
+      .order("month", { ascending: false })
+      .order("id", { ascending: false })
+      .range(from, to);
+
+    if (result.error) {
+      return { data: [], error: new Error(result.error.message) };
+    }
+
+    const pageRows = (result.data ?? []) as Budget[];
+    rows.push(...pageRows);
+
+    if (pageRows.length < DASHBOARD_PAGE_SIZE) {
+      return { data: rows, error: null };
+    }
+  }
+
+  return {
+    data: [],
+    error: new Error(
+      "Dashboard budget history exceeded the supported pagination safety limit."
+    ),
+  };
+}
+
+async function fetchAllActiveRecurringRules(): Promise<
+  PagedResult<RecurringRule>
+> {
+  const rows: RecurringRule[] = [];
+
+  for (let page = 0; page < DASHBOARD_MAX_PAGES; page += 1) {
+    const from = page * DASHBOARD_PAGE_SIZE;
+    const to = from + DASHBOARD_PAGE_SIZE - 1;
+    const result = await supabaseBrowserClient
+      .from("recurring_rules")
+      .select(
+        "id, wallet_id, category_id, type, amount_minor, currency_code, next_run_at, is_active"
+      )
+      .eq("is_active", true)
+      .order("next_run_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to);
+
+    if (result.error) {
+      return { data: [], error: new Error(result.error.message) };
+    }
+
+    const pageRows = (result.data ?? []) as RecurringRule[];
+    rows.push(...pageRows);
+
+    if (pageRows.length < DASHBOARD_PAGE_SIZE) {
+      return { data: rows, error: null };
+    }
+  }
+
+  return {
+    data: [],
+    error: new Error(
+      "Active recurring rules exceeded the supported pagination safety limit."
+    ),
+  };
+}
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -260,24 +383,9 @@ export default function DashboardPage() {
             .eq("is_active", true)
             .order("type", { ascending: true })
             .order("name", { ascending: true }),
-          supabaseBrowserClient
-            .from("transactions")
-            .select(
-              "id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at"
-            )
-            .order("occurred_at", { ascending: false })
-            .limit(500),
-          supabaseBrowserClient
-            .from("budgets")
-            .select("id, wallet_id, category_id, year, month, amount_minor")
-            .order("year", { ascending: false })
-            .order("month", { ascending: false })
-            .limit(200),
-          supabaseBrowserClient
-            .from("recurring_rules")
-            .select("id, wallet_id, category_id, type, amount_minor, currency_code, next_run_at, is_active")
-            .eq("is_active", true)
-            .limit(200),
+          fetchAllTransactions(),
+          fetchAllBudgets(),
+          fetchAllActiveRecurringRules(),
           supabaseBrowserClient
             .from("daily_income_expense")
             .select("day, income, expense, currency_code")
