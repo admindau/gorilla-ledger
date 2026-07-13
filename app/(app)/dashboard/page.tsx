@@ -45,6 +45,7 @@ import {
   buildBudgetReconciliation,
   buildMonthEndForecastReconciliation,
 } from "@/lib/dashboard/budgetForecastReconciliation";
+import { buildDashboardInsightModel } from "@/lib/dashboard/intelligence";
 
 type Wallet = {
   id: string;
@@ -540,21 +541,6 @@ export default function DashboardPage() {
     }
   }
 
-  const monthIncomeEntries = Object.entries(monthIncomeByCurrency);
-  const monthExpenseEntries = Object.entries(monthExpenseByCurrency);
-  const monthNetEntries = Array.from(
-    new Set([
-      ...Object.keys(monthIncomeByCurrency),
-      ...Object.keys(monthExpenseByCurrency),
-    ])
-  )
-    .sort()
-    .map((currency) => [
-      currency,
-      (monthIncomeByCurrency[currency] ?? 0) -
-        (monthExpenseByCurrency[currency] ?? 0),
-    ] as const);
-
   // GL-QA-01B.3: authoritative budget-vs-actual reconciliation.
   const RISK_THRESHOLD = 0.8;
   const budgetReconciliation = buildBudgetReconciliation({
@@ -649,53 +635,7 @@ export default function DashboardPage() {
       };
     });
 
-  const largestIncomeItems = reconciliationEntries
-    .filter((entry) => entry.largestIncome)
-    .map((entry) => {
-      const tx = entry.largestIncome as Transaction;
-      return {
-        id: tx.id,
-        amountMinor: tx.amount_minor,
-        currencyCode: entry.currencyCode,
-        occurredAt: tx.occurred_at,
-        categoryName: tx.category_id
-          ? categoryMap[tx.category_id]?.name ?? "Uncategorized"
-          : "Uncategorized",
-        walletName: walletMap[tx.wallet_id]?.name ?? "Unknown wallet",
-      };
-    });
-
   const activeCategoryCount = categories.filter((c) => c.type === "expense").length;
-
-  const activeCurrencies = reconciliationEntries.map(
-    (entry) => entry.currencyCode
-  );
-
-  const currencyHealthEntries: CurrencyHealthEntry[] = reconciliationEntries.map(
-    (entry) => ({
-      currencyCode: entry.currencyCode,
-      score: entry.health.score,
-      label: entry.health.label,
-      riskLevel: entry.health.riskLevel,
-      cashFlowMinor: entry.netMinor,
-      budgetPressureCount: entry.health.budgetPressureCount,
-      activeBudgetsCount: entry.budgetStats.total,
-    })
-  );
-
-  const weakestCurrencyHealth = currencyHealthEntries
-    .slice()
-    .sort((a, b) => a.score - b.score)[0] ?? {
-    currencyCode: "—",
-    score: 0,
-    label: "No activity",
-    riskLevel: "Watch" as const,
-    cashFlowMinor: 0,
-    budgetPressureCount: 0,
-    activeBudgetsCount: 0,
-  };
-  const financialHealthScore = weakestCurrencyHealth.score;
-  const financialHealthLabel = weakestCurrencyHealth.label;
 
   // GL-QA-01B.3: current balances and recurring schedules now flow through
   // one forecast contract. Future month forecasts include every occurrence
@@ -724,112 +664,149 @@ export default function DashboardPage() {
     year: "numeric",
   });
 
-  const smartAlerts: SmartAlert[] = [];
+  // GL-ARCH-08B: construct one generic multi-currency intelligence model
+  // from the certified reconciliation layers. Subsequent intelligence modules
+  // will consume this contract directly instead of rescanning raw data.
+  const dashboardInsightModel = buildDashboardInsightModel({
+    reconciliationEntries,
+    budgetReconciliation,
+    forecastReconciliation,
+    filters: {
+      walletId: walletFilter === "all" ? null : walletFilter,
+      categoryId: categoryFilter === "all" ? null : categoryFilter,
+      currencyCode: null,
+      period: {
+        start: new Date(selectedYear, selectedMonth, 1).toISOString(),
+        end: new Date(
+          selectedYear,
+          selectedMonth + 1,
+          0,
+          23,
+          59,
+          59,
+          999
+        ).toISOString(),
+        label: monthLabel,
+        year: selectedYear,
+        month0: selectedMonth,
+      },
+    },
+    sourceCounts: {
+      transactions: transactions.length,
+      wallets: wallets.length,
+      budgets: budgets.length,
+      recurringRules: recurringRules.length,
+    },
+    resolveTransactionPresentation: (transaction) => ({
+      categoryName: transaction?.category_id
+        ? categoryMap[transaction.category_id]?.name ?? "Uncategorized"
+        : "Uncategorized",
+      description: null,
+    }),
+  });
 
-  for (const health of currencyHealthEntries) {
-    if (health.cashFlowMinor < 0) {
-      smartAlerts.push({
-        id: `negative-cash-flow-${health.currencyCode}`,
-        tone: "danger",
-        title: `${health.currencyCode} cash flow is negative`,
-        detail: `Expenses exceed income by ${formatMinorToAmount(
-          Math.abs(health.cashFlowMinor)
-        )} ${health.currencyCode} for ${monthLabel}.`,
-      });
-    } else if (health.cashFlowMinor > 0) {
-      smartAlerts.push({
-        id: `positive-cash-flow-${health.currencyCode}`,
-        tone: "good",
-        title: `${health.currencyCode} cash flow is positive`,
-        detail: `Income exceeds expenses by ${formatMinorToAmount(
-          health.cashFlowMinor
-        )} ${health.currencyCode} for ${monthLabel}.`,
-      });
-    }
+  const currencyHealthEntries: CurrencyHealthEntry[] =
+    dashboardInsightModel.currencies.map((currency) => ({
+      currencyCode: currency.currencyCode,
+      score: currency.health.score,
+      label: currency.health.label,
+      riskLevel:
+        currency.health.riskLevel === "healthy"
+          ? "Healthy"
+          : currency.health.riskLevel === "warning"
+          ? "Warning"
+          : currency.health.riskLevel === "critical"
+          ? "Critical"
+          : "Watch",
+      cashFlowMinor: currency.netMinor,
+      budgetPressureCount: currency.health.budgetPressureCount,
+      activeBudgetsCount: currency.budget.total,
+    }));
 
-    const stats = budgetStatsByCurrency[health.currencyCode];
-    if (stats?.over) {
-      smartAlerts.push({
-        id: `budget-over-${health.currencyCode}`,
-        tone: "danger",
-        title: `${health.currencyCode} budget exceeded`,
-        detail: `${stats.over} ${stats.over === 1 ? "budget is" : "budgets are"} over the limit.`,
-      });
-    } else if (stats?.atRisk) {
-      smartAlerts.push({
-        id: `budget-risk-${health.currencyCode}`,
-        tone: "watch",
-        title: `${health.currencyCode} budget pressure`,
-        detail: `${stats.atRisk} ${stats.atRisk === 1 ? "budget is" : "budgets are"} approaching the limit.`,
-      });
-    }
-  }
+  const weakestCurrencyHealth = currencyHealthEntries.find(
+    (entry) => entry.currencyCode === dashboardInsightModel.weakestCurrencyCode
+  ) ?? {
+    currencyCode: "—",
+    score: 0,
+    label: "No activity",
+    riskLevel: "Watch" as const,
+    cashFlowMinor: 0,
+    budgetPressureCount: 0,
+    activeBudgetsCount: 0,
+  };
+  const financialHealthScore = weakestCurrencyHealth.score;
+  const financialHealthLabel = weakestCurrencyHealth.label;
 
-  if (unscoredBudgets > 0) {
-    smartAlerts.push({
-      id: "walletless-budget-currency",
-      tone: "watch",
-      title: "Budget currency needs clarification",
-      detail: `${unscoredBudgets} walletless ${
-        unscoredBudgets === 1 ? "budget was" : "budgets were"
-      } excluded from utilization scoring because the current schema does not identify a currency.`,
-    });
-  }
-
-  if (scheduledRecurringRuleCount > 0) {
-    smartAlerts.push({
-      id: "recurring-scheduled",
-      tone: "neutral",
-      title: "Recurring activity ahead",
-      detail: `${scheduledRecurringRuleCount} active recurring ${scheduledRecurringRuleCount === 1 ? "rule is" : "rules are"} included in the month-end forecast.`,
-    });
-  }
+  const smartAlerts: SmartAlert[] = dashboardInsightModel.alerts.map(
+    (alert) => ({
+      id: alert.id,
+      tone:
+        alert.severity === "critical"
+          ? "danger"
+          : alert.severity === "warning"
+          ? "watch"
+          : alert.severity === "success"
+          ? "good"
+          : "neutral",
+      title: alert.title,
+      detail:
+        alert.currencyCode === "GLOBAL"
+          ? alert.message
+          : `${alert.message} ${
+              alert.metricKey === "netMinor"
+                ? `Net: ${formatMinorToAmount(
+                    Math.abs(
+                      dashboardInsightModel.currencies.find(
+                        (currency) =>
+                          currency.currencyCode === alert.currencyCode
+                      )?.netMinor ?? 0
+                    )
+                  )} ${alert.currencyCode}.`
+                : ""
+            }`.trim(),
+    })
+  );
 
   if (smartAlerts.length === 0) {
     smartAlerts.push({
       id: "no-alerts",
       tone: "neutral",
       title: "No urgent alerts",
-      detail: "Add more transactions, budgets, and recurring rules to unlock deeper monitoring.",
+      detail:
+        "Add more transactions, budgets, and recurring rules to unlock deeper monitoring.",
     });
   }
 
-  const executiveInsights: ExecutiveInsight[] = activeCurrencies.map(
-    (currencyCode) => {
-      const netMinor =
-        (monthIncomeByCurrency[currencyCode] ?? 0) -
-        (monthExpenseByCurrency[currencyCode] ?? 0);
-      const largestExpense = largestExpenseItems.find(
-        (item) => item.currencyCode === currencyCode
-      );
-      const largestIncome = largestIncomeItems.find(
-        (item) => item.currencyCode === currencyCode
-      );
-      const budgetsForCurrency = budgetStatsByCurrency[currencyCode];
-      const budgetSummary = budgetsForCurrency
-        ? `${budgetsForCurrency.onTrack} healthy · ${budgetsForCurrency.atRisk} at risk · ${budgetsForCurrency.over} over`
-        : "No currency-safe budgets";
+  const executiveInsights: ExecutiveInsight[] =
+    dashboardInsightModel.currencies.map((currency) => {
+      const budgetSummary =
+        currency.budget.total > 0
+          ? `${currency.budget.healthy} healthy · ${currency.budget.atRisk} at risk · ${currency.budget.over} over`
+          : "No currency-safe budgets";
 
       return {
-        id: `currency-summary-${currencyCode}`,
-        label: `${currencyCode} overview`,
-        value: `${formatMinorToAmount(netMinor)} ${currencyCode} net`,
+        id: `currency-summary-${currency.currencyCode}`,
+        label: `${currency.currencyCode} overview`,
+        value: `${formatMinorToAmount(currency.netMinor)} ${currency.currencyCode} net`,
         helper: [
-          largestIncome
-            ? `Largest income: ${largestIncome.categoryName}, ${formatMinorToAmount(
-                largestIncome.amountMinor
-              )} ${currencyCode}.`
+          currency.largestIncome
+            ? `Largest income: ${
+                currency.largestIncome.categoryName ?? "Uncategorized"
+              }, ${formatMinorToAmount(currency.largestIncome.amountMinor)} ${
+                currency.currencyCode
+              }.`
             : "No income recorded.",
-          largestExpense
-            ? `Largest expense: ${largestExpense.categoryName}, ${formatMinorToAmount(
-                largestExpense.amountMinor
-              )} ${currencyCode}.`
+          currency.largestExpense
+            ? `Largest expense: ${
+                currency.largestExpense.categoryName ?? "Uncategorized"
+              }, ${formatMinorToAmount(currency.largestExpense.amountMinor)} ${
+                currency.currencyCode
+              }.`
             : "No expense recorded.",
           `Budgets: ${budgetSummary}.`,
         ].join(" "),
       };
-    }
-  );
+    });
 
   // Dashboard Intelligence A.4: executive polish and prioritization
   const alertSeverityRank: Record<SmartAlert["tone"], number> = {
