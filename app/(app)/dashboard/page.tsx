@@ -161,6 +161,21 @@ type PagedResult<T> = {
   error: Error | null;
 };
 
+function createAbortError(): Error {
+  const error = new Error("Dashboard request was cancelled.");
+  error.name = "AbortError";
+  return error;
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    error instanceof DOMException && error.name === "AbortError"
+  ) || (
+    error instanceof Error &&
+    (error.name === "AbortError" || /abort|cancel/i.test(error.message))
+  );
+}
+
 /**
  * Fetches a complete, deterministically ordered dataset in bounded pages.
  *
@@ -169,10 +184,16 @@ type PagedResult<T> = {
  * exceeded. Pagination preserves completeness without issuing one unbounded
  * browser request.
  */
-async function fetchAllTransactions(): Promise<PagedResult<Transaction>> {
+async function fetchAllTransactions(
+  signal: AbortSignal
+): Promise<PagedResult<Transaction>> {
   const rows: Transaction[] = [];
 
   for (let page = 0; page < DASHBOARD_MAX_PAGES; page += 1) {
+    if (signal.aborted) {
+      return { data: [], error: createAbortError() };
+    }
+
     const from = page * DASHBOARD_PAGE_SIZE;
     const to = from + DASHBOARD_PAGE_SIZE - 1;
     const result = await supabaseBrowserClient
@@ -182,7 +203,8 @@ async function fetchAllTransactions(): Promise<PagedResult<Transaction>> {
       )
       .order("occurred_at", { ascending: false })
       .order("id", { ascending: false })
-      .range(from, to);
+      .range(from, to)
+      .abortSignal(signal);
 
     if (result.error) {
       return { data: [], error: new Error(result.error.message) };
@@ -204,10 +226,16 @@ async function fetchAllTransactions(): Promise<PagedResult<Transaction>> {
   };
 }
 
-async function fetchAllBudgets(): Promise<PagedResult<Budget>> {
+async function fetchAllBudgets(
+  signal: AbortSignal
+): Promise<PagedResult<Budget>> {
   const rows: Budget[] = [];
 
   for (let page = 0; page < DASHBOARD_MAX_PAGES; page += 1) {
+    if (signal.aborted) {
+      return { data: [], error: createAbortError() };
+    }
+
     const from = page * DASHBOARD_PAGE_SIZE;
     const to = from + DASHBOARD_PAGE_SIZE - 1;
     const result = await supabaseBrowserClient
@@ -216,7 +244,8 @@ async function fetchAllBudgets(): Promise<PagedResult<Budget>> {
       .order("year", { ascending: false })
       .order("month", { ascending: false })
       .order("id", { ascending: false })
-      .range(from, to);
+      .range(from, to)
+      .abortSignal(signal);
 
     if (result.error) {
       return { data: [], error: new Error(result.error.message) };
@@ -238,12 +267,16 @@ async function fetchAllBudgets(): Promise<PagedResult<Budget>> {
   };
 }
 
-async function fetchAllActiveRecurringRules(): Promise<
-  PagedResult<RecurringRule>
-> {
+async function fetchAllActiveRecurringRules(
+  signal: AbortSignal
+): Promise<PagedResult<RecurringRule>> {
   const rows: RecurringRule[] = [];
 
   for (let page = 0; page < DASHBOARD_MAX_PAGES; page += 1) {
+    if (signal.aborted) {
+      return { data: [], error: createAbortError() };
+    }
+
     const from = page * DASHBOARD_PAGE_SIZE;
     const to = from + DASHBOARD_PAGE_SIZE - 1;
     const result = await supabaseBrowserClient
@@ -254,7 +287,8 @@ async function fetchAllActiveRecurringRules(): Promise<
       .eq("is_active", true)
       .order("next_run_at", { ascending: true })
       .order("id", { ascending: true })
-      .range(from, to);
+      .range(from, to)
+      .abortSignal(signal);
 
     if (result.error) {
       return { data: [], error: new Error(result.error.message) };
@@ -326,110 +360,149 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
+    let isMounted = true;
+
+    const canCommit = () => isMounted && !signal.aborted;
+
     async function init() {
-      setCheckingSession(true);
-      setErrorMsg("");
-
-      // 1) Check auth session
-      const {
-        data: { session },
-      } = await supabaseBrowserClient.auth.getSession();
-
-      if (!session) {
-        router.replace("/auth/login");
-        return;
+      if (canCommit()) {
+        setCheckingSession(true);
+        setErrorMsg("");
       }
 
-      setEmail(session.user.email ?? null);
-
-      // The authenticated shell should not wait for secondary security metadata.
-      // Release the session gate immediately, then load MFA status in parallel
-      // with the financial datasets.
       try {
-        const raw = localStorage.getItem(LAST_SECURITY_CHECK_AT_KEY);
-        const val = raw ? Number(raw) : 0;
-        setLastCheckAt(val > 0 ? val : null);
-      } catch {
-        setLastCheckAt(null);
+        // Authentication does not currently expose an AbortSignal, so every
+        // post-await state transition is protected by canCommit().
+        const {
+          data: { session },
+        } = await supabaseBrowserClient.auth.getSession();
+
+        if (!canCommit()) return;
+
+        if (!session) {
+          router.replace("/auth/login");
+          return;
+        }
+
+        setEmail(session.user.email ?? null);
+
+        try {
+          const raw = localStorage.getItem(LAST_SECURITY_CHECK_AT_KEY);
+          const val = raw ? Number(raw) : 0;
+          if (canCommit()) setLastCheckAt(val > 0 ? val : null);
+        } catch {
+          if (canCommit()) setLastCheckAt(null);
+        }
+
+        if (!canCommit()) return;
+        setCheckingSession(false);
+        setLoadingData(true);
+
+        // MFA metadata is deliberately non-blocking. It cannot currently be
+        // aborted by Supabase Auth, so its completion is guarded instead.
+        void supabaseBrowserClient.auth.mfa
+          .listFactors()
+          .then(({ data: factorsData }) => {
+            if (!canCommit()) return;
+            const verified =
+              factorsData?.totp?.filter(
+                (factor) => factor.status === "verified"
+              ) ?? [];
+            setMfaEnabled(verified.length > 0);
+            setHasBackupFactor(verified.length >= 2);
+          })
+          .catch((error: unknown) => {
+            if (!canCommit() || isAbortError(error)) return;
+            // Security metadata is non-blocking; keep the UI conservative.
+            setMfaEnabled(false);
+            setHasBackupFactor(false);
+          });
+
+        const [walletRes, categoryRes, txRes, budgetRes, recurringRes] =
+          await Promise.all([
+            supabaseBrowserClient
+              .from("wallets")
+              .select("id, name, currency_code, starting_balance_minor")
+              .order("created_at", { ascending: true })
+              .abortSignal(signal),
+            supabaseBrowserClient
+              .from("categories")
+              .select("id, name, type")
+              .eq("is_active", true)
+              .order("type", { ascending: true })
+              .order("name", { ascending: true })
+              .abortSignal(signal),
+            fetchAllTransactions(signal),
+            fetchAllBudgets(signal),
+            fetchAllActiveRecurringRules(signal),
+          ]);
+
+        if (!canCommit()) return;
+
+        if (walletRes.error) {
+          if (isAbortError(walletRes.error)) return;
+          console.error(walletRes.error);
+          setErrorMsg(walletRes.error.message);
+          return;
+        }
+        if (categoryRes.error) {
+          if (isAbortError(categoryRes.error)) return;
+          console.error(categoryRes.error);
+          setErrorMsg(categoryRes.error.message);
+          return;
+        }
+        if (txRes.error) {
+          if (isAbortError(txRes.error)) return;
+          console.error(txRes.error);
+          setErrorMsg(txRes.error.message);
+          return;
+        }
+        if (budgetRes.error) {
+          if (isAbortError(budgetRes.error)) return;
+          console.error(budgetRes.error);
+          setErrorMsg(budgetRes.error.message);
+          return;
+        }
+
+        if (recurringRes.error) {
+          if (!isAbortError(recurringRes.error)) {
+            // Recurring data is optional for the main dashboard; forecasts
+            // degrade safely when this dataset is unavailable.
+            console.error("Error loading recurring rules:", recurringRes.error);
+            setRecurringRules([]);
+          }
+        } else {
+          setRecurringRules(recurringRes.data as RecurringRule[]);
+        }
+
+        setWallets(walletRes.data as Wallet[]);
+        setCategories(categoryRes.data as Category[]);
+        setTransactions(txRes.data as Transaction[]);
+        setBudgets(budgetRes.data as Budget[]);
+      } catch (error: unknown) {
+        if (!canCommit() || isAbortError(error)) return;
+        console.error("Dashboard initialization failed:", error);
+        setErrorMsg(
+          error instanceof Error
+            ? error.message
+            : "The dashboard could not be loaded."
+        );
+      } finally {
+        if (canCommit()) {
+          setCheckingSession(false);
+          setLoadingData(false);
+        }
       }
-
-      setCheckingSession(false);
-      setLoadingData(true);
-
-      const securityMetadataPromise =
-        supabaseBrowserClient.auth.mfa.listFactors();
-
-      const [walletRes, categoryRes, txRes, budgetRes, recurringRes] =
-        await Promise.all([
-          supabaseBrowserClient
-            .from("wallets")
-            .select("id, name, currency_code, starting_balance_minor")
-            .order("created_at", { ascending: true }),
-          supabaseBrowserClient
-            .from("categories")
-            .select("id, name, type")
-            .eq("is_active", true)
-            .order("type", { ascending: true })
-            .order("name", { ascending: true }),
-          fetchAllTransactions(),
-          fetchAllBudgets(),
-          fetchAllActiveRecurringRules(),
-        ]);
-
-      void securityMetadataPromise
-        .then(({ data: factorsData }) => {
-          const verified =
-            factorsData?.totp?.filter((factor) => factor.status === "verified") ?? [];
-          setMfaEnabled(verified.length > 0);
-          setHasBackupFactor(verified.length >= 2);
-        })
-        .catch(() => {
-          // Security metadata is non-blocking; keep the UI conservative on failure.
-          setMfaEnabled(false);
-          setHasBackupFactor(false);
-        });
-
-      if (walletRes.error) {
-        console.error(walletRes.error);
-        setErrorMsg(walletRes.error.message);
-        setLoadingData(false);
-        return;
-      }
-      if (categoryRes.error) {
-        console.error(categoryRes.error);
-        setErrorMsg(categoryRes.error.message);
-        setLoadingData(false);
-        return;
-      }
-      if (txRes.error) {
-        console.error(txRes.error);
-        setErrorMsg(txRes.error.message);
-        setLoadingData(false);
-        return;
-      }
-      if (budgetRes.error) {
-        console.error(budgetRes.error);
-        setErrorMsg(budgetRes.error.message);
-        setLoadingData(false);
-        return;
-      }
-      if (recurringRes.error) {
-        // Not fatal for the dashboard; forecast widgets will fall back gracefully.
-        console.error("Error loading recurring rules:", recurringRes.error);
-        setRecurringRules([]);
-      } else {
-        setRecurringRules(recurringRes.data as RecurringRule[]);
-      }
-
-      setWallets(walletRes.data as Wallet[]);
-      setCategories(categoryRes.data as Category[]);
-      setTransactions(txRes.data as Transaction[]);
-      setBudgets(budgetRes.data as Budget[]);
-
-      setLoadingData(false);
     }
 
-    init();
+    void init();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
   }, [router]);
 
   async function handleLogout() {
