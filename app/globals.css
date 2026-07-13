@@ -1489,3 +1489,133 @@ body {
     transition: none;
   }
 }
+
+
+/* RC-02A.4 — Motion & Touch Certification */
+
+/*
+ * Keep touch controls comfortably operable without inflating the desktop UI.
+ * These rules activate only on devices whose primary pointer is coarse.
+ */
+@media (pointer: coarse) {
+  :where(
+    button,
+    a[href],
+    summary,
+    select,
+    input[type="button"],
+    input[type="submit"],
+    input[type="reset"],
+    [role="button"]
+  ) {
+    touch-action: manipulation;
+  }
+
+  .gl-btn,
+  .gl-app-nav-link,
+  .gl-month-switcher-button,
+  .gl-dashboard-accordion-trigger,
+  .gl-dashboard-link-button {
+    min-height: 2.75rem;
+  }
+
+  .gl-month-switcher-button,
+  .gl-dashboard-accordion-trigger {
+    min-width: 2.75rem;
+  }
+
+  .gl-app-nav-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding-block: 0.7rem;
+  }
+
+  .gl-dashboard-filter-select,
+  .gl-input {
+    min-height: 2.75rem;
+    font-size: 1rem;
+  }
+
+  /*
+   * Remove hover-only movement on touch devices. Feedback remains through
+   * pressed, focus and colour states.
+   */
+  .gl-premium-card:hover,
+  .gl-btn:hover:not(:disabled),
+  .gl-currency-tile:hover {
+    transform: none;
+  }
+}
+
+/*
+ * Motion reduction is intentionally broad. Essential state changes remain
+ * immediate, while decorative movement, smooth scrolling and chart animation
+ * are suppressed for users who request reduced motion.
+ */
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+
+  .gl-premium-card:hover,
+  .gl-btn:hover:not(:disabled),
+  .gl-soft-lift,
+  .gl-currency-tile:hover {
+    transform: none !important;
+  }
+
+  .recharts-wrapper,
+  .recharts-surface,
+  .recharts-layer,
+  .recharts-sector,
+  .recharts-rectangle,
+  .recharts-curve,
+  .recharts-dot {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/*
+ * High-contrast users receive stronger boundaries and focus indicators while
+ * preserving Gorilla Ledger's monochrome visual system.
+ */
+@media (prefers-contrast: more) {
+  :where(
+    a[href],
+    button,
+    input,
+    select,
+    textarea,
+    summary,
+    [role="button"],
+    [tabindex]:not([tabindex="-1"])
+  ):focus-visible {
+    outline-width: 3px;
+    outline-color: #ffffff;
+  }
+
+  .gl-btn-secondary,
+  .gl-dashboard-filter-select,
+  .gl-input,
+  .gl-premium-card,
+  .gl-inner-card {
+    border-color: rgba(255, 255, 255, 0.38);
+  }
+
+  .gl-field-hint,
+  .gl-app-current-section {
+    color: rgb(209 213 219);
+  }
+}

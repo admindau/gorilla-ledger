@@ -121,7 +121,14 @@ export default function AppTopNav() {
               MFA {mfaEnabled ? "enabled" : mfaEnabled === false ? "off" : "checking"} · {formatLastSecurityCheck(lastCheckAt)}
             </span>
           </div>
-          <Button type="button" variant="secondary" size="sm" onClick={handleLogout} disabled={signingOut}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={handleLogout}
+            disabled={signingOut}
+            aria-busy={signingOut}
+          >
             {signingOut ? "Logging out…" : "Logout"}
           </Button>
         </div>
