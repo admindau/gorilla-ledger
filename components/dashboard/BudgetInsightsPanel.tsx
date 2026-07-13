@@ -3,6 +3,7 @@
 import React from "react";
 
 import type { ReconciledBudgetSummary } from "@/lib/dashboard/budgetForecastReconciliation";
+import type { DashboardInsightModel } from "@/lib/dashboard/intelligence";
 
 type Insight = {
   sortValue: number;
@@ -10,8 +11,8 @@ type Insight = {
 };
 
 type BudgetInsightsPanelProps = {
+  model: DashboardInsightModel;
   summaries: ReconciledBudgetSummary[];
-  monthLabel: string;
   riskThreshold: number;
 };
 
@@ -20,18 +21,25 @@ function formatMinorToMajor(amountMinor: number): string {
 }
 
 export default function BudgetInsightsPanel({
+  model,
   summaries,
-  monthLabel,
   riskThreshold,
 }: BudgetInsightsPanelProps) {
+  const monthLabel = model.filters.period.label;
   if (!summaries || summaries.length === 0) {
     return null;
   }
 
   const insights: Insight[] = [];
 
-  let overCount = 0;
-  let riskCount = 0;
+  const overCount = model.currencies.reduce(
+    (sum, currency) => sum + currency.budget.over,
+    0
+  );
+  const riskCount = model.currencies.reduce(
+    (sum, currency) => sum + currency.budget.atRisk,
+    0
+  );
   let underUsedCount = 0;
 
   for (const s of summaries) {
@@ -47,7 +55,6 @@ export default function BudgetInsightsPanel({
 
     // Over budget
     if (usedRatio > 1) {
-      overCount++;
       const text = `You are over budget in ${name}: ${percentUsed}% used (${actualMajor} ${currency} of ${budgetMajor} ${currency}). Consider reducing spending or increasing this budget next month.`;
       insights.push({
         sortValue: percentUsed,
@@ -58,7 +65,6 @@ export default function BudgetInsightsPanel({
 
     // At risk
     if (usedRatio > riskThreshold && usedRatio <= 1) {
-      riskCount++;
       const text = `${name} budget is at risk: ${percentUsed}% used (${actualMajor} ${currency} of ${budgetMajor} ${currency}). If you keep this pace, you may exceed the budget before ${monthLabel} ends.`;
       insights.push({
         sortValue: percentUsed,

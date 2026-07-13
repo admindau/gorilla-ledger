@@ -1,16 +1,7 @@
-type CurrencyHealthEntry = {
-  currencyCode: string;
-  score: number;
-  label: string;
-  riskLevel: "Healthy" | "Watch" | "Warning" | "Critical";
-  cashFlowMinor: number;
-  budgetPressureCount: number;
-  activeBudgetsCount: number;
-};
+import type { DashboardInsightModel, IntelligenceRiskLevel } from "@/lib/dashboard/intelligence";
 
 type FinancialHealthScoreProps = {
-  entries: CurrencyHealthEntry[];
-  monthLabel: string;
+  model: DashboardInsightModel;
 };
 
 function clampScore(score: number) {
@@ -26,24 +17,25 @@ function formatMinor(minor: number) {
   })}`;
 }
 
-function tone(riskLevel: CurrencyHealthEntry["riskLevel"]) {
-  if (riskLevel === "Critical") return "border-white/70 text-white";
-  if (riskLevel === "Warning") return "border-gray-500 text-gray-100";
-  if (riskLevel === "Watch") return "border-gray-700 text-gray-200";
+function riskLabel(riskLevel: IntelligenceRiskLevel) {
+  return riskLevel.charAt(0).toUpperCase() + riskLevel.slice(1);
+}
+
+function tone(riskLevel: IntelligenceRiskLevel) {
+  if (riskLevel === "critical") return "border-white/70 text-white";
+  if (riskLevel === "warning") return "border-gray-500 text-gray-100";
+  if (riskLevel === "watch") return "border-gray-700 text-gray-200";
   return "border-gray-800 text-gray-300";
 }
 
-export default function FinancialHealthScore({
-  entries,
-  monthLabel,
-}: FinancialHealthScoreProps) {
+export default function FinancialHealthScore({ model }: FinancialHealthScoreProps) {
+  const monthLabel = model.filters.period.label;
+
   return (
     <div>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold tracking-tight">
-            Financial Health
-          </h3>
+          <h3 className="text-sm font-semibold tracking-tight">Financial Health</h3>
           <p className="mt-1 text-[11px] text-gray-400">
             Independent scores for each active currency in {monthLabel}.
           </p>
@@ -53,25 +45,25 @@ export default function FinancialHealthScore({
         </span>
       </div>
 
-      {entries.length === 0 ? (
+      {model.currencies.length === 0 ? (
         <div className="mt-5 gl-empty-state rounded-2xl p-4 text-sm text-gray-400">
           Add activity to generate currency-specific health scores.
         </div>
       ) : (
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-          {entries.map((entry) => {
-            const score = clampScore(entry.score);
+          {model.currencies.map((currency) => {
+            const score = clampScore(currency.health.score);
             const circumference = 2 * Math.PI * 30;
             const dash = (score / 100) * circumference;
 
             return (
-              <div key={entry.currencyCode} className="gl-inner-card rounded-2xl p-4">
+              <div key={currency.currencyCode} className="gl-inner-card rounded-2xl p-4">
                 <div className="flex items-center justify-between gap-3">
                   <span className="rounded-full border border-white/10 bg-white/[0.035] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-gray-300">
-                    {entry.currencyCode}
+                    {currency.currencyCode}
                   </span>
-                  <span className={`rounded-full border px-2 py-1 text-[9px] uppercase tracking-wide ${tone(entry.riskLevel)}`}>
-                    {entry.riskLevel}
+                  <span className={`rounded-full border px-2 py-1 text-[9px] uppercase tracking-wide ${tone(currency.health.riskLevel)}`}>
+                    {riskLabel(currency.health.riskLevel)}
                   </span>
                 </div>
 
@@ -97,17 +89,13 @@ export default function FinancialHealthScore({
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-semibold text-white">
-                      {entry.label}
-                    </div>
-                    <div className="mt-2 text-[10px] uppercase tracking-wide text-gray-500">
-                      Cash flow
-                    </div>
+                    <div className="text-sm font-semibold text-white">{currency.health.label}</div>
+                    <div className="mt-2 text-[10px] uppercase tracking-wide text-gray-500">Cash flow</div>
                     <div className="mt-1 truncate text-xs font-semibold tabular-nums text-gray-200">
-                      {formatMinor(entry.cashFlowMinor)} {entry.currencyCode}
+                      {formatMinor(currency.netMinor)} {currency.currencyCode}
                     </div>
                     <div className="mt-2 text-[10px] text-gray-500">
-                      {entry.budgetPressureCount} of {entry.activeBudgetsCount} budgets under pressure
+                      {currency.health.budgetPressureCount} of {currency.budget.scored} budgets under pressure
                     </div>
                   </div>
                 </div>
@@ -118,7 +106,7 @@ export default function FinancialHealthScore({
       )}
 
       <p className="mt-4 text-[11px] leading-5 text-gray-500">
-        Scores are calculated independently. SSP and USD are never combined or compared without an approved FX layer.
+        Scores are calculated independently. Currencies are never combined or compared without an approved FX layer.
       </p>
     </div>
   );

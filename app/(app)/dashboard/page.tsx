@@ -988,11 +988,7 @@ export default function DashboardPage() {
           <ExecutiveKpiCards
             loading={loadingData}
             walletsCount={wallets.length}
-            balanceEntries={reconciledBalanceEntries}
-            incomeEntries={reconciledIncomeEntries}
-            expenseEntries={reconciledExpenseEntries}
-            netEntries={reconciledNetEntries}
-            monthLabel={monthLabel}
+            model={dashboardInsightModel}
           />
         </section>
 
@@ -1027,8 +1023,10 @@ export default function DashboardPage() {
               <div className="grid gap-5 xl:grid-cols-3">
                 <div className={CARD}>
                   <LargestExpenseWidget
-                    items={largestExpenseItems}
-                    monthLabel={monthLabel}
+                    model={dashboardInsightModel}
+                    walletNamesById={Object.fromEntries(
+                      wallets.map((wallet) => [wallet.id, wallet.name])
+                    )}
                   />
                 </div>
 
@@ -1042,13 +1040,9 @@ export default function DashboardPage() {
 
               <div className={CARD}>
                 <BudgetHealthWidget
+                  model={dashboardInsightModel}
                   summaries={budgetSummaries}
-                  totalBudgets={totalBudgets}
-                  budgetsOnTrack={budgetsOnTrack}
-                  budgetsAtRisk={budgetsAtRisk}
-                  budgetsOver={budgetsOver}
                   riskThreshold={RISK_THRESHOLD}
-                  monthLabel={monthLabel}
                 />
               </div>
             </div>
@@ -1089,10 +1083,7 @@ export default function DashboardPage() {
           ) : (
             <div className="grid gap-5 xl:grid-cols-12">
               <div className={`${CARD} xl:col-span-4`}>
-                <FinancialHealthScore
-                  entries={currencyHealthEntries}
-                  monthLabel={monthLabel}
-                />
+                <FinancialHealthScore model={dashboardInsightModel} />
               </div>
 
               <div className={`${CARD} xl:col-span-4`}>
@@ -1101,12 +1092,8 @@ export default function DashboardPage() {
 
               <div className={`${CARD} xl:col-span-4`}>
                 <ForecastMonthEndBalance
-                  entries={forecastEntries}
-                  scheduledOccurrencesCount={recurringForecast.totalOccurrences}
-                  activeScheduledRuleCount={recurringForecast.activeRuleCount}
-                  monthLabel={monthLabel}
+                  model={dashboardInsightModel}
                   confidence={forecastConfidence}
-                  availability={forecastReconciliation.availability}
                 />
               </div>
 
@@ -1356,9 +1343,9 @@ export default function DashboardPage() {
 
           {!loadingData && totalBudgets > 0 && (
             <BudgetInsightsPanel
+              model={dashboardInsightModel}
               summaries={budgetSummaries}
               riskThreshold={RISK_THRESHOLD}
-              monthLabel={monthLabel}
             />
           )}
 
