@@ -162,7 +162,11 @@ export default function TopCategoriesBarChart({
           {currencyCodes.length === 0 ? (
             <span className="text-gray-500">No data</span>
           ) : (
-            <div className="inline-flex rounded-full border border-gray-700 bg-black/60 p-1">
+            <div
+              className="inline-flex rounded-full border border-gray-700 bg-black/60 p-1"
+              role="group"
+              aria-label="Top spending categories currency"
+            >
               {currencyCodes.map((code) => {
                 const active = code === activeCurrency;
                 return (
@@ -170,6 +174,7 @@ export default function TopCategoriesBarChart({
                     key={code}
                     type="button"
                     onClick={() => setActiveCurrency(code)}
+                    aria-pressed={active}
                     className={`px-3 py-0.5 rounded-full text-[11px] ${
                       active
                         ? "bg-white text-black"

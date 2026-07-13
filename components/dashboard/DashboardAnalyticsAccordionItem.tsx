@@ -24,6 +24,7 @@ export default function DashboardAnalyticsAccordionItem({
   children,
 }: DashboardAnalyticsAccordionItemProps) {
   const contentId = useId();
+  const headingId = useId();
   const [isMobile, setIsMobile] = useState(matchesMobileViewport);
   const [isOpen, setIsOpen] = useState(() =>
     matchesMobileViewport() ? defaultOpenOnMobile : true
@@ -58,7 +59,10 @@ export default function DashboardAnalyticsAccordionItem({
           <span className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500">
             {kicker}
           </span>
-          <span className="mt-1 block text-[0.95rem] font-semibold tracking-tight text-white">
+          <span
+            id={headingId}
+            className="mt-1 block text-[0.95rem] font-semibold tracking-tight text-white"
+          >
             {title}
           </span>
           {description ? (
@@ -87,7 +91,12 @@ export default function DashboardAnalyticsAccordionItem({
       </button>
 
       {expanded ? (
-        <div id={contentId} className="gl-fade-in">
+        <div
+          id={contentId}
+          className="gl-fade-in"
+          role="region"
+          aria-labelledby={headingId}
+        >
           {children}
         </div>
       ) : null}

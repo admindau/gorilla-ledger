@@ -28,7 +28,11 @@ const DashboardAnalyticsAccordionItem = dynamic(
 );
 
 const ChartModuleLoading = () => (
-  <div className="flex min-h-72 items-center justify-center rounded-2xl border border-white/10 bg-black/20 text-xs text-gray-500">
+  <div
+    className="flex min-h-72 items-center justify-center rounded-2xl border border-white/10 bg-black/20 text-xs text-gray-500"
+    role="status"
+    aria-live="polite"
+  >
     Loading chart…
   </div>
 );
@@ -996,10 +1000,10 @@ export default function DashboardPage() {
   return (
     <div className="gl-page-migrated gl-dashboard-shell">
       {/* Tight top header */}
-<main className="gl-page-shell gl-dashboard-main max-w-7xl">
+<div className="gl-page-shell gl-dashboard-main max-w-7xl" aria-labelledby="dashboard-title">
         <div className="gl-dashboard-page-header">
           <div>
-            <h1 className="text-2xl font-semibold tracking-[-0.035em] sm:text-3xl">Command Center</h1>
+            <h1 id="dashboard-title" className="text-2xl font-semibold tracking-[-0.035em] sm:text-3xl">Command Center</h1>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-400">
               Premium financial intelligence across wallets, budgets, recurring flows, and activity.
             </p>
@@ -1017,7 +1021,11 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {errorMsg && <p className="mb-6 text-red-400 text-sm">{errorMsg}</p>}
+        {errorMsg && (
+          <p className="mb-6 text-red-400 text-sm" role="alert">
+            {errorMsg}
+          </p>
+        )}
 
         {/* Executive command center */}
         <section className="mb-7 sm:mb-8">
@@ -1292,8 +1300,10 @@ export default function DashboardPage() {
             </div>
             <div className="gl-dashboard-filter-controls">
               <div className="gl-dashboard-filter-field">
-                <span className="text-gray-400">Wallet:</span>
+                <label htmlFor="dashboard-wallet-filter" className="text-gray-400">Wallet:</label>
                 <select
+                  id="dashboard-wallet-filter"
+                  aria-label="Filter dashboard analytics by wallet"
                   value={walletFilter}
                   onChange={(e) => setWalletFilter(e.target.value)}
                   className="gl-dashboard-filter-select"
@@ -1307,8 +1317,10 @@ export default function DashboardPage() {
                 </select>
               </div>
               <div className="gl-dashboard-filter-field">
-                <span className="text-gray-400">Category:</span>
+                <label htmlFor="dashboard-category-filter" className="text-gray-400">Category:</label>
                 <select
+                  id="dashboard-category-filter"
+                  aria-label="Filter dashboard analytics by category"
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
                   className="gl-dashboard-filter-select"
@@ -1322,8 +1334,10 @@ export default function DashboardPage() {
                 </select>
               </div>
               <div className="gl-dashboard-filter-field">
-                <span className="text-gray-400">Year:</span>
+                <label htmlFor="dashboard-year-filter" className="text-gray-400">Year:</label>
                 <select
+                  id="dashboard-year-filter"
+                  aria-label="Filter dashboard analytics by year"
                   value={yearFilter}
                   onChange={(e) => setYearFilter(e.target.value)}
                   className="gl-dashboard-filter-select"
@@ -1624,7 +1638,7 @@ export default function DashboardPage() {
             </div>
           </details>
         </DashboardAnalyticsAccordionItem>
-      </main>
+      </div>
     </div>
   );
 }

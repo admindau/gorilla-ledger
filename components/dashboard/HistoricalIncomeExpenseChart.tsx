@@ -124,12 +124,15 @@ export default function HistoricalIncomeExpenseChart({
         </div>
 
         {hasCurrencyInfo && (
-          <div className="inline-flex rounded-full border border-gray-800 bg-black/60 p-0.5 text-[11px]">
+          <div className="inline-flex rounded-full border border-gray-800 bg-black/60 p-0.5 text-[11px]"
+            role="group"
+            aria-label="Historical income and expense currency">
             {currencies.map((code) => (
               <button
                 key={code}
                 type="button"
                 onClick={() => setActiveCurrency(code)}
+                aria-pressed={activeCurrency === code}
                 className={`px-2 py-0.5 rounded-full ${
                   activeCurrency === code
                     ? "bg-white text-black"

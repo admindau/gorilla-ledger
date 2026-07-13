@@ -94,7 +94,7 @@ export default function AppTopNav() {
           <Link href="/dashboard" className="gl-app-brand" aria-label="Go to dashboard">
             Gorilla Ledger™
           </Link>
-          <div className="gl-app-current-section">{activeLabel}</div>
+          <div className="gl-app-current-section" aria-live="polite">{activeLabel}</div>
         </div>
 
         <nav className="gl-app-nav" aria-label="Primary navigation">
@@ -117,7 +117,7 @@ export default function AppTopNav() {
         <div className="gl-app-nav-meta">
           <div className="hidden lg:flex min-w-0 flex-col items-end leading-tight">
             {email ? <span className="max-w-[220px] truncate text-xs text-gray-300">{email}</span> : null}
-            <span className="text-[10px] uppercase tracking-[0.16em] text-gray-500">
+            <span className="text-[10px] uppercase tracking-[0.16em] text-gray-500" aria-live="polite">
               MFA {mfaEnabled ? "enabled" : mfaEnabled === false ? "off" : "checking"} · {formatLastSecurityCheck(lastCheckAt)}
             </span>
           </div>
