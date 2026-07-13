@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useId, useState } from "react";
 
 type DashboardAnalyticsAccordionItemProps = {
   title: string;
@@ -17,6 +17,7 @@ export default function DashboardAnalyticsAccordionItem({
   defaultOpenOnMobile = false,
   children,
 }: DashboardAnalyticsAccordionItemProps) {
+  const contentId = useId();
   const [isMobile, setIsMobile] = useState(false);
   const [isOpen, setIsOpen] = useState(defaultOpenOnMobile);
 
@@ -25,8 +26,7 @@ export default function DashboardAnalyticsAccordionItem({
     const update = () => {
       const mobile = query.matches;
       setIsMobile(mobile);
-      if (!mobile) setIsOpen(true);
-      if (mobile) setIsOpen(defaultOpenOnMobile);
+      setIsOpen(mobile ? defaultOpenOnMobile : true);
     };
 
     update();
@@ -37,18 +37,19 @@ export default function DashboardAnalyticsAccordionItem({
   const expanded = !isMobile || isOpen;
 
   return (
-    <section className="mb-7 md:mb-12">
+    <section className="gl-dashboard-section">
       <button
         type="button"
         onClick={() => setIsOpen((value) => !value)}
-        className="gl-motion mb-3 flex w-full items-center justify-between gap-4 rounded-[1.25rem] border border-white/10 bg-white/[0.025] px-4 py-3 text-left hover:border-white/20 md:hidden"
+        className="gl-dashboard-accordion-trigger md:hidden"
         aria-expanded={expanded}
+        aria-controls={contentId}
       >
-        <span>
-          <span className="block text-[10px] uppercase tracking-[0.2em] text-gray-500">
+        <span className="min-w-0">
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500">
             {kicker}
           </span>
-          <span className="mt-1 block text-sm font-semibold tracking-tight text-white">
+          <span className="mt-1 block text-[0.95rem] font-semibold tracking-tight text-white">
             {title}
           </span>
           {description ? (
@@ -58,18 +59,17 @@ export default function DashboardAnalyticsAccordionItem({
           ) : null}
         </span>
 
-        <span className="gl-motion flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/50 text-lg leading-none text-gray-200">
-          {expanded ? "−" : "+"}
+        <span
+          className={`gl-dashboard-accordion-icon ${expanded ? "is-open" : ""}`}
+          aria-hidden="true"
+        >
+          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m5 7.5 5 5 5-5" />
+          </svg>
         </span>
       </button>
 
-      <div
-        className={[
-          "overflow-hidden transition-all duration-300 ease-out",
-          expanded ? "max-h-[5000px] opacity-100" : "max-h-0 opacity-0",
-        ].join(" ")}
-        aria-hidden={!expanded}
-      >
+      <div id={contentId} hidden={!expanded} aria-hidden={!expanded}>
         <div className={expanded ? "gl-fade-in" : ""}>{children}</div>
       </div>
     </section>

@@ -830,8 +830,8 @@ export default function DashboardPage() {
     : "Not recorded";
 
   // ---------- Visual system ----------
-  const CARD = "gl-premium-card rounded-[1.35rem] p-5";
-  const CHART_CARD = "gl-premium-card gl-chart-card rounded-[1.45rem] p-5 sm:p-6";
+  const CARD = "gl-premium-card rounded-[1.35rem] p-4 sm:p-5";
+  const CHART_CARD = "gl-premium-card gl-chart-card min-w-0 overflow-hidden rounded-[1.45rem] p-3.5 sm:p-6";
   const CARD_TIGHT = "gl-premium-card rounded-[1.2rem] p-4";
   const KPI_CARD = "gl-premium-card rounded-[1.2rem] p-4";
   const SECTION_DIVIDER = "h-px bg-gray-800/80";
@@ -850,33 +850,23 @@ export default function DashboardPage() {
   return (
     <div className="gl-page-migrated gl-dashboard-shell">
       {/* Tight top header */}
-<main className="gl-page-shell max-w-7xl">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+<main className="gl-page-shell gl-dashboard-main max-w-7xl">
+        <div className="gl-dashboard-page-header">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Command Center</h1>
-            <p className="text-gray-400 text-sm">
+            <h1 className="text-2xl font-semibold tracking-[-0.035em] sm:text-3xl">Command Center</h1>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-400">
               Premium financial intelligence across wallets, budgets, recurring flows, and activity.
             </p>
           </div>
 
           {/* Month selector */}
-          <div className="inline-flex items-center gap-2 text-sm">
-            <button
-              type="button"
-              onClick={goToPreviousMonth}
-              className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
-            >
-              ◀
+          <div className="gl-month-switcher" role="group" aria-label="Dashboard month navigation">
+            <button type="button" onClick={goToPreviousMonth} className="gl-month-switcher-button" aria-label="Previous month">
+              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m12.5 5-5 5 5 5" /></svg>
             </button>
-            <div className="px-3 py-1 border border-gray-800 rounded-full bg-black/40 text-xs uppercase tracking-wide text-gray-300">
-              {monthLabel}
-            </div>
-            <button
-              type="button"
-              onClick={goToNextMonth}
-              className="px-2 py-1 border border-gray-700 rounded hover:bg-gray-900"
-            >
-              ▶
+            <div className="gl-month-switcher-label" aria-live="polite">{monthLabel}</div>
+            <button type="button" onClick={goToNextMonth} className="gl-month-switcher-button" aria-label="Next month">
+              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m7.5 5 5 5-5 5" /></svg>
             </button>
           </div>
         </div>
@@ -884,7 +874,7 @@ export default function DashboardPage() {
         {errorMsg && <p className="mb-6 text-red-400 text-sm">{errorMsg}</p>}
 
         {/* Executive command center */}
-        <section className="mb-8">
+        <section className="mb-7 sm:mb-8">
           {loadingData ? (
             <div className={CARD}>
               <Skeleton className="h-64 w-full" rounded="2xl" />
@@ -908,7 +898,7 @@ export default function DashboardPage() {
         </section>
 
         {/* Executive KPI cards */}
-        <section className="mb-8">
+        <section className="mb-7 sm:mb-8">
           <ExecutiveKpiCards
             loading={loadingData}
             walletsCount={wallets.length}
@@ -917,7 +907,7 @@ export default function DashboardPage() {
         </section>
 
         {/* Activity snapshot */}
-        <section className="mb-10">
+        <section className="mb-9 sm:mb-10">
           <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-3">
             <div>
               <h2 className="text-lg font-semibold tracking-tight">
@@ -974,7 +964,7 @@ export default function DashboardPage() {
         </section>
 
         {/* Gorilla Intelligence */}
-        <section className="mb-12 gl-intelligence-suite rounded-[1.75rem] p-4 sm:p-6">
+        <section className="mb-10 gl-intelligence-suite rounded-[1.5rem] p-3.5 sm:mb-12 sm:rounded-[1.75rem] sm:p-6">
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <span className="gl-section-eyebrow">Premium intelligence layer</span>
@@ -1005,31 +995,31 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : (
-            <div className="grid gap-5 xl:grid-cols-12">
-              <div className={`${CARD} xl:col-span-4`}>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-12 xl:gap-5">
+              <div className={`${CARD} md:col-span-1 xl:col-span-4`}>
                 <FinancialHealthScore model={dashboardInsightModel} />
               </div>
 
-              <div className={`${CARD} xl:col-span-4`}>
+              <div className={`${CARD} md:col-span-1 xl:col-span-4`}>
                 <SmartAlertsPanel alerts={smartAlerts} riskLevel={executiveRiskLevel} />
               </div>
 
-              <div className={`${CARD} xl:col-span-4`}>
+              <div className={`${CARD} md:col-span-1 xl:col-span-4`}>
                 <ForecastMonthEndBalance
                   model={dashboardInsightModel}
                   confidence={forecastConfidence}
                 />
               </div>
 
-              <div className={`${CARD} xl:col-span-4`}>
+              <div className={`${CARD} md:col-span-1 xl:col-span-4`}>
                 <ExecutiveInsightsPanel model={dashboardInsightModel} />
               </div>
 
-              <div className={`${CARD} xl:col-span-4`}>
+              <div className={`${CARD} md:col-span-1 xl:col-span-4`}>
                 <SmartInsightsPanel model={dashboardInsightModel} />
               </div>
 
-              <div className={`${CARD} xl:col-span-4`}>
+              <div className={`${CARD} md:col-span-1 xl:col-span-4`}>
                 <AiInsightsSidebar model={dashboardInsightModel} />
               </div>
             </div>
@@ -1148,21 +1138,21 @@ export default function DashboardPage() {
         </DashboardAnalyticsAccordionItem>
 
         {/* Chart filters */}
-        <section className="mb-12 sticky top-0 z-30 -mx-4 px-4 pt-4 pb-4 bg-black/75 backdrop-blur-xl border-b border-white/10">
-          <div className="gl-chart-filterbar rounded-[1.35rem] p-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <section className="gl-dashboard-filter-dock">
+          <div className="gl-chart-filterbar rounded-[1.35rem] p-3.5 sm:p-4 lg:flex lg:items-center lg:justify-between lg:gap-6">
             <div>
               <span className="gl-section-eyebrow">Analytics command bar</span>
               <p className="mt-2 text-[11px] text-gray-400">
                 Tune the lens for category, wallet, and long-term chart analysis.
               </p>
             </div>
-            <div className="flex flex-wrap gap-3 text-xs">
-              <div className="flex items-center gap-1">
+            <div className="gl-dashboard-filter-controls">
+              <div className="gl-dashboard-filter-field">
                 <span className="text-gray-400">Wallet:</span>
                 <select
                   value={walletFilter}
                   onChange={(e) => setWalletFilter(e.target.value)}
-                  className="rounded-full border border-white/15 bg-black/70 px-3 py-1.5 text-xs text-gray-100 outline-none transition hover:border-white/30"
+                  className="gl-dashboard-filter-select"
                 >
                   <option value="all">All wallets</option>
                   {wallets.map((w) => (
@@ -1172,12 +1162,12 @@ export default function DashboardPage() {
                   ))}
                 </select>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="gl-dashboard-filter-field">
                 <span className="text-gray-400">Category:</span>
                 <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="rounded-full border border-white/15 bg-black/70 px-3 py-1.5 text-xs text-gray-100 outline-none transition hover:border-white/30"
+                  className="gl-dashboard-filter-select"
                 >
                   <option value="all">All categories</option>
                   {categories.map((c) => (
@@ -1187,12 +1177,12 @@ export default function DashboardPage() {
                   ))}
                 </select>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="gl-dashboard-filter-field">
                 <span className="text-gray-400">Year:</span>
                 <select
                   value={yearFilter}
                   onChange={(e) => setYearFilter(e.target.value)}
-                  className="rounded-full border border-white/15 bg-black/70 px-3 py-1.5 text-xs text-gray-100 outline-none transition hover:border-white/30"
+                  className="gl-dashboard-filter-select"
                 >
                   <option value="all">All years</option>
                   {chartYearOptions.map((y) => (
@@ -1213,7 +1203,7 @@ export default function DashboardPage() {
             <h2 className="text-xl font-semibold tracking-tight">Spending composition</h2>
             <p className="text-[12px] text-gray-400">Ranked category views for the selected filters.</p>
           </div>
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid min-w-0 gap-4 lg:grid-cols-2 lg:gap-5">
             <div className={CHART_CARD}>
               <h2 className="text-lg font-semibold tracking-tight mb-3">
                 Spending by Category – {monthLabel}
@@ -1463,7 +1453,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="grid gap-5 lg:grid-cols-2">
+            <div className="grid min-w-0 gap-4 lg:grid-cols-2 lg:gap-5">
               <div className={CHART_CARD}>
                 {loadingData ? (
                   <Skeleton className={SK_CHART_TALL} rounded="2xl" />

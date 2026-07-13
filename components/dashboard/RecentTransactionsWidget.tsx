@@ -45,7 +45,7 @@ export default function RecentTransactionsWidget({
         </div>
         <a
           href="/transactions"
-          className="rounded-full border border-gray-800 px-3 py-1 text-[11px] text-gray-300 transition hover:bg-white hover:text-black"
+          className="gl-dashboard-link-button"
         >
           View all
         </a>
@@ -56,7 +56,7 @@ export default function RecentTransactionsWidget({
           No recent transactions for this month yet.
         </div>
       ) : (
-        <div className="mt-5 divide-y divide-white/10 gl-inner-card rounded-2xl">
+        <div className="mt-5 divide-y divide-white/10 overflow-hidden gl-inner-card rounded-2xl">
           {transactions.map((tx) => {
             const isIncome = tx.type === "income";
             const sign = isIncome ? "+" : "-";
@@ -64,10 +64,10 @@ export default function RecentTransactionsWidget({
             return (
               <div
                 key={tx.id}
-                className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                className="flex items-center justify-between gap-3 px-3.5 py-3 sm:px-4"
               >
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
                     <span className="truncate text-sm font-medium text-white">
                       {tx.categoryName}
                     </span>
@@ -81,7 +81,7 @@ export default function RecentTransactionsWidget({
                 </div>
 
                 <div
-                  className={`shrink-0 text-sm font-semibold tabular-nums ${
+                  className={`max-w-[48%] shrink-0 text-right text-sm font-semibold tabular-nums ${
                     isIncome ? "text-gray-100" : "text-gray-300"
                   }`}
                 >

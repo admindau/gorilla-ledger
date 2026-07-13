@@ -1156,3 +1156,267 @@ body {
     margin-bottom: var(--gl-space-xl);
   }
 }
+
+/* GL-QA-01C — Dashboard UX & Responsive Certification */
+.gl-dashboard-main {
+  overflow-x: clip;
+}
+
+.gl-dashboard-page-header {
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.gl-month-switcher {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 999px;
+  background: rgba(0,0,0,0.56);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.gl-month-switcher-button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  color: rgb(209 213 219);
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.gl-month-switcher-button:hover {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+
+.gl-month-switcher-button:focus-visible,
+.gl-dashboard-accordion-trigger:focus-visible,
+.gl-dashboard-link-button:focus-visible,
+.gl-dashboard-filter-select:focus-visible {
+  outline: 2px solid rgba(255,255,255,0.78);
+  outline-offset: 2px;
+}
+
+.gl-month-switcher-label {
+  min-width: 0;
+  border-inline: 1px solid rgba(255,255,255,0.08);
+  padding: 0.75rem 0.75rem;
+  text-align: center;
+  color: rgb(229 231 235);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.gl-dashboard-section {
+  margin-bottom: 1.75rem;
+  scroll-margin-top: 9rem;
+}
+
+.gl-dashboard-accordion-trigger {
+  margin-bottom: 0.75rem;
+  display: flex;
+  min-height: 4.75rem;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 1.15rem;
+  background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.018));
+  padding: 0.9rem 1rem;
+  text-align: left;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.gl-dashboard-accordion-icon {
+  display: inline-flex;
+  height: 2.25rem;
+  width: 2.25rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 999px;
+  background: rgba(0,0,0,0.48);
+  color: rgb(229 231 235);
+  transition: transform 200ms var(--gl-ease), border-color 200ms ease;
+}
+
+.gl-dashboard-accordion-icon.is-open {
+  transform: rotate(180deg);
+  border-color: rgba(255,255,255,0.22);
+}
+
+.gl-dashboard-link-button {
+  display: inline-flex;
+  min-height: 2.25rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 999px;
+  padding: 0.45rem 0.75rem;
+  color: rgb(209 213 219);
+  font-size: 0.7rem;
+  font-weight: 650;
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.gl-dashboard-link-button:hover {
+  border-color: rgba(255,255,255,0.28);
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+
+.gl-dashboard-filter-dock {
+  position: sticky;
+  top: 6.4rem;
+  z-index: 30;
+  margin: 0 -1rem 2rem;
+  border-block: 1px solid rgba(255,255,255,0.08);
+  background: rgba(2,2,2,0.84);
+  padding: 0.75rem 1rem;
+  backdrop-filter: blur(20px);
+}
+
+.gl-dashboard-filter-controls {
+  margin-top: 0.9rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.65rem;
+}
+
+.gl-dashboard-filter-field {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+  color: rgb(156 163 175);
+  font-size: 0.75rem;
+}
+
+.gl-dashboard-filter-select {
+  min-height: 2.45rem;
+  min-width: 0;
+  width: 100%;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 0.9rem;
+  background: rgba(0,0,0,0.72);
+  padding: 0.55rem 0.75rem;
+  color: rgb(243 244 246);
+  font-size: 0.75rem;
+  outline: none;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.gl-dashboard-filter-select:hover {
+  border-color: rgba(255,255,255,0.28);
+}
+
+.gl-chart-card {
+  container-type: inline-size;
+}
+
+.gl-chart-card .recharts-responsive-container {
+  min-width: 0 !important;
+}
+
+@media (min-width: 640px) {
+  .gl-dashboard-page-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .gl-month-switcher {
+    width: auto;
+    min-width: 15rem;
+  }
+
+  .gl-dashboard-section {
+    margin-bottom: 3rem;
+  }
+
+  .gl-dashboard-filter-dock {
+    margin-inline: -1.5rem;
+    padding-inline: 1.5rem;
+  }
+
+  .gl-dashboard-filter-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .gl-dashboard-filter-field {
+    grid-template-columns: auto minmax(7.5rem, 1fr);
+  }
+}
+
+@media (min-width: 768px) {
+  .gl-dashboard-filter-dock {
+    top: 4.75rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .gl-dashboard-filter-controls {
+    margin-top: 0;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .gl-dashboard-filter-field {
+    display: flex;
+  }
+
+  .gl-dashboard-filter-select {
+    width: auto;
+    min-width: 8.75rem;
+    border-radius: 999px;
+  }
+}
+
+@media (max-width: 639px) {
+  .gl-dashboard-main {
+    padding-top: 1.25rem !important;
+  }
+
+  .gl-premium-card:hover {
+    transform: none;
+  }
+
+  .gl-chart-card {
+    border-radius: 1.1rem !important;
+  }
+
+  .gl-chart-card .recharts-legend-wrapper {
+    max-width: calc(100vw - 3rem) !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .gl-chart-card .recharts-legend-wrapper::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gl-fade-in,
+  .gl-motion,
+  .gl-premium-card,
+  .gl-dashboard-accordion-icon,
+  .gl-month-switcher-button {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
