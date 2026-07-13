@@ -12,7 +12,14 @@ import {
   Legend,
 } from "recharts";
 import ChartTooltip from "@/components/charts/ChartTooltip";
+import ChartLegend from "@/components/charts/ChartLegend";
 import { chartMargins, chartTheme } from "@/components/charts/chartTheme";
+import {
+  formatCompactAxisValue,
+  formatDailyAxisLabel,
+  formatDailyTooltipLabel,
+  getAdaptiveTickGap,
+} from "@/components/charts/chartUtils";
 
 type TimeSeriesPoint = {
   // we support multiple possible keys so the component is flexible
@@ -37,39 +44,6 @@ function getDateLabel(row: TimeSeriesPoint): string {
   return row.day ?? row.date ?? row.month ?? "";
 }
 
-function formatDateLabel(label: string): string {
-  if (!label) return "";
-
-  const parts = label.split("-");
-
-  // Daily label: YYYY-MM-DD -> "24 Dec"
-  if (parts.length === 3) {
-    const [year, month, day] = parts;
-    const date = new Date(Number(year), Number(month) - 1, Number(day));
-    if (!Number.isNaN(date.getTime())) {
-      return date.toLocaleDateString(undefined, {
-        day: "2-digit",
-        month: "short",
-      });
-    }
-    return label;
-  }
-
-  // Monthly label: YYYY-MM -> "Dec 2025"
-  if (parts.length === 2) {
-    const [year, month] = parts;
-    const date = new Date(Number(year), Number(month) - 1, 1);
-    if (!Number.isNaN(date.getTime())) {
-      return date.toLocaleDateString(undefined, {
-        month: "short",
-        year: "numeric",
-      });
-    }
-    return label;
-  }
-
-  return label;
-}
 
 function formatNumber(value: number): string {
   return value.toLocaleString(undefined, {
@@ -140,17 +114,6 @@ export default function MonthlyIncomeExpenseChart({
 
   const hasData = chartData.length > 0;
 
-  /**
-   * Tick density: show fewer x-axis ticks as the series grows.
-   * For a monthly daily series (~28–31 points), this will keep labels readable.
-   */
-  const xInterval = useMemo(() => {
-    const n = chartData.length;
-    if (n <= 10) return 0; // show all
-    if (n <= 20) return 1; // every 2nd tick
-    if (n <= 35) return 3; // about weekly spacing
-    return Math.max(1, Math.floor(n / 10));
-  }, [chartData.length]);
 
   return (
     <section className="mt-2">
@@ -193,23 +156,28 @@ export default function MonthlyIncomeExpenseChart({
         <div className="gl-card gl-chart-surface h-80 p-4">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={chartMargins.line}>
-              <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} />
+              <CartesianGrid
+                vertical={false}
+                strokeDasharray="4 8"
+                stroke={chartTheme.gridStroke}
+              />
 
               <XAxis
                 dataKey="label"
-                tickFormatter={(v) => formatDateLabel(String(v))}
+                tickFormatter={(v) => formatDailyAxisLabel(String(v))}
                 tick={{ fontSize: 10, fill: chartTheme.tickFill }}
                 axisLine={{ stroke: chartTheme.axisStroke }}
-                tickLine={{ stroke: chartTheme.axisStroke }}
-                minTickGap={18}
-                interval={xInterval}
+                tickLine={false}
+                minTickGap={getAdaptiveTickGap(chartData.length)}
+                interval="preserveStartEnd"
+                padding={{ left: 8, right: 8 }}
               />
 
               <YAxis
                 tick={{ fontSize: 10, fill: chartTheme.tickFill }}
                 axisLine={{ stroke: chartTheme.axisStroke }}
-                tickLine={{ stroke: chartTheme.axisStroke }}
-                tickFormatter={(v) => Number(v).toLocaleString()}
+                tickLine={false}
+                tickFormatter={(v) => formatCompactAxisValue(Number(v))}
               />
 
               <Tooltip
@@ -217,7 +185,7 @@ export default function MonthlyIncomeExpenseChart({
                 content={                    
                   <ChartTooltip
                     labelFormatter={(label) =>
-                      `Date: ${formatDateLabel(String(label))}`
+                      formatDailyTooltipLabel(String(label))
                     }
                     valueFormatter={(value) => {
                       if (value == null) return "";
@@ -232,10 +200,9 @@ export default function MonthlyIncomeExpenseChart({
               />
 
               <Legend
-                wrapperStyle={{
-                  fontSize: 11,
-                  color: "#d1d5db",
-                }}
+                verticalAlign="bottom"
+                height={34}
+                content={<ChartLegend />}
               />
 
               <Line
@@ -243,16 +210,22 @@ export default function MonthlyIncomeExpenseChart({
                 dataKey="income"
                 name="Income"
                 stroke={chartTheme.lineIncome}
-                strokeWidth={1.8}
+                strokeWidth={2}
                 dot={false}
+                activeDot={{ r: 4, strokeWidth: 2, fill: "#050505" }}
+                isAnimationActive
+                animationDuration={650}
               />
               <Line
                 type="monotone"
                 dataKey="expense"
                 name="Expenses"
                 stroke={chartTheme.lineExpense}
-                strokeWidth={1.8}
+                strokeWidth={2}
                 dot={false}
+                activeDot={{ r: 4, strokeWidth: 2, fill: "#050505" }}
+                isAnimationActive
+                animationDuration={650}
               />
             </LineChart>
           </ResponsiveContainer>

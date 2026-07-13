@@ -1,9 +1,9 @@
 export const chartTheme = {
-  gridStroke: "rgba(255,255,255,0.08)",
-  axisStroke: "rgba(255,255,255,0.14)",
-  tickFill: "rgba(255,255,255,0.58)",
-  tickFillStrong: "rgba(255,255,255,0.74)",
-  cursorFill: "rgba(255,255,255,0.045)",
+  gridStroke: "rgba(255,255,255,0.055)",
+  axisStroke: "rgba(255,255,255,0.10)",
+  tickFill: "rgba(255,255,255,0.56)",
+  tickFillStrong: "rgba(255,255,255,0.76)",
+  cursorFill: "rgba(255,255,255,0.035)",
   tooltipWrapper: {
     zIndex: 80,
     pointerEvents: "none" as const,
@@ -27,8 +27,8 @@ export const chartTheme = {
 };
 
 export const chartMargins = {
-  line: { top: 14, right: 18, bottom: 12, left: 8 },
-  bar: { top: 14, right: 16, bottom: 42, left: 8 },
-  compactBar: { top: 14, right: 16, bottom: 56, left: 8 },
+  line: { top: 18, right: 22, bottom: 18, left: 10 },
+  bar: { top: 18, right: 20, bottom: 46, left: 10 },
+  compactBar: { top: 18, right: 20, bottom: 60, left: 10 },
   pie: { top: 12, right: 12, bottom: 12, left: 12 },
 };

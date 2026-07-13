@@ -12,7 +12,14 @@ import {
   Legend,
 } from "recharts";
 import ChartTooltip from "@/components/charts/ChartTooltip";
+import ChartLegend from "@/components/charts/ChartLegend";
 import { chartMargins, chartTheme } from "@/components/charts/chartTheme";
+import {
+  formatCompactAxisValue,
+  formatDailyAxisLabel,
+  formatDailyTooltipLabel,
+  getAdaptiveTickGap,
+} from "@/components/charts/chartUtils";
 
 type Point = {
   day?: string; // "2025-11-18"
@@ -36,37 +43,6 @@ function getRawDate(row: Point): string {
   return row.day ?? row.date ?? row.month ?? "";
 }
 
-function formatDateLabel(label: string): string {
-  if (!label) return "";
-  const parts = label.split("-");
-
-  // Daily: YYYY-MM-DD -> "24 Dec 25"
-  if (parts.length === 3) {
-    const [year, month, day] = parts;
-    const d = new Date(Number(year), Number(month) - 1, Number(day));
-    if (!Number.isNaN(d.getTime())) {
-      return d.toLocaleDateString(undefined, {
-        day: "2-digit",
-        month: "short",
-        year: "2-digit",
-      });
-    }
-  }
-
-  // Monthly: YYYY-MM -> "Dec 25" (future-proof)
-  if (parts.length === 2) {
-    const [year, month] = parts;
-    const d = new Date(Number(year), Number(month) - 1, 1);
-    if (!Number.isNaN(d.getTime())) {
-      return d.toLocaleDateString(undefined, {
-        month: "short",
-        year: "2-digit",
-      });
-    }
-  }
-
-  return label;
-}
 
 function formatNumber(value: number): string {
   return value.toLocaleString(undefined, {
@@ -151,13 +127,6 @@ export default function CumulativeNetBalanceChart({
 
   const hasData = chartData.length > 0;
 
-  // Tick density for long all-time series
-  const xInterval = useMemo(() => {
-    const n = chartData.length;
-    if (n <= 45) return 3; // roughly weekly
-    if (n <= 180) return Math.max(1, Math.floor(n / 10)); // ~10 ticks
-    return Math.max(1, Math.floor(n / 12)); // ~12 ticks on long horizons
-  }, [chartData.length]);
 
   return (
     <section className="mt-2">
@@ -200,23 +169,28 @@ export default function CumulativeNetBalanceChart({
         <div className="gl-card gl-chart-surface h-80 p-4">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={chartMargins.line}>
-              <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} />
+              <CartesianGrid
+                vertical={false}
+                strokeDasharray="4 8"
+                stroke={chartTheme.gridStroke}
+              />
 
               <XAxis
                 dataKey="label"
-                tickFormatter={formatDateLabel}
+                tickFormatter={(value) => formatDailyAxisLabel(String(value))}
                 tick={{ fontSize: 10, fill: chartTheme.tickFill }}
                 axisLine={{ stroke: chartTheme.axisStroke }}
-                tickLine={{ stroke: chartTheme.axisStroke }}
-                minTickGap={18}
-                interval={xInterval}
+                tickLine={false}
+                minTickGap={getAdaptiveTickGap(chartData.length)}
+                interval="preserveStartEnd"
+                padding={{ left: 8, right: 8 }}
               />
 
               <YAxis
                 tick={{ fontSize: 10, fill: chartTheme.tickFill }}
                 axisLine={{ stroke: chartTheme.axisStroke }}
-                tickLine={{ stroke: chartTheme.axisStroke }}
-                tickFormatter={(v) => Number(v).toLocaleString()}
+                tickLine={false}
+                tickFormatter={(v) => formatCompactAxisValue(Number(v))}
               />
 
               <Tooltip
@@ -224,7 +198,7 @@ export default function CumulativeNetBalanceChart({
                 content={                    
                   <ChartTooltip
                     labelFormatter={(label) =>
-                      `Date: ${formatDateLabel(String(label))}`
+                      formatDailyTooltipLabel(String(label))
                     }
                     valueFormatter={(value, name) => {
                       const numeric =
@@ -239,10 +213,9 @@ export default function CumulativeNetBalanceChart({
               />
 
               <Legend
-                wrapperStyle={{
-                  fontSize: 11,
-                  color: "#d1d5db",
-                }}
+                verticalAlign="bottom"
+                height={34}
+                content={<ChartLegend />}
               />
 
               <Line
@@ -250,8 +223,11 @@ export default function CumulativeNetBalanceChart({
                 dataKey="cumulativeNetFlow"
                 name="Cumulative net flow"
                 stroke={chartTheme.lineIncome}
-                strokeWidth={2}
+                strokeWidth={2.2}
                 dot={false}
+                activeDot={{ r: 4, strokeWidth: 2, fill: "#050505" }}
+                isAnimationActive
+                animationDuration={650}
               />
             </LineChart>
           </ResponsiveContainer>

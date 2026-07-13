@@ -12,7 +12,14 @@ import {
   Legend,
 } from "recharts";
 import ChartTooltip from "@/components/charts/ChartTooltip";
+import ChartLegend from "@/components/charts/ChartLegend";
 import { chartMargins, chartTheme } from "@/components/charts/chartTheme";
+import {
+  formatCompactAxisValue,
+  formatMonthlyAxisLabel,
+  formatMonthlyTooltipLabel,
+  getAdaptiveTickGap,
+} from "@/components/charts/chartUtils";
 
 type Point = {
   // incoming shape (daily or monthly)
@@ -49,17 +56,6 @@ function getMonthKey(row: Point): string {
   return raw;
 }
 
-function formatMonthLabel(label: string): string {
-  if (!label) return "";
-  const [year, month] = label.split("-");
-  if (!year || !month) return label;
-  const d = new Date(Number(year), Number(month) - 1, 1);
-  if (Number.isNaN(d.getTime())) return label;
-  return d.toLocaleDateString(undefined, {
-    month: "short",
-    year: "2-digit",
-  });
-}
 
 export default function FullHistoryIncomeExpenseChart({
   data,
@@ -170,21 +166,28 @@ export default function FullHistoryIncomeExpenseChart({
         <div className="gl-card gl-chart-surface h-80 p-4">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={chartMargins.line}>
-              <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} />
+              <CartesianGrid
+                vertical={false}
+                strokeDasharray="4 8"
+                stroke={chartTheme.gridStroke}
+              />
 
               <XAxis
                 dataKey="label"
-                tickFormatter={formatMonthLabel}
+                tickFormatter={(value) => formatMonthlyAxisLabel(String(value))}
                 tick={{ fontSize: 10, fill: chartTheme.tickFill }}
                 axisLine={{ stroke: chartTheme.axisStroke }}
-                tickLine={{ stroke: chartTheme.axisStroke }}
+                tickLine={false}
+                minTickGap={getAdaptiveTickGap(chartData.length)}
+                interval="preserveStartEnd"
+                padding={{ left: 8, right: 8 }}
               />
 
               <YAxis
                 tick={{ fontSize: 10, fill: chartTheme.tickFill }}
                 axisLine={{ stroke: chartTheme.axisStroke }}
-                tickLine={{ stroke: chartTheme.axisStroke }}
-                tickFormatter={(v) => Number(v).toLocaleString()}
+                tickLine={false}
+                tickFormatter={(v) => formatCompactAxisValue(Number(v))}
               />
 
               <Tooltip
@@ -192,7 +195,7 @@ export default function FullHistoryIncomeExpenseChart({
                 content={                    
                   <ChartTooltip
                     labelFormatter={(label) =>
-                      `Month: ${formatMonthLabel(String(label))}`
+                      formatMonthlyTooltipLabel(String(label))
                     }
                     valueFormatter={(value) => {
                       const numeric =
@@ -210,10 +213,9 @@ export default function FullHistoryIncomeExpenseChart({
               />
 
               <Legend
-                wrapperStyle={{
-                  fontSize: 11,
-                  color: "#d1d5db",
-                }}
+                verticalAlign="bottom"
+                height={34}
+                content={<ChartLegend />}
               />
 
               <Line
@@ -221,16 +223,22 @@ export default function FullHistoryIncomeExpenseChart({
                 dataKey="income"
                 name="Income"
                 stroke={chartTheme.lineIncome}
-                strokeWidth={1.8}
+                strokeWidth={2}
                 dot={false}
+                activeDot={{ r: 4, strokeWidth: 2, fill: "#050505" }}
+                isAnimationActive
+                animationDuration={650}
               />
               <Line
                 type="monotone"
                 dataKey="expense"
                 name="Expenses"
                 stroke={chartTheme.lineExpense}
-                strokeWidth={1.8}
+                strokeWidth={2}
                 dot={false}
+                activeDot={{ r: 4, strokeWidth: 2, fill: "#050505" }}
+                isAnimationActive
+                animationDuration={650}
               />
             </LineChart>
           </ResponsiveContainer>
