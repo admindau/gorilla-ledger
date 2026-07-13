@@ -14,6 +14,7 @@ type ForecastMonthEndBalanceProps = {
   activeScheduledRuleCount: number;
   monthLabel: string;
   confidence?: string;
+  availability?: "available" | "historical-unavailable";
 };
 
 function formatMinor(minor: number) {
@@ -36,6 +37,7 @@ export default function ForecastMonthEndBalance({
   activeScheduledRuleCount,
   monthLabel,
   confidence = "Low",
+  availability = "available",
 }: ForecastMonthEndBalanceProps) {
   const visibleEntries = entries.slice(0, 3);
 
@@ -67,7 +69,11 @@ export default function ForecastMonthEndBalance({
         </p>
       </div>
 
-      {visibleEntries.length === 0 ? (
+      {availability === "historical-unavailable" ? (
+        <div className="mt-3 gl-empty-state rounded-2xl p-4 text-sm text-gray-400">
+          Historical month-end forecasting is unavailable because Gorilla Ledger does not yet store balance snapshots. Select the current month or a future month for a reliable projection.
+        </div>
+      ) : visibleEntries.length === 0 ? (
         <div className="mt-3 gl-empty-state rounded-2xl p-4 text-sm text-gray-400">
           No wallet balances available yet. Create a wallet to unlock forecasting.
         </div>
@@ -130,12 +136,14 @@ export default function ForecastMonthEndBalance({
         </div>
       )}
 
+      {availability === "available" && (
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500">
         <span>{scheduledOccurrencesCount} total occurrence{scheduledOccurrencesCount === 1 ? "" : "s"}</span>
         <span>{activeScheduledRuleCount} active rule{activeScheduledRuleCount === 1 ? "" : "s"}</span>
       </div>
+      )}
 
-      {entries.length > visibleEntries.length && (
+      {availability === "available" && entries.length > visibleEntries.length && (
         <div className="mt-3 text-[11px] text-gray-500">
           +{entries.length - visibleEntries.length} more currency balance(s)
         </div>

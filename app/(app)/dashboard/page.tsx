@@ -31,7 +31,6 @@ import DashboardAnalyticsAccordionItem from "@/components/dashboard/DashboardAna
 import Skeleton from "@/components/ui/Skeleton";
 
 import { isInternalTransfer } from "@/lib/transactions/classification";
-import { buildRecurringForecast } from "@/lib/recurring/forecast";
 import {
   buildDashboardReconciliation,
   reconciliationMoneyEntries,
@@ -42,6 +41,10 @@ import {
   takeTrailingTwelveMonths,
   type DailyIncomeExpensePoint,
 } from "@/lib/dashboard/chartReconciliation";
+import {
+  buildBudgetReconciliation,
+  buildMonthEndForecastReconciliation,
+} from "@/lib/dashboard/budgetForecastReconciliation";
 
 type Wallet = {
   id: string;
@@ -552,90 +555,26 @@ export default function DashboardPage() {
         (monthExpenseByCurrency[currency] ?? 0),
     ] as const);
 
-  // Budget vs Actual for selected month
-  const budgetsThisMonth = budgets.filter(
-    (b) => b.year === selectedYear && b.month === selectedMonth + 1
-  );
-
-  const budgetSummaries = budgetsThisMonth.map((b) => {
-    const wallet = b.wallet_id ? walletMap[b.wallet_id] : null;
-    const category = categoryMap[b.category_id];
-
-    // A budget is currency-safe only when it is bound to a wallet.
-    // Walletless budgets have no currency_code in the current schema, so
-    // comparing them with transactions from multiple currencies would be invalid.
-    const currencyCode = wallet?.currency_code ?? null;
-    const isCurrencySafe = Boolean(wallet && currencyCode);
-
-    const relevantTxs = isCurrencySafe
-      ? transactions.filter((tx) => {
-          if (!isSelectedMonth(tx.occurred_at)) return false;
-          if (tx.category_id !== b.category_id) return false;
-          if (tx.wallet_id !== b.wallet_id) return false;
-          if (tx.currency_code !== currencyCode) return false;
-
-          const txCategory = tx.category_id ? categoryMap[tx.category_id] : null;
-          if (isInternalTransfer(tx, txCategory)) return false;
-
-          return true;
-        })
-      : [];
-
-    const actualMinor = relevantTxs.reduce((sum, tx) => {
-      if (!category) return sum;
-      if (category.type === "expense" && tx.type === "expense") {
-        return sum + tx.amount_minor;
-      }
-      if (category.type === "income" && tx.type === "income") {
-        return sum + tx.amount_minor;
-      }
-      return sum;
-    }, 0);
-
-    const remainingMinor = b.amount_minor - actualMinor;
-    const usedRatio = b.amount_minor > 0 ? actualMinor / b.amount_minor : 0;
-
-    return {
-      budget: b,
-      wallet,
-      category,
-      currencyCode,
-      isCurrencySafe,
-      actualMinor,
-      remainingMinor,
-      usedRatio,
-    };
+  // GL-QA-01B.3: authoritative budget-vs-actual reconciliation.
+  const RISK_THRESHOLD = 0.8;
+  const budgetReconciliation = buildBudgetReconciliation({
+    budgets,
+    wallets,
+    categories,
+    transactions,
+    selectedYear,
+    selectedMonth0: selectedMonth,
+    riskThreshold: RISK_THRESHOLD,
+    isInternalTransfer,
   });
 
-  // Budget health stats
-  const RISK_THRESHOLD = 0.8;
-
-  const totalBudgets = budgetSummaries.length;
-  const currencySafeBudgetSummaries = budgetSummaries.filter(
-    (summary) => summary.isCurrencySafe && summary.currencyCode
-  );
-  const unscoredBudgets = totalBudgets - currencySafeBudgetSummaries.length;
-  const budgetsOver = currencySafeBudgetSummaries.filter((b) => b.usedRatio > 1).length;
-  const budgetsAtRisk = currencySafeBudgetSummaries.filter(
-    (b) => b.usedRatio > RISK_THRESHOLD && b.usedRatio <= 1
-  ).length;
-  const budgetsOnTrack = Math.max(
-    0,
-    currencySafeBudgetSummaries.length - budgetsAtRisk - budgetsOver
-  );
-
-  const budgetStatsByCurrency = currencySafeBudgetSummaries.reduce<
-    Record<string, { total: number; onTrack: number; atRisk: number; over: number }>
-  >((acc, summary) => {
-    const currency = summary.currencyCode as string;
-    const stats = acc[currency] ?? { total: 0, onTrack: 0, atRisk: 0, over: 0 };
-    stats.total += 1;
-    if (summary.usedRatio > 1) stats.over += 1;
-    else if (summary.usedRatio > RISK_THRESHOLD) stats.atRisk += 1;
-    else stats.onTrack += 1;
-    acc[currency] = stats;
-    return acc;
-  }, {});
+  const budgetSummaries = budgetReconciliation.summaries;
+  const budgetStatsByCurrency = budgetReconciliation.statsByCurrency;
+  const totalBudgets = budgetReconciliation.totalBudgets;
+  const unscoredBudgets = budgetReconciliation.unscoredBudgets;
+  const budgetsOnTrack = budgetReconciliation.budgetsOnTrack;
+  const budgetsAtRisk = budgetReconciliation.budgetsAtRisk;
+  const budgetsOver = budgetReconciliation.budgetsOver;
 
 
   // Dashboard Intelligence A.2: activity snapshot widgets
@@ -758,66 +697,27 @@ export default function DashboardPage() {
   const financialHealthScore = weakestCurrencyHealth.score;
   const financialHealthLabel = weakestCurrencyHealth.label;
 
-  const selectedMonthStart = new Date(selectedYear, selectedMonth, 1);
-  const selectedMonthEnd = new Date(
-    selectedYear,
-    selectedMonth + 1,
-    0,
-    23,
-    59,
-    59,
-    999
-  );
-  const now = new Date();
-  const selectedMonthIsCurrent =
-    selectedYear === now.getFullYear() && selectedMonth === now.getMonth();
-  const selectedMonthIsFuture = selectedMonthStart.getTime() > now.getTime();
-  const forecastWindowStart = selectedMonthIsCurrent
-    ? now
-    : selectedMonthIsFuture
-    ? selectedMonthStart
-    : new Date(selectedMonthEnd.getTime() + 1);
-
-  const recurringForecast = buildRecurringForecast(
+  // GL-QA-01B.3: current balances and recurring schedules now flow through
+  // one forecast contract. Future month forecasts include every occurrence
+  // between now and the selected month-end; historical months are explicitly
+  // unavailable rather than being projected from today's balance.
+  const forecastReconciliation = buildMonthEndForecastReconciliation({
+    totalsByCurrency,
     recurringRules,
-    forecastWindowStart,
-    selectedMonthEnd
-  );
-  const recurringForecastByCurrency = Object.fromEntries(
-    recurringForecast.entries.map((entry) => [entry.currencyCode, entry] as const)
-  );
-
-  const forecastCurrencies = Array.from(
-    new Set([
-      ...Object.keys(totalsByCurrency),
-      ...recurringForecast.entries.map((entry) => entry.currencyCode),
-    ])
-  ).sort();
-
-  const forecastEntries: ForecastEntry[] = forecastCurrencies.map((currencyCode) => {
-    const currentBalanceMinor = totalsByCurrency[currencyCode] ?? 0;
-    const recurringEntry = recurringForecastByCurrency[currencyCode];
-    const scheduledIncomeMinor = recurringEntry?.scheduledIncomeMinor ?? 0;
-    const scheduledExpenseMinor = recurringEntry?.scheduledExpenseMinor ?? 0;
-
-    return {
-      currencyCode,
-      currentBalanceMinor,
-      scheduledIncomeMinor,
-      scheduledExpenseMinor,
-      scheduledOccurrencesCount:
-        recurringEntry?.scheduledOccurrencesCount ?? 0,
-      scheduledRuleCount: recurringEntry?.scheduledRuleIds.length ?? 0,
-      projectedBalanceMinor:
-        currentBalanceMinor + scheduledIncomeMinor - scheduledExpenseMinor,
-    };
+    selectedYear,
+    selectedMonth0: selectedMonth,
   });
+  const forecastEntries: ForecastEntry[] = forecastReconciliation.entries;
+  const recurringForecast = {
+    totalOccurrences: forecastReconciliation.totalOccurrences,
+    activeRuleCount: forecastReconciliation.activeRuleCount,
+    entries: forecastReconciliation.entries.map((entry) => ({
+      currencyCode: entry.currencyCode,
+      scheduledRuleIds: [] as string[],
+    })),
+  };
 
-  const scheduledRecurringThisMonth = recurringRules.filter((rule) =>
-    recurringForecast.entries.some((entry) =>
-      entry.scheduledRuleIds.includes(rule.id)
-    )
-  );
+  const scheduledRecurringRuleCount = forecastReconciliation.activeRuleCount;
   const selectedDate = new Date(selectedYear, selectedMonth, 1);
   const monthLabel = selectedDate.toLocaleString("en", {
     month: "long",
@@ -876,12 +776,12 @@ export default function DashboardPage() {
     });
   }
 
-  if (scheduledRecurringThisMonth.length > 0) {
+  if (scheduledRecurringRuleCount > 0) {
     smartAlerts.push({
       id: "recurring-scheduled",
       tone: "neutral",
       title: "Recurring activity ahead",
-      detail: `${scheduledRecurringThisMonth.length} active recurring ${scheduledRecurringThisMonth.length === 1 ? "rule is" : "rules are"} scheduled before month-end.`,
+      detail: `${scheduledRecurringRuleCount} active recurring ${scheduledRecurringRuleCount === 1 ? "rule is" : "rules are"} included in the month-end forecast.`,
     });
   }
 
@@ -1267,6 +1167,7 @@ export default function DashboardPage() {
                   activeScheduledRuleCount={recurringForecast.activeRuleCount}
                   monthLabel={monthLabel}
                   confidence={forecastConfidence}
+                  availability={forecastReconciliation.availability}
                 />
               </div>
 
@@ -1530,7 +1431,7 @@ export default function DashboardPage() {
 
           {!loadingData && totalBudgets > 0 && (
             <BudgetInsightsPanel
-              summaries={budgetSummaries as any}
+              summaries={budgetSummaries}
               riskThreshold={RISK_THRESHOLD}
               monthLabel={monthLabel}
             />
@@ -1585,7 +1486,8 @@ export default function DashboardPage() {
                     const { budget, wallet, category, actualMinor, usedRatio } =
                       item;
 
-                    const currency = wallet?.currency_code ?? "";
+                    const currency = item.currencyCode ?? wallet?.currency_code ?? "";
+                    const isScorable = item.isScorable;
                     const isExpense = category && category.type === "expense";
                     const labelVerb = isExpense ? "Spent" : "Received";
 
@@ -1603,15 +1505,15 @@ export default function DashboardPage() {
                     const barBorderClass =
                       usedPercent > 100 ? "border-white/60" : "border-gray-700";
 
-                    let statusLabel = "ON TRACK";
+                    let statusLabel = isScorable ? "ON TRACK" : "UNSCORED";
                     let statusBorder = "border-gray-700";
-                    let statusText = "text-gray-300";
+                    let statusText = isScorable ? "text-gray-300" : "text-gray-400";
 
-                    if (usedRatio > 1) {
+                    if (isScorable && usedRatio > 1) {
                       statusLabel = "OVER BUDGET";
                       statusBorder = "border-white/70";
                       statusText = "text-white";
-                    } else if (usedRatio > RISK_THRESHOLD && usedRatio <= 1) {
+                    } else if (isScorable && usedRatio > RISK_THRESHOLD && usedRatio <= 1) {
                       statusLabel = "AT RISK";
                       statusBorder = "border-gray-500";
                       statusText = "text-gray-200";
@@ -1642,12 +1544,12 @@ export default function DashboardPage() {
                         <div className="w-full md:w-1/2">
                           <div className="flex items-baseline justify-between mb-1">
                             <div className="text-sm tabular-nums">
-                              {labelVerb} {formatMinorToAmount(actualMinor)} /{" "}
-                              {formatMinorToAmount(budget.amount_minor)}{" "}
-                              {currency}
+                              {isScorable
+                                ? `${labelVerb} ${formatMinorToAmount(actualMinor)} / ${formatMinorToAmount(budget.amount_minor)} ${currency}`
+                                : item.scoringReason ?? "Budget cannot be scored"}
                             </div>
                             <div className="text-xs text-gray-400 ml-3 whitespace-nowrap tabular-nums">
-                              {usedPercent}% of budget used
+                              {isScorable ? `${usedPercent}% of budget used` : "—"}
                             </div>
                           </div>
 
@@ -1660,12 +1562,12 @@ export default function DashboardPage() {
                             />
                           </div>
 
-                          {usedPercent > 100 && (
+                          {isScorable && usedPercent > 100 && (
                             <div className="mt-1 text-[11px] text-gray-400">
                               You&apos;ve exceeded this budget.
                             </div>
                           )}
-                          {usedPercent <= 100 &&
+                          {isScorable && usedPercent <= 100 &&
                             usedRatio > RISK_THRESHOLD && (
                               <div className="mt-1 text-[11px] text-gray-400">
                                 You&apos;re approaching this budget&apos;s

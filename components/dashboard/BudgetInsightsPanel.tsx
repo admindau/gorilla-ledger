@@ -2,33 +2,7 @@
 
 import React from "react";
 
-type Budget = {
-  id: string;
-  amount_minor: number;
-};
-
-type Wallet = {
-  id: string;
-  name: string;
-  currency_code: string;
-};
-
-type Category = {
-  id: string;
-  name: string;
-  type: "income" | "expense";
-};
-
-type BudgetSummary = {
-  budget: Budget;
-  wallet: Wallet | null;
-  category?: Category;
-  currencyCode?: string | null;
-  isCurrencySafe?: boolean;
-  actualMinor: number;
-  remainingMinor: number;
-  usedRatio: number;
-};
+import type { ReconciledBudgetSummary } from "@/lib/dashboard/budgetForecastReconciliation";
 
 type Insight = {
   sortValue: number;
@@ -36,7 +10,7 @@ type Insight = {
 };
 
 type BudgetInsightsPanelProps = {
-  summaries: BudgetSummary[];
+  summaries: ReconciledBudgetSummary[];
   monthLabel: string;
   riskThreshold: number;
 };

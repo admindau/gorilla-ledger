@@ -13,6 +13,9 @@ type BudgetHealthSummary = {
   } | null;
   currencyCode?: string | null;
   isCurrencySafe?: boolean;
+  isScorable?: boolean;
+  scoringReason?: string | null;
+  status?: "healthy" | "atRisk" | "over" | "unscored";
   actualMinor: number;
   remainingMinor: number;
   usedRatio: number;
@@ -103,13 +106,13 @@ export default function BudgetHealthWidget({
       ) : (
         <div className="mt-5 grid gap-3 lg:grid-cols-2">
           {highlighted.map((item) => {
-            const isCurrencySafe = item.isCurrencySafe !== false;
+            const isCurrencySafe = item.isScorable ?? item.isCurrencySafe !== false;
             const status = isCurrencySafe
               ? statusForRatio(item.usedRatio, riskThreshold)
               : {
                   label: "Unscored",
                   className: "border-gray-700 text-gray-400",
-                  helper: "Assign this budget to a wallet to establish its currency",
+                  helper: item.scoringReason ?? "This budget cannot be scored safely",
                 };
             const usedPercent = isCurrencySafe ? Math.round(item.usedRatio * 100) : 0;
             const barPercent = Math.max(0, Math.min(usedPercent, 100));
