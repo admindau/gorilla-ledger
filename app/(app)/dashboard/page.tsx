@@ -32,6 +32,10 @@ import Skeleton from "@/components/ui/Skeleton";
 
 import { isInternalTransfer } from "@/lib/transactions/classification";
 import { buildRecurringForecast } from "@/lib/recurring/forecast";
+import {
+  buildDashboardReconciliation,
+  reconciliationMoneyEntries,
+} from "@/lib/dashboard/reconciliation";
 
 type Wallet = {
   id: string;
@@ -667,111 +671,81 @@ export default function DashboardPage() {
       walletName: walletMap[tx.wallet_id]?.name ?? "Unknown wallet",
     }));
 
-  const largestExpenseItems = Object.values(
-    selectedMonthActivityTransactions
-      .filter((tx) => tx.type === "expense")
-      .reduce<Record<string, Transaction>>((acc, tx) => {
-        const current = acc[tx.currency_code];
-        if (!current || tx.amount_minor > current.amount_minor) {
-          acc[tx.currency_code] = tx;
-        }
-        return acc;
-      }, {})
-  )
-    .sort((a, b) => a.currency_code.localeCompare(b.currency_code))
-    .map((tx) => ({
-      id: tx.id,
-      amountMinor: tx.amount_minor,
-      currencyCode: tx.currency_code,
-      occurredAt: tx.occurred_at,
-      categoryName: tx.category_id
-        ? categoryMap[tx.category_id]?.name ?? "Uncategorized"
-        : "Uncategorized",
-      walletName: walletMap[tx.wallet_id]?.name ?? "Unknown wallet",
-    }));
+  // GL-QA-01B.1: one authoritative per-currency reconciliation ledger now
+  // drives KPI values, largest transactions, and financial-health scoring.
+  const reconciliationEntries = buildDashboardReconciliation({
+    totalsByCurrency,
+    incomeByCurrency: monthIncomeByCurrency,
+    expenseByCurrency: monthExpenseByCurrency,
+    monthTransactions: selectedMonthActivityTransactions,
+    budgetStatsByCurrency,
+  });
+
+  const reconciledBalanceEntries = reconciliationMoneyEntries(
+    reconciliationEntries,
+    "balanceMinor"
+  );
+  const reconciledIncomeEntries = reconciliationMoneyEntries(
+    reconciliationEntries,
+    "incomeMinor"
+  );
+  const reconciledExpenseEntries = reconciliationMoneyEntries(
+    reconciliationEntries,
+    "expenseMinor"
+  );
+  const reconciledNetEntries = reconciliationMoneyEntries(
+    reconciliationEntries,
+    "netMinor"
+  );
+
+  const largestExpenseItems = reconciliationEntries
+    .filter((entry) => entry.largestExpense)
+    .map((entry) => {
+      const tx = entry.largestExpense as Transaction;
+      return {
+        id: tx.id,
+        amountMinor: tx.amount_minor,
+        currencyCode: entry.currencyCode,
+        occurredAt: tx.occurred_at,
+        categoryName: tx.category_id
+          ? categoryMap[tx.category_id]?.name ?? "Uncategorized"
+          : "Uncategorized",
+        walletName: walletMap[tx.wallet_id]?.name ?? "Unknown wallet",
+      };
+    });
+
+  const largestIncomeItems = reconciliationEntries
+    .filter((entry) => entry.largestIncome)
+    .map((entry) => {
+      const tx = entry.largestIncome as Transaction;
+      return {
+        id: tx.id,
+        amountMinor: tx.amount_minor,
+        currencyCode: entry.currencyCode,
+        occurredAt: tx.occurred_at,
+        categoryName: tx.category_id
+          ? categoryMap[tx.category_id]?.name ?? "Uncategorized"
+          : "Uncategorized",
+        walletName: walletMap[tx.wallet_id]?.name ?? "Unknown wallet",
+      };
+    });
 
   const activeCategoryCount = categories.filter((c) => c.type === "expense").length;
 
-  // Dashboard Intelligence A.3: currency-safe score, alerts, executive insights, and forecast
-  const activeCurrencies = Array.from(
-    new Set([
-      ...Object.keys(monthIncomeByCurrency),
-      ...Object.keys(monthExpenseByCurrency),
-      ...Object.keys(totalsByCurrency),
-      ...Object.keys(budgetStatsByCurrency),
-    ])
-  ).sort();
+  const activeCurrencies = reconciliationEntries.map(
+    (entry) => entry.currencyCode
+  );
 
-  const currencyHealthEntries: CurrencyHealthEntry[] = activeCurrencies.map(
-    (currencyCode) => {
-      const incomeMinor = monthIncomeByCurrency[currencyCode] ?? 0;
-      const expenseMinor = monthExpenseByCurrency[currencyCode] ?? 0;
-      const cashFlowMinor = incomeMinor - expenseMinor;
-      const balanceMinor = totalsByCurrency[currencyCode] ?? 0;
-      const budgetStats = budgetStatsByCurrency[currencyCode] ?? {
-        total: 0,
-        onTrack: 0,
-        atRisk: 0,
-        over: 0,
-      };
-      const budgetComplianceRatio =
-        budgetStats.total === 0
-          ? 1
-          : budgetStats.onTrack / Math.max(budgetStats.total, 1);
-      const currencyActivityCount = selectedMonthActivityTransactions.filter(
-        (tx) => tx.currency_code === currencyCode
-      ).length;
-      const activityScore = currencyActivityCount > 0 ? 15 : 5;
-      const cashFlowScore =
-        incomeMinor === 0 && expenseMinor === 0
-          ? 10
-          : cashFlowMinor >= 0
-          ? 35
-          : incomeMinor > 0
-          ? Math.max(
-              5,
-              Math.round(35 * (incomeMinor / Math.max(expenseMinor, 1)))
-            )
-          : 5;
-      const budgetScore =
-        budgetStats.total === 0
-          ? 18
-          : Math.round(30 * budgetComplianceRatio) - budgetStats.over * 4;
-      const balanceScore = balanceMinor >= 0 ? 20 : 8;
-      const score = Math.max(
-        0,
-        Math.min(
-          100,
-          cashFlowScore + Math.max(0, budgetScore) + activityScore + balanceScore
-        )
-      );
-      const label =
-        score >= 85
-          ? "Excellent"
-          : score >= 70
-          ? "Good"
-          : score >= 50
-          ? "Watch"
-          : "Needs attention";
-      const riskLevel: CurrencyHealthEntry["riskLevel"] =
-        score < 45 || budgetStats.over > 0
-          ? "Critical"
-          : score < 65 || budgetStats.atRisk > 0
-          ? "Warning"
-          : score < 80
-          ? "Watch"
-          : "Healthy";
-
-      return {
-        currencyCode,
-        score,
-        label,
-        riskLevel,
-        cashFlowMinor,
-        budgetPressureCount: budgetStats.atRisk + budgetStats.over,
-        activeBudgetsCount: budgetStats.total,
-      };
-    }
+  const currencyHealthEntries: CurrencyHealthEntry[] = reconciliationEntries.map(
+    (entry) => ({
+      currencyCode: entry.currencyCode,
+      score: entry.health.score,
+      label: entry.health.label,
+      riskLevel: entry.health.riskLevel,
+      cashFlowMinor: entry.netMinor,
+      budgetPressureCount: entry.health.budgetPressureCount,
+      activeBudgetsCount: entry.budgetStats.total,
+    })
   );
 
   const weakestCurrencyHealth = currencyHealthEntries
@@ -929,7 +903,10 @@ export default function DashboardPage() {
       const netMinor =
         (monthIncomeByCurrency[currencyCode] ?? 0) -
         (monthExpenseByCurrency[currencyCode] ?? 0);
-      const largest = largestExpenseItems.find(
+      const largestExpense = largestExpenseItems.find(
+        (item) => item.currencyCode === currencyCode
+      );
+      const largestIncome = largestIncomeItems.find(
         (item) => item.currencyCode === currencyCode
       );
       const budgetsForCurrency = budgetStatsByCurrency[currencyCode];
@@ -941,11 +918,19 @@ export default function DashboardPage() {
         id: `currency-summary-${currencyCode}`,
         label: `${currencyCode} overview`,
         value: `${formatMinorToAmount(netMinor)} ${currencyCode} net`,
-        helper: largest
-          ? `Largest expense: ${largest.categoryName}, ${formatMinorToAmount(
-              largest.amountMinor
-            )} ${currencyCode}. Budgets: ${budgetSummary}.`
-          : `No expense recorded. Budgets: ${budgetSummary}.`,
+        helper: [
+          largestIncome
+            ? `Largest income: ${largestIncome.categoryName}, ${formatMinorToAmount(
+                largestIncome.amountMinor
+              )} ${currencyCode}.`
+            : "No income recorded.",
+          largestExpense
+            ? `Largest expense: ${largestExpense.categoryName}, ${formatMinorToAmount(
+                largestExpense.amountMinor
+              )} ${currencyCode}.`
+            : "No expense recorded.",
+          `Budgets: ${budgetSummary}.`,
+        ].join(" "),
       };
     }
   );
@@ -1007,8 +992,8 @@ export default function DashboardPage() {
       : "No wallet balance yet";
 
   const executiveNetFlowSummary =
-    monthNetEntries.length > 0
-      ? monthNetEntries
+    reconciledNetEntries.length > 0
+      ? reconciledNetEntries
           .slice(0, 2)
           .map(([currency, minor]) => `${formatMinorToAmount(minor)} ${currency}`)
           .join(" · ")
@@ -1286,10 +1271,10 @@ export default function DashboardPage() {
           <ExecutiveKpiCards
             loading={loadingData}
             walletsCount={wallets.length}
-            totalsByCurrency={totalsByCurrency}
-            incomeEntries={monthIncomeEntries}
-            expenseEntries={monthExpenseEntries}
-            netEntries={monthNetEntries}
+            balanceEntries={reconciledBalanceEntries}
+            incomeEntries={reconciledIncomeEntries}
+            expenseEntries={reconciledExpenseEntries}
+            netEntries={reconciledNetEntries}
             monthLabel={monthLabel}
           />
         </section>

@@ -7,7 +7,7 @@ type MoneyEntry = readonly [string, number];
 type Props = {
   loading: boolean;
   walletsCount: number;
-  totalsByCurrency: Record<string, number>;
+  balanceEntries: MoneyEntry[];
   incomeEntries: MoneyEntry[];
   expenseEntries: MoneyEntry[];
   netEntries: MoneyEntry[];
@@ -86,14 +86,12 @@ function KpiCard({
 export default function ExecutiveKpiCards({
   loading,
   walletsCount,
-  totalsByCurrency,
+  balanceEntries,
   incomeEntries,
   expenseEntries,
   netEntries,
   monthLabel,
 }: Props) {
-  const balanceEntries = Object.entries(totalsByCurrency).sort();
-
   if (loading) {
     return (
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

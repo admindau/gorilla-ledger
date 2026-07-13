@@ -13,12 +13,11 @@ type Props = {
   monthLabel: string;
 };
 
-function totalMinor(entries: MoneyEntry[]) {
-  return entries.reduce((sum, [, minor]) => sum + minor, 0);
-}
-
 function formatMinor(minor: number) {
-  return (minor / 100).toFixed(2);
+  return (minor / 100).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function StatusPill({
@@ -54,23 +53,21 @@ export default function FinancialHealthSummary({
   budgetsOver,
   monthLabel,
 }: Props) {
-  const incomeTotal = totalMinor(incomeEntries);
-  const expenseTotal = totalMinor(expenseEntries);
-  const netTotal = totalMinor(netEntries);
-
-  const hasActivity = incomeTotal > 0 || expenseTotal > 0;
+  const hasActivity = incomeEntries.some(([, value]) => value > 0) ||
+    expenseEntries.some(([, value]) => value > 0);
+  const hasNegativeCurrency = netEntries.some(([, value]) => value < 0);
   const budgetPressure = budgetsOver > 0 || budgetsAtRisk > 0;
 
   const headline = !hasActivity
     ? "No activity yet"
-    : netTotal >= 0 && !budgetPressure
-    ? "Healthy month"
-    : netTotal >= 0 && budgetPressure
+    : hasNegativeCurrency
+    ? "Currency needs attention"
+    : budgetPressure
     ? "Watch budgets"
-    : "Negative cash flow";
+    : "Healthy month";
 
   const tone: "good" | "watch" | "neutral" =
-    !hasActivity ? "neutral" : netTotal >= 0 && !budgetPressure ? "good" : "watch";
+    !hasActivity ? "neutral" : !hasNegativeCurrency && !budgetPressure ? "good" : "watch";
 
   return (
     <div>
@@ -86,16 +83,28 @@ export default function FinancialHealthSummary({
 
       <div className="grid gap-2 text-sm">
         <div className="gl-inner-card rounded-2xl p-3">
-          <div className="text-xs text-gray-500">Net cash flow snapshot</div>
-          <div className="mt-1 text-lg font-semibold tabular-nums">
-            {netEntries.length === 0
-              ? "0.00"
-              : netEntries
-                  .map(([currency, minor]) => `${formatMinor(minor)} ${currency}`)
-                  .join(" • ")}
-          </div>
-          <p className="mt-1 text-xs text-gray-500">
-            Income minus expenses. Currencies are not converted.
+          <div className="text-xs text-gray-500">Net cash flow by currency</div>
+          {netEntries.length === 0 ? (
+            <div className="mt-2 text-lg font-semibold tabular-nums">0.00</div>
+          ) : (
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {netEntries.map(([currency, minor]) => (
+                <div key={currency} className="rounded-xl border border-gray-800 p-3">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-500">
+                    {currency}
+                  </div>
+                  <div className="mt-1 text-base font-semibold tabular-nums text-white">
+                    {formatMinor(minor)} {currency}
+                  </div>
+                  <div className="mt-1 text-[10px] text-gray-500">
+                    {minor < 0 ? "Expenses exceeded income" : minor > 0 ? "Income exceeded expenses" : "Income matched expenses"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="mt-2 text-xs text-gray-500">
+            Each currency is assessed independently. No FX conversion is applied.
           </p>
         </div>
 
@@ -114,21 +123,15 @@ export default function FinancialHealthSummary({
           ) : (
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
               <div className="rounded-xl border border-gray-800 p-2">
-                <div className="text-lg font-semibold tabular-nums">
-                  {budgetsOnTrack}
-                </div>
+                <div className="text-lg font-semibold tabular-nums">{budgetsOnTrack}</div>
                 <div className="text-gray-500">On track</div>
               </div>
               <div className="rounded-xl border border-gray-800 p-2">
-                <div className="text-lg font-semibold tabular-nums">
-                  {budgetsAtRisk}
-                </div>
+                <div className="text-lg font-semibold tabular-nums">{budgetsAtRisk}</div>
                 <div className="text-gray-500">At risk</div>
               </div>
               <div className="rounded-xl border border-gray-800 p-2">
-                <div className="text-lg font-semibold tabular-nums">
-                  {budgetsOver}
-                </div>
+                <div className="text-lg font-semibold tabular-nums">{budgetsOver}</div>
                 <div className="text-gray-500">Over</div>
               </div>
             </div>
@@ -137,11 +140,11 @@ export default function FinancialHealthSummary({
 
         <p className="text-xs leading-relaxed text-gray-500">
           {headline === "Healthy month"
-            ? "Your cash flow is positive and your budgets are currently under control."
+            ? "Every active currency has non-negative cash flow and budgets are currently under control."
             : headline === "Watch budgets"
-            ? "Cash flow is positive, but one or more budgets need attention."
-            : headline === "Negative cash flow"
-            ? "Expenses are currently higher than income for this month."
+            ? "Cash flow is non-negative across currencies, but one or more budgets need attention."
+            : headline === "Currency needs attention"
+            ? "At least one currency has negative cash flow. Review each currency independently."
             : "Add transactions and budgets to activate financial health insights."}
         </p>
       </div>
