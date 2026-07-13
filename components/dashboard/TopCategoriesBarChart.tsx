@@ -14,6 +14,7 @@ import ChartTooltip from "@/components/charts/ChartTooltip";
 import { chartMargins, chartTheme } from "@/components/charts/chartTheme";
 
 import { isInternalTransfer } from "@/lib/transactions/classification";
+import { getCalendarDateParts } from "@/lib/dashboard/chartReconciliation";
 
 type TransactionType = "income" | "expense";
 
@@ -72,9 +73,9 @@ export default function TopCategoriesBarChart({
     const sums: Record<string, Record<string, number>> = {};
 
     for (const tx of transactions) {
-      const d = new Date(tx.occurred_at);
-      if (Number.isNaN(d.getTime())) continue;
-      if (d.getFullYear() !== targetYear) continue;
+      const calendar = getCalendarDateParts(tx.occurred_at);
+      if (!calendar) continue;
+      if (calendar.year !== targetYear) continue;
 
       if (tx.type !== "expense") continue;
       if (!tx.category_id) continue;

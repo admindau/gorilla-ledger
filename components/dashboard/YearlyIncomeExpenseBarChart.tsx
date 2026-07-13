@@ -16,6 +16,7 @@ import {
 import { chartMargins, chartTheme } from "@/components/charts/chartTheme";
 
 import { isInternalTransfer } from "@/lib/transactions/classification";
+import { getCalendarDateParts } from "@/lib/dashboard/chartReconciliation";
 
 type TransactionType = "income" | "expense" | "transfer";
 
@@ -191,9 +192,9 @@ export default function YearlyIncomeExpenseBarChart({
     const filtered = transactions.filter((tx) => {
       if (walletFilter !== "all" && tx.wallet_id !== walletFilter) return false;
 
-      const d = new Date(tx.occurred_at);
-      if (Number.isNaN(d.getTime())) return false;
-      if (d.getFullYear() !== targetYear) return false;
+      const calendar = getCalendarDateParts(tx.occurred_at);
+      if (!calendar) return false;
+      if (calendar.year !== targetYear) return false;
 
       if (hasCurrencyInfo && activeCurrency) {
         if (tx.currency_code !== activeCurrency) return false;
@@ -206,9 +207,9 @@ export default function YearlyIncomeExpenseBarChart({
     });
 
     for (const tx of filtered) {
-      const d = new Date(tx.occurred_at);
-      if (Number.isNaN(d.getTime())) continue;
-      const m = d.getMonth();
+      const calendar = getCalendarDateParts(tx.occurred_at);
+      if (!calendar) continue;
+      const m = calendar.monthIndex;
       if (m < 0 || m > 11) continue;
 
       const amount = tx.amount_minor / 100;

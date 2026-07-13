@@ -36,6 +36,12 @@ import {
   buildDashboardReconciliation,
   reconciliationMoneyEntries,
 } from "@/lib/dashboard/reconciliation";
+import {
+  buildDailyIncomeExpenseSeries,
+  buildDensifiedMonthSeries,
+  takeTrailingTwelveMonths,
+  type DailyIncomeExpensePoint,
+} from "@/lib/dashboard/chartReconciliation";
 
 type Wallet = {
   id: string;
@@ -122,12 +128,6 @@ type ForecastEntry = {
   scheduledRuleCount: number;
 };
 
-type DailyIncomeExpense = {
-  day: string;
-  income: number;
-  expense: number;
-  currency_code: string | null;
-};
 
 function formatMinorToAmount(minor: number): string {
   return (minor / 100).toFixed(2);
@@ -141,19 +141,6 @@ function daysAgoFromMs(ms: number) {
   const diff = Date.now() - ms;
   if (diff < 0) return 0;
   return Math.floor(diff / (1000 * 60 * 60 * 24));
-}
-
-/** Helpers for true monthly (densified) series */
-function pad2(n: number) {
-  return String(n).padStart(2, "0");
-}
-function isoDay(year: number, month0: number, day: number) {
-  // month0 is 0-based
-  return `${year}-${pad2(month0 + 1)}-${pad2(day)}`;
-}
-function daysInMonth(year: number, month0: number) {
-  // month0 is 0-based; day 0 of next month gives last day of current month
-  return new Date(year, month0 + 1, 0).getDate();
 }
 
 const DASHBOARD_PAGE_SIZE = 1000;
@@ -292,7 +279,7 @@ export default function DashboardPage() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
   const [dailyIncomeExpense, setDailyIncomeExpense] = useState<
-    DailyIncomeExpense[]
+    DailyIncomeExpensePoint[]
   >([]);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -433,7 +420,16 @@ export default function DashboardPage() {
         // Not fatal – we can fall back to monthly derivation
         console.error("Error loading daily_income_expense view:", dailyRes.error);
       } else {
-        setDailyIncomeExpense(dailyRes.data as DailyIncomeExpense[]);
+        const normalizedDailyIncomeExpense: DailyIncomeExpensePoint[] = (
+          dailyRes.data ?? []
+        ).map((row) => ({
+          day: String(row.day),
+          income: Number(row.income ?? 0),
+          expense: Number(row.expense ?? 0),
+          currencyCode: String(row.currency_code ?? "SSP").toUpperCase(),
+        }));
+
+        setDailyIncomeExpense(normalizedDailyIncomeExpense);
       }
 
       setWallets(walletRes.data as Wallet[]);
@@ -1019,161 +1015,43 @@ export default function DashboardPage() {
       ? "Your position is manageable, with a few items worth monitoring."
       : "Your financial position is stable for the selected month.";
 
-  // -------- Income vs expense trend for charts (with filters) --------
+  // -------- Certified chart reconciliation pipeline --------
 
-  type IncomeExpenseDailyPoint = {
-    day: string;
-    income: number;
-    expense: number;
-    currencyCode?: string;
-  };
+  type IncomeExpenseDailyPoint = DailyIncomeExpensePoint;
 
   // Years available in transactions (for year filter)
   const chartYearOptions = Array.from(
     new Set(
       transactions.map((tx) => {
-        const d = new Date(tx.occurred_at);
-        return Number.isNaN(d.getTime()) ? null : String(d.getFullYear());
+        const date = new Date(tx.occurred_at);
+        return Number.isNaN(date.getTime()) ? null : String(date.getFullYear());
       })
     )
   )
-    .filter((y): y is string => !!y)
+    .filter((year): year is string => Boolean(year))
     .sort();
 
-  // Transactions used for trend charts (filters + no internal transfers)
-  const filteredTrendTransactions = transactions.filter((tx) => {
-    if (walletFilter !== "all" && tx.wallet_id !== walletFilter) return false;
+  // All trend charts now consume one shared filter, transfer, currency, and
+  // local-calendar aggregation contract. This prevents silent differences
+  // between monthly, historical, all-time, cumulative, and spending charts.
+  const incomeExpenseTrendData: IncomeExpenseDailyPoint[] =
+    buildDailyIncomeExpenseSeries(transactions, categoryMap, {
+      walletFilter,
+      categoryFilter,
+      yearFilter,
+    });
 
-    const category = tx.category_id ? categoryMap[tx.category_id] : null;
-    if (isInternalTransfer(tx, category)) return false;
+  const incomeExpenseTrendLast12: IncomeExpenseDailyPoint[] =
+    takeTrailingTwelveMonths(incomeExpenseTrendData);
 
-    if (categoryFilter !== "all" && tx.category_id !== categoryFilter)
-      return false;
-
-    if (yearFilter !== "all") {
-      const d = new Date(tx.occurred_at);
-      if (Number.isNaN(d.getTime())) return false;
-      const y = String(d.getFullYear());
-      if (y !== yearFilter) return false;
-    }
-
-    return true;
-  });
-
-  // Build daily series from filtered transactions (per currency)
-  const incomeExpenseTrendData: IncomeExpenseDailyPoint[] = (() => {
-    const map = new Map<
-      string,
-      { day: string; income: number; expense: number; currencyCode: string }
-    >();
-
-    for (const tx of filteredTrendTransactions) {
-      const d = new Date(tx.occurred_at);
-      if (Number.isNaN(d.getTime())) continue;
-      const day = d.toISOString().slice(0, 10); // YYYY-MM-DD
-      const key = `${day}|${tx.currency_code}`;
-
-      const existing =
-        map.get(key) ?? {
-          day,
-          income: 0,
-          expense: 0,
-          currencyCode: tx.currency_code,
-        };
-
-      if (tx.type === "income") {
-        existing.income += tx.amount_minor / 100;
-      } else if (tx.type === "expense") {
-        existing.expense += tx.amount_minor / 100;
-      }
-
-      map.set(key, existing);
-    }
-
-    const points = Array.from(map.values());
-    points.sort((a, b) => a.day.localeCompare(b.day));
-    return points;
-  })();
-
-  // Last 12 months slice for the historical chart
-  const incomeExpenseTrendLast12: IncomeExpenseDailyPoint[] = (() => {
-    if (incomeExpenseTrendData.length === 0) return [];
-    const today2 = new Date();
-    const cutoff = new Date(
-      today2.getFullYear() - 1,
-      today2.getMonth(),
-      today2.getDate()
+  const monthlyIncomeExpenseData: IncomeExpenseDailyPoint[] =
+    buildDensifiedMonthSeries(
+      transactions,
+      categoryMap,
+      { walletFilter, categoryFilter },
+      selectedYear,
+      selectedMonth
     );
-
-    return incomeExpenseTrendData.filter((row) => {
-      const d = new Date(row.day);
-      return d >= cutoff;
-    });
-  })();
-
-  // -------- TRUE monthly daily series (Option A) --------
-  const monthlyIncomeExpenseData: IncomeExpenseDailyPoint[] = (() => {
-    // 1) Filter to selected month + wallet/category filters + exclude internal transfers
-    const monthTxs = transactions.filter((tx) => {
-      if (!isSelectedMonth(tx.occurred_at)) return false;
-
-      if (walletFilter !== "all" && tx.wallet_id !== walletFilter) return false;
-
-      const category = tx.category_id ? categoryMap[tx.category_id] : null;
-      if (isInternalTransfer(tx, category)) return false;
-
-      if (categoryFilter !== "all" && tx.category_id !== categoryFilter)
-        return false;
-
-      return true;
-    });
-
-    // 2) Currencies in this month slice
-    const currencies = Array.from(
-      new Set(monthTxs.map((tx) => tx.currency_code).filter(Boolean))
-    ).sort();
-
-    if (currencies.length === 0) return [];
-
-    // 3) Pre-seed all days of month for each currency (densification)
-    const dim = daysInMonth(selectedYear, selectedMonth);
-    const map = new Map<
-      string,
-      { day: string; income: number; expense: number; currencyCode: string }
-    >();
-
-    for (const ccy of currencies) {
-      for (let day = 1; day <= dim; day++) {
-        const d = isoDay(selectedYear, selectedMonth, day);
-        const key = `${d}|${ccy}`;
-        map.set(key, { day: d, income: 0, expense: 0, currencyCode: ccy });
-      }
-    }
-
-    // 4) Accumulate
-    for (const tx of monthTxs) {
-      const d = new Date(tx.occurred_at);
-      if (Number.isNaN(d.getTime())) continue;
-
-      const day = d.toISOString().slice(0, 10);
-      const key = `${day}|${tx.currency_code}`;
-      const row = map.get(key);
-      if (!row) continue;
-
-      const amount = tx.amount_minor / 100;
-      if (tx.type === "income") row.income += amount;
-      else if (tx.type === "expense") row.expense += amount;
-    }
-
-    // 5) Sort and return
-    const points = Array.from(map.values());
-    points.sort((a, b) => {
-      const d = a.day.localeCompare(b.day);
-      if (d !== 0) return d;
-      return (a.currencyCode || "").localeCompare(b.currencyCode || "");
-    });
-    return points;
-  })();
 
   // Calendar-year selection for the new bar chart:
   // - if Year filter is "all", default to current calendar year

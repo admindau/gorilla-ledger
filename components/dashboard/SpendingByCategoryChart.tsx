@@ -13,6 +13,7 @@ import ChartTooltip from "@/components/charts/ChartTooltip";
 import { chartMargins, chartTheme } from "@/components/charts/chartTheme";
 
 import { isInternalTransfer } from "@/lib/transactions/classification";
+import { getCalendarDateParts } from "@/lib/dashboard/chartReconciliation";
 
 type TransactionType = "income" | "expense";
 
@@ -62,10 +63,13 @@ export default function SpendingByCategoryChart({
     const result: Record<string, Record<string, number>> = {};
 
     for (const tx of transactions) {
-      const d = new Date(tx.occurred_at);
-      if (Number.isNaN(d.getTime())) continue;
+      const calendar = getCalendarDateParts(tx.occurred_at);
+      if (!calendar) continue;
 
-      if (d.getFullYear() !== selectedYear || d.getMonth() !== selectedMonth) {
+      if (
+        calendar.year !== selectedYear ||
+        calendar.monthIndex !== selectedMonth
+      ) {
         continue;
       }
 
