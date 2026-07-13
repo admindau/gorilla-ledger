@@ -23,6 +23,8 @@ type BudgetSummary = {
   budget: Budget;
   wallet: Wallet | null;
   category?: Category;
+  currencyCode?: string | null;
+  isCurrencySafe?: boolean;
   actualMinor: number;
   remainingMinor: number;
   usedRatio: number;
@@ -61,9 +63,9 @@ export default function BudgetInsightsPanel({
   for (const s of summaries) {
     const { budget, wallet, category, actualMinor, usedRatio } = s;
 
-    if (!budget || budget.amount_minor <= 0) continue;
+    if (!budget || budget.amount_minor <= 0 || s.isCurrencySafe === false) continue;
 
-    const currency = wallet?.currency_code ?? "";
+    const currency = s.currencyCode ?? wallet?.currency_code ?? "";
     const name = category?.name ?? "Unknown category";
     const percentUsed = Math.round(usedRatio * 100);
     const actualMajor = formatMinorToMajor(actualMinor);

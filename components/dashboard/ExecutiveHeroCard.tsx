@@ -4,6 +4,7 @@ type ExecutiveHeroCardProps = {
   monthLabel: string;
   healthScore: number;
   healthLabel: string;
+  healthCurrency: string;
   riskLevel: string;
   message: string;
   balanceSummary: string;
@@ -55,6 +56,7 @@ export default function ExecutiveHeroCard({
   monthLabel,
   healthScore,
   healthLabel,
+  healthCurrency,
   riskLevel,
   message,
   balanceSummary,
@@ -114,7 +116,7 @@ export default function ExecutiveHeroCard({
                 {safeScore}
               </span>
               <span className="pb-1 text-xs uppercase tracking-wide text-gray-400">
-                / 100 · {healthLabel}
+                / 100 · {healthLabel} · {healthCurrency}
               </span>
             </div>
           </div>

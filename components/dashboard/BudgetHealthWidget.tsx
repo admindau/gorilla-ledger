@@ -11,6 +11,8 @@ type BudgetHealthSummary = {
     name: string;
     type: "income" | "expense";
   } | null;
+  currencyCode?: string | null;
+  isCurrencySafe?: boolean;
   actualMinor: number;
   remainingMinor: number;
   usedRatio: number;
@@ -101,10 +103,17 @@ export default function BudgetHealthWidget({
       ) : (
         <div className="mt-5 grid gap-3 lg:grid-cols-2">
           {highlighted.map((item) => {
-            const status = statusForRatio(item.usedRatio, riskThreshold);
-            const usedPercent = Math.round(item.usedRatio * 100);
+            const isCurrencySafe = item.isCurrencySafe !== false;
+            const status = isCurrencySafe
+              ? statusForRatio(item.usedRatio, riskThreshold)
+              : {
+                  label: "Unscored",
+                  className: "border-gray-700 text-gray-400",
+                  helper: "Assign this budget to a wallet to establish its currency",
+                };
+            const usedPercent = isCurrencySafe ? Math.round(item.usedRatio * 100) : 0;
             const barPercent = Math.max(0, Math.min(usedPercent, 100));
-            const currency = item.wallet?.currency_code ?? "";
+            const currency = item.currencyCode ?? item.wallet?.currency_code ?? "";
 
             return (
               <div
@@ -132,9 +141,13 @@ export default function BudgetHealthWidget({
 
                 <div className="mt-4 flex items-baseline justify-between gap-3 text-xs">
                   <span className="text-gray-400">
-                    {formatMinor(item.actualMinor)} / {formatMinor(item.budget.amount_minor)} {currency}
+                    {isCurrencySafe
+                      ? `${formatMinor(item.actualMinor)} / ${formatMinor(item.budget.amount_minor)} ${currency}`
+                      : "Currency not established"}
                   </span>
-                  <span className="tabular-nums text-gray-300">{usedPercent}%</span>
+                  <span className="tabular-nums text-gray-300">
+                    {isCurrencySafe ? `${usedPercent}%` : "—"}
+                  </span>
                 </div>
 
                 <div className="mt-2 h-2 overflow-hidden rounded-full border border-gray-700 bg-black">
