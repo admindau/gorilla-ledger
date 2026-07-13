@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React from "react";
 
 type TransactionType = "income" | "expense";
@@ -24,15 +25,21 @@ type AiInsightsSidebarProps = {
   transactions: Transaction[];
   categories: Category[];
   selectedYear: number;
-  selectedMonth: number; // 0-based
-  walletFilter: string; // "all" or wallet id
-  categoryFilter: string; // "all" or category id
+  selectedMonth: number;
+  walletFilter: string;
+  categoryFilter: string;
 };
+
+type MonthAgg = {
+  totalByCurrency: Record<string, number>;
+  categoriesActive: Set<string>;
+};
+
+type CoachTone = "positive" | "attention" | "neutral";
 
 function isInternalTransferCategory(category?: Category | null): boolean {
   if (!category) return false;
-  const n = category.name.toLowerCase().trim();
-  return n.startsWith("transfer");
+  return category.name.toLowerCase().trim().startsWith("transfer");
 }
 
 function toMonthKey(year: number, month: number): string {
@@ -40,12 +47,48 @@ function toMonthKey(year: number, month: number): string {
 }
 
 function formatMonthLabel(year: number, month: number): string {
-  const d = new Date(year, month, 1);
-  return d.toLocaleString("en", { month: "short", year: "numeric" });
+  return new Date(year, month, 1).toLocaleString("en", {
+    month: "short",
+    year: "numeric",
+  });
 }
 
-function formatMinorToMajor(amountMinor: number): string {
-  return (amountMinor / 100).toFixed(2);
+function formatMoney(amountMinor: number, currency: string): string {
+  return `${new Intl.NumberFormat("en", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+  }).format(amountMinor / 100)} ${currency}`;
+}
+
+function toneClasses(tone: CoachTone): string {
+  if (tone === "positive") {
+    return "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-200";
+  }
+  if (tone === "attention") {
+    return "border-amber-500/20 bg-amber-500/[0.06] text-amber-100";
+  }
+  return "border-white/10 bg-white/[0.035] text-gray-200";
+}
+
+function SignalIcon({ tone }: { tone: CoachTone }) {
+  const path =
+    tone === "positive"
+      ? "M5 12.5l4 4L19 6.5"
+      : tone === "attention"
+        ? "M12 8v5m0 3.5h.01"
+        : "M12 8v4m0 4h.01";
+
+  return (
+    <span
+      className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border ${toneClasses(tone)}`}
+      aria-hidden="true"
+    >
+      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d={path} />
+        {tone !== "positive" ? <circle cx="12" cy="12" r="9" /> : null}
+      </svg>
+    </span>
+  );
 }
 
 export default function AiInsightsSidebar({
@@ -57,279 +100,255 @@ export default function AiInsightsSidebar({
   categoryFilter,
 }: AiInsightsSidebarProps) {
   const categoryMap = React.useMemo(
-    () => Object.fromEntries(categories.map((c) => [c.id, c] as const)),
+    () => Object.fromEntries(categories.map((category) => [category.id, category] as const)),
     [categories]
   );
 
-  // Aggregate current + previous 2 months
-  type MonthAgg = {
-    totalByCurrency: Record<string, number>;
-    categoriesActive: Set<string>;
-  };
+  const analysis = React.useMemo(() => {
+    const selectedDate = new Date(selectedYear, selectedMonth, 1);
+    const months = Array.from({ length: 3 }, (_, offset) => {
+      const date = new Date(selectedDate);
+      date.setMonth(selectedDate.getMonth() - offset);
+      return { year: date.getFullYear(), month: date.getMonth() };
+    });
 
-  const monthAgg: Record<string, MonthAgg> = {};
+    const monthKeys = new Set(months.map(({ year, month }) => toMonthKey(year, month)));
+    const monthAgg: Record<string, MonthAgg> = {};
 
-  function addToMonthAgg(
-    year: number,
-    month: number,
-    currency: string,
-    categoryId: string,
-    amountMinor: number
-  ) {
-    const key = toMonthKey(year, month);
-    if (!monthAgg[key]) {
-      monthAgg[key] = {
-        totalByCurrency: {},
-        categoriesActive: new Set<string>(),
-      };
+    for (const transaction of transactions) {
+      if (transaction.type !== "expense" || !transaction.category_id) continue;
+      if (walletFilter !== "all" && transaction.wallet_id !== walletFilter) continue;
+      if (categoryFilter !== "all" && transaction.category_id !== categoryFilter) continue;
+
+      const category = categoryMap[transaction.category_id];
+      if (isInternalTransferCategory(category)) continue;
+
+      const occurredAt = new Date(transaction.occurred_at);
+      if (Number.isNaN(occurredAt.getTime())) continue;
+
+      const key = toMonthKey(occurredAt.getFullYear(), occurredAt.getMonth());
+      if (!monthKeys.has(key)) continue;
+
+      monthAgg[key] ??= { totalByCurrency: {}, categoriesActive: new Set<string>() };
+      const bucket = monthAgg[key];
+      bucket.totalByCurrency[transaction.currency_code] =
+        (bucket.totalByCurrency[transaction.currency_code] ?? 0) + transaction.amount_minor;
+      bucket.categoriesActive.add(transaction.category_id);
     }
-    const bucket = monthAgg[key];
-    bucket.totalByCurrency[currency] =
-      (bucket.totalByCurrency[currency] ?? 0) + amountMinor;
-    bucket.categoriesActive.add(categoryId);
-  }
 
-  const now = new Date(selectedYear, selectedMonth, 1);
-  const monthsToInclude: { year: number; month: number }[] = [];
-  for (let offset = 0; offset < 3; offset++) {
-    const d = new Date(now);
-    d.setMonth(now.getMonth() - offset);
-    monthsToInclude.push({ year: d.getFullYear(), month: d.getMonth() });
-  }
-  const monthKeySet = new Set(
-    monthsToInclude.map((m) => toMonthKey(m.year, m.month))
-  );
+    const currentKey = toMonthKey(selectedYear, selectedMonth);
+    const previousKeys = months.slice(1).map(({ year, month }) => toMonthKey(year, month));
+    const currentAgg = monthAgg[currentKey];
+    const previousAggs = previousKeys.map((key) => monthAgg[key]).filter(Boolean) as MonthAgg[];
+    const currentTotals = currentAgg?.totalByCurrency ?? {};
 
-  for (const tx of transactions) {
-    if (tx.type !== "expense") continue;
-    if (!tx.category_id) continue;
-
-    if (walletFilter !== "all" && tx.wallet_id !== walletFilter) continue;
-    if (categoryFilter !== "all" && tx.category_id !== categoryFilter) continue;
-
-    const category = categoryMap[tx.category_id];
-    if (isInternalTransferCategory(category)) continue;
-
-    const d = new Date(tx.occurred_at);
-    if (Number.isNaN(d.getTime())) continue;
-
-    const key = toMonthKey(d.getFullYear(), d.getMonth());
-    if (!monthKeySet.has(key)) continue;
-
-    addToMonthAgg(
-      d.getFullYear(),
-      d.getMonth(),
-      tx.currency_code,
-      tx.category_id,
-      tx.amount_minor
-    );
-  }
-
-  const currentKey = toMonthKey(selectedYear, selectedMonth);
-  const prev1 = new Date(selectedYear, selectedMonth - 1, 1);
-  const prev2 = new Date(selectedYear, selectedMonth - 2, 1);
-  const prev1Key = toMonthKey(prev1.getFullYear(), prev1.getMonth());
-  const prev2Key = toMonthKey(prev2.getFullYear(), prev2.getMonth());
-
-  const currentAgg = monthAgg[currentKey];
-  const prevAggs = [monthAgg[prev1Key], monthAgg[prev2Key]].filter(
-    Boolean
-  ) as MonthAgg[];
-
-  const currentTotals = currentAgg?.totalByCurrency ?? {};
-  const prevTotals = prevAggs.map((m) => m.totalByCurrency);
-
-  // Pick primary currency = highest current spending (fallback to previous)
-  let primaryCurrency: string | null = null;
-  let maxCurr = -1;
-
-  for (const [ccy, amount] of Object.entries(currentTotals)) {
-    if (amount > maxCurr) {
-      maxCurr = amount;
-      primaryCurrency = ccy;
-    }
-  }
-
-  if (!primaryCurrency) {
-    const seenPrev = new Set<string>();
-    for (const totals of prevTotals) {
-      for (const ccy of Object.keys(totals)) {
-        seenPrev.add(ccy);
+    let primaryCurrency: string | null = null;
+    let highestCurrentAmount = -1;
+    for (const [currency, amount] of Object.entries(currentTotals)) {
+      if (amount > highestCurrentAmount) {
+        primaryCurrency = currency;
+        highestCurrentAmount = amount;
       }
     }
-    primaryCurrency = seenPrev.values().next().value ?? null;
-  }
 
-  function sumForCurrency(
-    totals: Record<string, number> | undefined,
-    currency: string | null
-  ): number {
-    if (!totals || !currency) return 0;
-    return totals[currency] ?? 0;
-  }
-
-  const currentPrimaryMinor = primaryCurrency
-    ? sumForCurrency(currentTotals, primaryCurrency)
-    : 0;
-
-  const prevPrimaryMinorValues: number[] = [];
-  if (primaryCurrency) {
-    for (const totals of prevTotals) {
-      prevPrimaryMinorValues.push(sumForCurrency(totals, primaryCurrency));
+    if (!primaryCurrency) {
+      for (const aggregate of previousAggs) {
+        const firstCurrency = Object.keys(aggregate.totalByCurrency)[0];
+        if (firstCurrency) {
+          primaryCurrency = firstCurrency;
+          break;
+        }
+      }
     }
-  }
 
-  const prevPrimaryAvgMinor =
-    prevPrimaryMinorValues.length > 0
-      ? prevPrimaryMinorValues.reduce((a, b) => a + b, 0) /
-        prevPrimaryMinorValues.length
+    const currentMinor = primaryCurrency ? currentTotals[primaryCurrency] ?? 0 : 0;
+    const previousValues = primaryCurrency
+      ? previousAggs.map((aggregate) => aggregate.totalByCurrency[primaryCurrency!] ?? 0)
+      : [];
+    const previousAverageMinor = previousValues.length
+      ? previousValues.reduce((sum, value) => sum + value, 0) / previousValues.length
       : 0;
 
-  // Trend summary
-  let trendSummary: string | null = null;
-  if (!primaryCurrency) {
-    trendSummary = "Not enough expense data yet to analyse trends.";
-  } else if (currentPrimaryMinor === 0 && prevPrimaryAvgMinor === 0) {
-    trendSummary = `No recorded expenses in ${primaryCurrency} over the last three months.`;
-  } else if (currentPrimaryMinor === 0 && prevPrimaryAvgMinor > 0) {
-    const prevMajor = formatMinorToMajor(prevPrimaryAvgMinor);
-    trendSummary = `Spending in ${primaryCurrency} is at 0.00 this month, compared to an average of ${prevMajor} ${primaryCurrency} in the previous months.`;
-  } else if (prevPrimaryAvgMinor === 0 && currentPrimaryMinor > 0) {
-    const currMajor = formatMinorToMajor(currentPrimaryMinor);
-    trendSummary = `Spending in ${primaryCurrency} has appeared this month at ${currMajor} ${primaryCurrency}, after two very quiet months.`;
-  } else if (prevPrimaryAvgMinor > 0) {
-    const diff = currentPrimaryMinor - prevPrimaryAvgMinor;
-    const pct = (diff / prevPrimaryAvgMinor) * 100;
-    const pctRounded = Math.round(Math.abs(pct));
-    const currMajor = formatMinorToMajor(currentPrimaryMinor);
-    const avgMajor = formatMinorToMajor(prevPrimaryAvgMinor);
-
-    if (Math.abs(pct) < 10) {
-      trendSummary = `Spending in ${primaryCurrency} is broadly stable this month (${currMajor} vs a recent average of ${avgMajor} ${primaryCurrency}).`;
-    } else if (pct > 0) {
-      trendSummary = `Spending in ${primaryCurrency} is up about ${pctRounded}% this month (${currMajor} vs ${avgMajor} ${primaryCurrency} on average).`;
-    } else {
-      trendSummary = `Spending in ${primaryCurrency} is down about ${pctRounded}% this month (${currMajor} vs ${avgMajor} ${primaryCurrency} on average).`;
-    }
-  }
-
-  // Habits: active categories
-  function countActiveCategories(agg: MonthAgg | undefined): number {
-    return agg ? agg.categoriesActive.size : 0;
-  }
-
-  const currentActiveCategories = countActiveCategories(currentAgg);
-  const prevActiveCounts = prevAggs.map(countActiveCategories);
-  const prevActiveAvg =
-    prevActiveCounts.length > 0
-      ? prevActiveCounts.reduce((a, b) => a + b, 0) /
-        prevActiveCounts.length
+    const currentCategoryCount = currentAgg?.categoriesActive.size ?? 0;
+    const previousCategoryCounts = previousAggs.map((aggregate) => aggregate.categoriesActive.size);
+    const previousCategoryAverage = previousCategoryCounts.length
+      ? previousCategoryCounts.reduce((sum, value) => sum + value, 0) / previousCategoryCounts.length
       : 0;
 
-  const habitsItems: string[] = [];
+    const percentageChange = previousAverageMinor > 0
+      ? ((currentMinor - previousAverageMinor) / previousAverageMinor) * 100
+      : null;
 
-  if (currentAgg) {
-    habitsItems.push(
-      `You used ${currentActiveCategories} spending categor${
-        currentActiveCategories === 1 ? "y" : "ies"
-      } this month.`
-    );
-  }
+    return {
+      months,
+      currentAgg,
+      primaryCurrency,
+      currentMinor,
+      previousAverageMinor,
+      currentCategoryCount,
+      previousCategoryAverage,
+      percentageChange,
+    };
+  }, [categoryFilter, categoryMap, selectedMonth, selectedYear, transactions, walletFilter]);
 
-  if (prevActiveAvg > 0) {
-    const roundedAvg = Math.round(prevActiveAvg);
-    habitsItems.push(
-      `In recent months you averaged about ${roundedAvg} active categories.`
-    );
-  }
+  const {
+    months,
+    currentAgg,
+    primaryCurrency,
+    currentMinor,
+    previousAverageMinor,
+    currentCategoryCount,
+    previousCategoryAverage,
+    percentageChange,
+  } = analysis;
 
-  if (!currentAgg && prevAggs.length > 0) {
-    habitsItems.push(
-      "This month shows no spending, which is unusual compared to previous months."
-    );
-  }
+  const hasTrendData = Boolean(primaryCurrency) && (currentMinor > 0 || previousAverageMinor > 0);
+  const trendTone: CoachTone =
+    percentageChange === null || Math.abs(percentageChange) < 10
+      ? "neutral"
+      : percentageChange > 0
+        ? "attention"
+        : "positive";
 
-  // Coaching tips
-  const tips: string[] = [];
+  const trendLabel = !primaryCurrency
+    ? "Not enough data"
+    : currentMinor === 0 && previousAverageMinor > 0
+      ? "No spending this month"
+      : previousAverageMinor === 0 && currentMinor > 0
+        ? "New spending activity"
+        : percentageChange === null || Math.abs(percentageChange) < 10
+          ? "Spending is stable"
+          : percentageChange > 0
+            ? `Spending is up ${Math.round(Math.abs(percentageChange))}%`
+            : `Spending is down ${Math.round(Math.abs(percentageChange))}%`;
 
-  if (primaryCurrency && currentPrimaryMinor > 0 && prevPrimaryAvgMinor > 0) {
-    const diff = currentPrimaryMinor - prevPrimaryAvgMinor;
-    const pct = (diff / prevPrimaryAvgMinor) * 100;
+  const trendDetail = !primaryCurrency
+    ? "Keep recording expenses to unlock a reliable month-on-month signal."
+    : !hasTrendData
+      ? `No ${primaryCurrency} expenses were recorded across the selected three-month window.`
+      : `${formatMoney(currentMinor, primaryCurrency)} this month versus a recent monthly average of ${formatMoney(previousAverageMinor, primaryCurrency)}.`;
 
-    if (pct > 25) {
-      tips.push(
-        `Consider setting a tighter budget in ${primaryCurrency} if this higher level of spending is not intentional.`
-      );
-    } else if (pct < -25) {
-      tips.push(
-        `If the lower spending in ${primaryCurrency} is deliberate, think about whether you can redirect some of that freed-up cash towards savings or priority goals.`
-      );
-    }
-  }
+  const categoryDelta = currentCategoryCount - previousCategoryAverage;
+  const habitsTone: CoachTone =
+    !currentAgg || previousCategoryAverage === 0
+      ? "neutral"
+      : categoryDelta > 3
+        ? "attention"
+        : "positive";
 
-  if (currentActiveCategories > 0 && prevActiveAvg > 0) {
-    if (currentActiveCategories > prevActiveAvg + 3) {
-      tips.push(
-        "You are using more categories than usual; this can be a sign that small, scattered purchases are creeping in. Consider simplifying or consolidating."
-      );
-    } else if (currentActiveCategories + 3 < prevActiveAvg) {
-      tips.push(
-        "You are spending in fewer categories than usual; this can be good if it reflects focus, but double-check that you are not postponing important recurring expenses."
-      );
-    }
-  }
+  const habitsLabel = !currentAgg
+    ? "No active categories"
+    : `${currentCategoryCount} active categor${currentCategoryCount === 1 ? "y" : "ies"}`;
 
-  if (tips.length === 0) {
-    tips.push(
-      "Keep tracking consistently for a few more months; patterns will become clearer and Gorilla Ledger will give sharper coaching tips."
-    );
+  const habitsDetail = previousCategoryAverage > 0
+    ? `Recent months averaged about ${Math.round(previousCategoryAverage)} active categories.`
+    : "More history is needed before category habits can be compared.";
+
+  let recommendationTitle = "Keep tracking consistently";
+  let recommendationBody = "A longer history will make future coaching more precise and actionable.";
+  let recommendationTone: CoachTone = "neutral";
+  let actionLabel = "Review transactions";
+  let actionHref = "/transactions";
+
+  if (percentageChange !== null && percentageChange > 25 && primaryCurrency) {
+    recommendationTitle = "Review your spending limits";
+    recommendationBody = `Spending is materially above the recent ${primaryCurrency} average. Confirm that the increase is intentional and adjust your budget where needed.`;
+    recommendationTone = "attention";
+    actionLabel = "Review budgets";
+    actionHref = "/budgets";
+  } else if (percentageChange !== null && percentageChange < -25 && primaryCurrency) {
+    recommendationTitle = "Protect the savings gap";
+    recommendationBody = `Your ${primaryCurrency} spending is materially lower. Consider assigning the difference to savings or another priority.`;
+    recommendationTone = "positive";
+    actionLabel = "Review wallets";
+    actionHref = "/wallets";
+  } else if (previousCategoryAverage > 0 && categoryDelta > 3) {
+    recommendationTitle = "Consolidate scattered spending";
+    recommendationBody = "You are using more categories than usual. Review small purchases and simplify where possible.";
+    recommendationTone = "attention";
+  } else if (currentAgg && previousCategoryAverage > 0 && categoryDelta < -3) {
+    recommendationTitle = "Check deferred obligations";
+    recommendationBody = "Fewer categories are active than usual. Confirm that important recurring expenses have not been postponed.";
+    recommendationTone = "neutral";
+    actionLabel = "Review recurring";
+    actionHref = "/recurring";
   }
 
   const currentLabel = formatMonthLabel(selectedYear, selectedMonth);
-  const prevLabels = monthsToInclude
-    .slice(1)
-    .map((m) => formatMonthLabel(m.year, m.month));
+  const comparisonLabels = months.slice(1).map(({ year, month }) => formatMonthLabel(year, month));
 
   return (
-    <aside className="gl-card p-4 mb-8">
-      <h2 className="text-sm font-semibold mb-1">AI Insights Coach</h2>
-      <p className="text-[11px] text-gray-400 mb-3">
-        Looking at your spending over {currentLabel}
-        {prevLabels.length > 0 ? ` vs ${prevLabels.join(" & ")}` : ""}.
-      </p>
-
-      <div className="mb-3">
-        <h3 className="text-xs font-semibold text-gray-200 mb-1">
-          Spending trend
-        </h3>
-        <p className="text-[11px] text-gray-300">
-          {trendSummary ?? "Not enough data yet to describe a trend."}
-        </p>
-      </div>
-
-      {habitsItems.length > 0 && (
-        <div className="mb-3">
-          <h3 className="text-xs font-semibold text-gray-200 mb-1">
-            Habits snapshot
-          </h3>
-          <ul className="text-[11px] text-gray-300 space-y-0.5 list-disc list-inside">
-            {habitsItems.map((item, idx) => (
-              <li key={idx}>{item}</li>
-            ))}
-          </ul>
+    <aside aria-labelledby="ai-coach-title" className="h-full">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <span className="gl-section-eyebrow">Decision support</span>
+          <h2 id="ai-coach-title" className="mt-3 text-base font-semibold tracking-tight text-white">
+            AI Coach
+          </h2>
+          <p className="mt-1 text-[11px] leading-5 text-gray-400">
+            {currentLabel} compared with {comparisonLabels.join(" and ")}.
+          </p>
         </div>
-      )}
-
-      <div>
-        <h3 className="text-xs font-semibold text-gray-200 mb-1">
-          Coaching tips
-        </h3>
-        <ul className="text-[11px] text-gray-300 space-y-0.5 list-disc list-inside">
-          {tips.map((tip, idx) => (
-            <li key={idx}>{tip}</li>
-          ))}
-        </ul>
+        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.16em] text-gray-400">
+          3-month view
+        </span>
       </div>
+
+      <div className="mt-5 space-y-2.5">
+        <section className={`rounded-2xl border p-3.5 ${toneClasses(trendTone)}`}>
+          <div className="flex items-start gap-3">
+            <SignalIcon tone={trendTone} />
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] opacity-70">Spending signal</p>
+              <p className="mt-1 text-sm font-semibold text-white">{trendLabel}</p>
+              <p className="mt-1 text-[11px] leading-5 text-gray-300">{trendDetail}</p>
+            </div>
+          </div>
+        </section>
+
+        <section className={`rounded-2xl border p-3.5 ${toneClasses(habitsTone)}`}>
+          <div className="flex items-start gap-3">
+            <SignalIcon tone={habitsTone} />
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] opacity-70">Habit signal</p>
+              <p className="mt-1 text-sm font-semibold text-white">{habitsLabel}</p>
+              <p className="mt-1 text-[11px] leading-5 text-gray-300">{habitsDetail}</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section className="mt-3 rounded-2xl border border-white/10 bg-black/25 p-4">
+        <div className="flex items-start gap-3">
+          <SignalIcon tone={recommendationTone} />
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-gray-500">Recommended action</p>
+            <h3 className="mt-1 text-sm font-semibold text-white">{recommendationTitle}</h3>
+            <p className="mt-1.5 text-[11px] leading-5 text-gray-400">{recommendationBody}</p>
+            <Link
+              href={actionHref}
+              className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-semibold text-white transition-opacity hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+            >
+              {actionLabel}
+              <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 10h12M11 5l5 5-5 5" />
+              </svg>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <details className="group mt-3 rounded-xl border border-white/[0.07] bg-white/[0.02] px-3.5 py-2.5">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[11px] font-medium text-gray-400 marker:content-none">
+          How this was calculated
+          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m5 7.5 5 5 5-5" />
+          </svg>
+        </summary>
+        <p className="mt-2 border-t border-white/[0.06] pt-2 text-[10px] leading-5 text-gray-500">
+          Gorilla Ledger compares expense activity for the selected month with the previous two months. Internal transfers are excluded, wallet and category filters are respected, and currencies are never combined or converted.
+        </p>
+      </details>
     </aside>
   );
 }
