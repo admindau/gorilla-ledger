@@ -1361,6 +1361,10 @@ body {
 }
 
 @media (min-width: 768px) {
+  .gl-dashboard-accordion-trigger {
+    display: none;
+  }
+
   .gl-dashboard-filter-dock {
     top: 4.75rem;
   }
@@ -1416,6 +1420,15 @@ body {
     background:
       linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.016)),
       rgba(3,3,3,0.96) !important;
+  }
+
+  .gl-premium-card,
+  .gl-hero-card,
+  .gl-intelligence-suite,
+  .gl-chart-card,
+  .gl-spending-trend-surface {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
   }
 
   .gl-premium-card:hover {
