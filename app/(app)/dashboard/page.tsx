@@ -20,6 +20,7 @@ import ExecutiveInsightsPanel from "@/components/dashboard/ExecutiveInsightsPane
 import ForecastMonthEndBalance from "@/components/dashboard/ForecastMonthEndBalance";
 import ExecutiveHeroCard from "@/components/dashboard/ExecutiveHeroCard";
 import { ActivationGuide } from "@/components/activation/ActivationGuide";
+import { MonthlyReview } from "@/components/retention/MonthlyReview";
 
 import Skeleton from "@/components/ui/Skeleton";
 
@@ -85,6 +86,7 @@ import {
 } from "@/lib/dashboard/budgetForecastReconciliation";
 import { buildDashboardInsightModel } from "@/lib/dashboard/intelligence";
 import { buildActivationModel } from "@/lib/activation/model";
+import { buildMonthlyReview } from "@/lib/retention/monthlyReview";
 
 type Wallet = {
   id: string;
@@ -581,6 +583,19 @@ export default function DashboardPage() {
   const budgetsOnTrack = budgetReconciliation.budgetsOnTrack;
   const budgetsAtRisk = budgetReconciliation.budgetsAtRisk;
   const budgetsOver = budgetReconciliation.budgetsOver;
+  const monthlyReviewModel = useMemo(
+    () =>
+      buildMonthlyReview({
+        transactions: transactions.filter((transaction) => {
+          const category = transaction.category_id ? categoryMap[transaction.category_id] : null;
+          return !isInternalTransfer(transaction, category);
+        }),
+        selectedYear,
+        selectedMonth0: selectedMonth,
+        currentBudgetCount: totalBudgets,
+      }),
+    [categoryMap, selectedMonth, selectedYear, totalBudgets, transactions]
+  );
 
   const recentTransactions = useMemo(
     () =>
@@ -1067,6 +1082,10 @@ export default function DashboardPage() {
             </div>
           )}
         </section>
+
+        {!loadingData && activationModel.coreReady ? (
+          <MonthlyReview model={monthlyReviewModel} />
+        ) : null}
 
         {/* Gorilla Intelligence */}
         <section className="mb-10 gl-intelligence-suite rounded-[1.5rem] p-3.5 sm:mb-12 sm:rounded-[1.75rem] sm:p-6">
