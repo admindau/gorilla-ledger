@@ -35,9 +35,12 @@ Financial Intelligence Expansion
 
 ## Phase 3 - Export Center
 
-### Planned
+### Delivered
 
 - CSV exports
+
+### Planned
+
 - Excel exports
 - PDF reports
 - monthly financial statements

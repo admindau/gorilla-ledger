@@ -15,6 +15,7 @@ const navItems = [
   { href: "/transactions", label: "Transactions", shortLabel: "Tx" },
   { href: "/budgets", label: "Budgets", shortLabel: "Budgets" },
   { href: "/recurring", label: "Recurring", shortLabel: "Recurring" },
+  { href: "/exports", label: "Exports", shortLabel: "Export" },
   { href: "/settings/security", label: "Security", shortLabel: "Security" },
 ] as const;
 

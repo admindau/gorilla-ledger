@@ -9,6 +9,7 @@ const PROTECTED_PREFIXES = [
   "/categories",
   "/budgets",
   "/recurring",
+  "/exports",
   "/settings",
   "/mfa",
 ];
