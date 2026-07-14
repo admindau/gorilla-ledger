@@ -12,6 +12,7 @@ import { TransactionCommandCenter } from "@/components/transactions/TransactionC
 import { TransactionActivityCard } from "@/components/transactions/TransactionActivityCard";
 import { TransactionTimeline } from "@/components/transactions/TransactionTimeline";
 import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
+import { PrerequisiteGuide } from "@/components/activation/PrerequisiteGuide";
 
 type Wallet = {
   id: string;
@@ -331,7 +332,12 @@ export default function TransactionsPage() {
       }
 
       if (walletData && walletData.length > 0 && !walletId) setWalletId(walletData[0].id);
-      if (categoryData && categoryData.length > 0 && !categoryId) setCategoryId(categoryData[0].id);
+      const loadedCategories = (categoryData as Category[] | null) ?? [];
+      const initialCategory = loadedCategories.find((category) => category.type === "expense") ?? loadedCategories[0];
+      if (initialCategory && !categoryId) {
+        setCategoryId(initialCategory.id);
+        setType(initialCategory.type);
+      }
       if (!date) setDate(new Date().toISOString().slice(0, 10));
 
       setLoading(false);
@@ -472,6 +478,13 @@ export default function TransactionsPage() {
       return;
     }
 
+    const selectedCategory = categories.find((category) => category.id === categoryId);
+    if (!selectedCategory || selectedCategory.type !== type) {
+      setErrorMsg(`Please select an ${type} category for this ${type} transaction.`);
+      setSaving(false);
+      return;
+    }
+
     const {
       data: { user },
       error: userError,
@@ -491,6 +504,16 @@ export default function TransactionsPage() {
     }
 
     const amount_minor = parseAmountToMinor(amount);
+    if (!Number.isSafeInteger(amount_minor) || amount_minor <= 0) {
+      setErrorMsg("Enter an amount greater than zero.");
+      setSaving(false);
+      return;
+    }
+    if (!date || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) {
+      setErrorMsg("Select a valid transaction date.");
+      setSaving(false);
+      return;
+    }
     const occurred_at = new Date(date + "T00:00:00Z").toISOString();
 
     const { data, error } = await supabaseBrowserClient
@@ -791,10 +814,13 @@ export default function TransactionsPage() {
           {showCreateForm ? (
           <div className="p-4">
             {wallets.length === 0 || categories.length === 0 ? (
-              <p className="text-sm text-yellow-300">
-                You need at least one wallet and one category to create a
-                transaction.
-              </p>
+              <PrerequisiteGuide
+                title="Prepare the ledger before adding activity"
+                items={[
+                  { label: "Wallet", complete: wallets.length > 0, href: "/wallets", actionLabel: "Add wallet" },
+                  { label: "Category", complete: categories.length > 0, href: "/categories", actionLabel: "Add category" },
+                ]}
+              />
             ) : (
               <form
                 onSubmit={handleCreateTransaction}
@@ -826,7 +852,7 @@ export default function TransactionsPage() {
                     value={categoryId}
                     onChange={(e) => setCategoryId(e.target.value)}
                   >
-                    {categories.map((c) => (
+                    {categories.filter((category) => category.type === type).map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name} ({c.type})
                       </option>
@@ -841,7 +867,11 @@ export default function TransactionsPage() {
                   <select
                     className="gl-input"
                     value={type}
-                    onChange={(e) => setType(e.target.value as TransactionType)}
+                    onChange={(e) => {
+                      const nextType = e.target.value as TransactionType;
+                      setType(nextType);
+                      setCategoryId(categories.find((category) => category.type === nextType)?.id ?? "");
+                    }}
                   >
                     <option value="expense">Expense</option>
                     <option value="income">Income</option>

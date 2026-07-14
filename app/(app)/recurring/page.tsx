@@ -10,6 +10,7 @@ import { RecurringInsights } from "@/components/recurring/RecurringInsights";
 import { RecurringRuleCard } from "@/components/recurring/RecurringRuleCard";
 import { RecurringTimeline } from "@/components/recurring/RecurringTimeline";
 import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
+import { PrerequisiteGuide } from "@/components/activation/PrerequisiteGuide";
 
 type Wallet = {
   id: string;
@@ -104,6 +105,7 @@ export default function RecurringPage() {
           supabase
             .from("categories")
             .select("id,name,type")
+            .eq("is_active", true)
             .order("name", { ascending: true }),
           supabase
             .from("recurring_rules")
@@ -179,14 +181,26 @@ export default function RecurringPage() {
     }
 
     const amountMinor = Math.round(parsedAmount * 100);
+    if (!Number.isSafeInteger(amountMinor) || amountMinor <= 0) {
+      showToast("Enter a valid recurring amount greater than zero.", "error");
+      return;
+    }
 
     const selectedWallet = wallets.find((w) => w.id === walletId);
     const selectedCategory = categories.find((c) => c.id === categoryId);
+    if (!selectedWallet || !selectedCategory) {
+      showToast("Select a valid wallet and category.", "error");
+      return;
+    }
 
-    const currencyCode = selectedWallet?.currency_code ?? "USD";
-    const type: "income" | "expense" = selectedCategory?.type ?? "expense";
+    const currencyCode = selectedWallet.currency_code;
+    const type: "income" | "expense" = selectedCategory.type;
 
-    const firstDate = new Date(firstRunDate);
+    const firstDate = new Date(`${firstRunDate}T00:00:00Z`);
+    if (Number.isNaN(firstDate.getTime())) {
+      showToast("Select a valid first run date.", "error");
+      return;
+    }
     const dayOfMonth = firstDate.getUTCDate();
     const dayOfWeek = firstDate.getUTCDay();
     const nextRunAt = firstDate.toISOString(); // timestamptz-safe
@@ -382,6 +396,14 @@ export default function RecurringPage() {
               </p>
             </div>
 
+            <PrerequisiteGuide
+              title="Prepare the ledger before adding automation"
+              items={[
+                { label: "Wallet", complete: wallets.length > 0, href: "/wallets", actionLabel: "Add wallet" },
+                { label: "Category", complete: categories.length > 0, href: "/categories", actionLabel: "Add category" },
+              ]}
+            />
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block mb-1 text-xs text-gray-400">
@@ -413,9 +435,7 @@ export default function RecurringPage() {
                   required
                 >
                   <option value="">Select category</option>
-                  {categories
-                    .filter((c) => c.type === "expense")
-                    .map((c) => (
+                  {categories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name} ({c.type})
                       </option>
@@ -485,7 +505,7 @@ export default function RecurringPage() {
 
             <button
               type="submit"
-              disabled={saving || loadingPage || loadError}
+              disabled={saving || loadingPage || loadError || wallets.length === 0 || categories.length === 0}
               className="gl-btn gl-btn-primary gl-btn-md mt-2"
             >
               {saving ? "Saving..." : "Save Rule"}

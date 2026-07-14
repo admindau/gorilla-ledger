@@ -8,6 +8,7 @@ import { BudgetInsights } from "@/components/budgets/BudgetInsights";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
+import { PrerequisiteGuide } from "@/components/activation/PrerequisiteGuide";
 
 type Wallet = {
   id: string;
@@ -206,7 +207,8 @@ export default function BudgetsPage() {
       setTransactions(transactionData as Transaction[]);
 
       if (walletData && walletData.length > 0 && !walletId) setWalletId(walletData[0].id);
-      if (categoryData && categoryData.length > 0 && !categoryId) setCategoryId(categoryData[0].id);
+      const initialExpenseCategory = (categoryData as Category[] | null)?.find((category) => category.type === "expense");
+      if (initialExpenseCategory && !categoryId) setCategoryId(initialExpenseCategory.id);
 
       setLoading(false);
     }
@@ -278,6 +280,11 @@ export default function BudgetsPage() {
       setSaving(false);
       return;
     }
+    if (categoryMap[categoryId]?.type !== "expense") {
+      setErrorMsg("Budgets require an expense category.");
+      setSaving(false);
+      return;
+    }
 
     const {
       data: { user },
@@ -291,6 +298,11 @@ export default function BudgetsPage() {
     }
 
     const amount_minor = parseAmountToMinor(amount);
+    if (!Number.isSafeInteger(amount_minor) || amount_minor <= 0) {
+      setErrorMsg("Enter a budget amount greater than zero.");
+      setSaving(false);
+      return;
+    }
 
     const { data, error } = await supabaseBrowserClient
       .from("budgets")
@@ -495,10 +507,14 @@ export default function BudgetsPage() {
 
           {showCreateForm ? (
             <div className="mt-5 border-t border-white/10 pt-5">
-              {wallets.length === 0 || categories.length === 0 ? (
-                <p className="text-sm text-yellow-300">
-                  You need at least one wallet and one category to set a budget.
-                </p>
+              {wallets.length === 0 || !categories.some((category) => category.type === "expense") ? (
+                <PrerequisiteGuide
+                  title="Prepare the ledger before creating a budget"
+                  items={[
+                    { label: "Wallet", complete: wallets.length > 0, href: "/wallets", actionLabel: "Add wallet" },
+                    { label: "Expense category", complete: categories.some((category) => category.type === "expense"), href: "/categories", actionLabel: "Add expense category" },
+                  ]}
+                />
               ) : (
                 <form onSubmit={handleCreateBudget} className="grid gap-4 md:grid-cols-3">
                   <div>
@@ -523,7 +539,7 @@ export default function BudgetsPage() {
                       value={categoryId}
                       onChange={(e) => setCategoryId(e.target.value)}
                     >
-                      {categories.map((c) => (
+                      {categories.filter((category) => category.type === "expense").map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name} ({c.type})
                         </option>

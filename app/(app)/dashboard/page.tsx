@@ -19,6 +19,7 @@ import SmartAlertsPanel from "@/components/dashboard/SmartAlertsPanel";
 import ExecutiveInsightsPanel from "@/components/dashboard/ExecutiveInsightsPanel";
 import ForecastMonthEndBalance from "@/components/dashboard/ForecastMonthEndBalance";
 import ExecutiveHeroCard from "@/components/dashboard/ExecutiveHeroCard";
+import { ActivationGuide } from "@/components/activation/ActivationGuide";
 
 import Skeleton from "@/components/ui/Skeleton";
 
@@ -83,6 +84,7 @@ import {
   buildMonthEndForecastReconciliation,
 } from "@/lib/dashboard/budgetForecastReconciliation";
 import { buildDashboardInsightModel } from "@/lib/dashboard/intelligence";
+import { buildActivationModel } from "@/lib/activation/model";
 
 type Wallet = {
   id: string;
@@ -477,6 +479,18 @@ export default function DashboardPage() {
   const walletNamesById = useMemo(
     () => Object.fromEntries(wallets.map((wallet) => [wallet.id, wallet.name] as const)),
     [wallets]
+  );
+  const activationModel = useMemo(
+    () =>
+      buildActivationModel({
+        walletCount: wallets.length,
+        incomeCategoryCount: categories.filter((category) => category.type === "income").length,
+        expenseCategoryCount: categories.filter((category) => category.type === "expense").length,
+        transactionCount: transactions.length,
+        budgetCount: budgets.length,
+        recurringRuleCount: recurringRules.length,
+      }),
+    [budgets.length, categories, recurringRules.length, transactions.length, wallets.length]
   );
 
   // Per-wallet balances and currency totals are derived once per source-data
@@ -958,6 +972,12 @@ export default function DashboardPage() {
           <p className="mb-6 text-red-400 text-sm" role="alert">
             {errorMsg}
           </p>
+        )}
+
+        {loadingData ? (
+          <Skeleton className="mb-7 h-64 w-full sm:mb-8" rounded="2xl" />
+        ) : (
+          <ActivationGuide model={activationModel} />
         )}
 
         {/* Executive command center */}
