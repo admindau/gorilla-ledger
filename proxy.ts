@@ -1,6 +1,7 @@
 // proxy.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { applyPrivateNoStore } from "@/lib/http/privateCache";
 
 const PROTECTED_PREFIXES = [
   "/dashboard",
@@ -46,18 +47,15 @@ export async function proxy(req: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (isProtectedPath(req.nextUrl.pathname)) {
-    res.headers.set(
-      "Cache-Control",
-      "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
-    );
-    res.headers.set("Pragma", "no-cache");
-    res.headers.set("Expires", "0");
+    applyPrivateNoStore(res.headers);
 
     if (!user) {
       const loginUrl = req.nextUrl.clone();
       loginUrl.pathname = "/auth/login";
       loginUrl.searchParams.set("next", req.nextUrl.pathname + req.nextUrl.search);
-      return NextResponse.redirect(loginUrl);
+      const redirectResponse = NextResponse.redirect(loginUrl);
+      applyPrivateNoStore(redirectResponse.headers);
+      return redirectResponse;
     }
   }
 
