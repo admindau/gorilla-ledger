@@ -1415,17 +1415,27 @@ body {
       rgba(3,3,3,0.96) !important;
   }
 
+  .gl-card,
   .gl-chart-card,
+  .gl-chart-filterbar,
+  .gl-currency-tile,
   .gl-spending-trend-surface {
     background:
       linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.016)),
       rgba(3,3,3,0.96) !important;
   }
 
+  .gl-currency-tile::after {
+    display: none;
+  }
+
   .gl-premium-card,
+  .gl-card,
   .gl-hero-card,
   .gl-intelligence-suite,
   .gl-chart-card,
+  .gl-chart-filterbar,
+  .gl-currency-tile,
   .gl-spending-trend-surface {
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
