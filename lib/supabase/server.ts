@@ -9,7 +9,7 @@ import { createServerClient } from "@supabase/ssr";
  * '@/types/supabase' isn't present. You can add generics later.
  */
 
-export function createServerSupabaseClient() {
+export async function createServerSupabaseClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
@@ -19,8 +19,7 @@ export function createServerSupabaseClient() {
     );
   }
 
-  // cookies() is NOT async in Next App Router. Do not await it.
-  const cookieStore = cookies() as any;
+  const cookieStore = await cookies();
 
   return createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {

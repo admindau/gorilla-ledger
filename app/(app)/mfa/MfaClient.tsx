@@ -19,6 +19,19 @@ function isSixDigitCode(value: string) {
   return /^\d{6}$/.test(trimmed);
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) return error.message;
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+  return fallback;
+}
+
 export default function MfaClient() {
   const router = useRouter();
   const sp = useSearchParams();
@@ -118,9 +131,9 @@ export default function MfaClient() {
 
           sessionStorage.setItem(STORAGE_KEY, JSON.stringify(newCtx));
           if (!cancelled) setCtx(newCtx);
-        } catch (e: any) {
+        } catch (error: unknown) {
           if (!cancelled) {
-            setErrorMsg(e?.message ?? "Unable to start step-up MFA. Try again.");
+            setErrorMsg(getErrorMessage(error, "Unable to start step-up MFA. Try again."));
           }
         } finally {
           if (!cancelled) setBooting(false);

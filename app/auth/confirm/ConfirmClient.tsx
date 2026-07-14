@@ -24,24 +24,28 @@ export default function ConfirmClient() {
   const [message, setMessage] = useState("Confirming your session...");
 
   useEffect(() => {
-    // PKCE code flow (if ever used)
-    if (code) {
-      window.location.assign(
-        `/auth/confirm/callback?code=${encodeURIComponent(code)}&next=${encodeURIComponent(next)}`
+    async function confirmSession() {
+      await Promise.resolve();
+
+      // PKCE code flow (if ever used)
+      if (code) {
+        window.location.assign(
+          `/auth/confirm/callback?code=${encodeURIComponent(code)}&next=${encodeURIComponent(next)}`
+        );
+        return;
+      }
+
+      // Hash token flow (your current recovery link case)
+      const { access_token, refresh_token } = parseHashParams(
+        window.location.hash || ""
       );
-      return;
-    }
 
-    // Hash token flow (your current recovery link case)
-    const { access_token, refresh_token } = parseHashParams(window.location.hash || "");
+      if (!access_token || !refresh_token) {
+        setStatus("error");
+        setMessage("Invalid or expired link. Please request a new password reset.");
+        return;
+      }
 
-    if (!access_token || !refresh_token) {
-      setStatus("error");
-      setMessage("Invalid or expired link. Please request a new password reset.");
-      return;
-    }
-
-    (async () => {
       try {
         setMessage("Securing your session...");
 
@@ -78,7 +82,9 @@ export default function ConfirmClient() {
         setStatus("error");
         setMessage("Network error while confirming. Please try again.");
       }
-    })();
+    }
+
+    void confirmSession();
   }, [code, next, router]);
 
   return (

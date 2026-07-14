@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ResponsiveContainer,
   PieChart,
@@ -108,18 +108,11 @@ export default function SpendingByCategoryChart({
     [expensesByCurrency]
   );
 
-  const [activeCurrency, setActiveCurrency] = useState<string | null>(null);
-
-  // Keep active currency in sync with available data
-  useEffect(() => {
-    if (currencyCodes.length === 0) {
-      setActiveCurrency(null);
-      return;
-    }
-    if (!activeCurrency || !currencyCodes.includes(activeCurrency)) {
-      setActiveCurrency(currencyCodes[0]);
-    }
-  }, [currencyCodes, activeCurrency]);
+  const [currencyPreference, setActiveCurrency] = useState<string | null>(null);
+  const activeCurrency =
+    currencyPreference && currencyCodes.includes(currencyPreference)
+      ? currencyPreference
+      : currencyCodes[0] ?? null;
 
   const pieData = useMemo(() => {
     if (!activeCurrency) return [];

@@ -148,15 +148,6 @@ function formatMinorToAmount(minor: number): string {
 }
 
 
-// UI/UX hardening: last security check key
-const LAST_SECURITY_CHECK_AT_KEY = "gl_last_security_check_at_v1";
-
-function daysAgoFromMs(ms: number) {
-  const diff = Date.now() - ms;
-  if (diff < 0) return 0;
-  return Math.floor(diff / (1000 * 60 * 60 * 24));
-}
-
 const DASHBOARD_PAGE_SIZE = 1000;
 const DASHBOARD_MAX_PAGES = 250;
 
@@ -320,18 +311,12 @@ export default function DashboardPage() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [loadingData, setLoadingData] = useState(true);
 
-  const [email, setEmail] = useState<string | null>(null);
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
-
-  // UI/UX hardening: MFA status + backup + last security check
-  const [mfaEnabled, setMfaEnabled] = useState(false);
-  const [hasBackupFactor, setHasBackupFactor] = useState(false);
-  const [lastCheckAt, setLastCheckAt] = useState<number | null>(null);
 
   // --- Month selector state (0–11) ---
   const today = new Date();
@@ -390,39 +375,9 @@ export default function DashboardPage() {
           return;
         }
 
-        setEmail(session.user.email ?? null);
-
-        try {
-          const raw = localStorage.getItem(LAST_SECURITY_CHECK_AT_KEY);
-          const val = raw ? Number(raw) : 0;
-          if (canCommit()) setLastCheckAt(val > 0 ? val : null);
-        } catch {
-          if (canCommit()) setLastCheckAt(null);
-        }
-
         if (!canCommit()) return;
         setCheckingSession(false);
         setLoadingData(true);
-
-        // MFA metadata is deliberately non-blocking. It cannot currently be
-        // aborted by Supabase Auth, so its completion is guarded instead.
-        void supabaseBrowserClient.auth.mfa
-          .listFactors()
-          .then(({ data: factorsData }) => {
-            if (!canCommit()) return;
-            const verified =
-              factorsData?.totp?.filter(
-                (factor) => factor.status === "verified"
-              ) ?? [];
-            setMfaEnabled(verified.length > 0);
-            setHasBackupFactor(verified.length >= 2);
-          })
-          .catch((error: unknown) => {
-            if (!canCommit() || isAbortError(error)) return;
-            // Security metadata is non-blocking; keep the UI conservative.
-            setMfaEnabled(false);
-            setHasBackupFactor(false);
-          });
 
         const [walletRes, categoryRes, txRes, budgetRes, recurringRes] =
           await Promise.all([
@@ -508,19 +463,6 @@ export default function DashboardPage() {
       controller.abort();
     };
   }, [router]);
-
-  async function handleLogout() {
-    const ok = window.confirm(
-      mfaEnabled && !hasBackupFactor
-        ? "You are about to log out of Gorilla Ledger™.\n\nReminder: You have not configured a backup authenticator. If you lose access to your authenticator app, account recovery may not be possible.\n\nContinue?"
-        : "You are about to log out of Gorilla Ledger™. Continue?"
-    );
-
-    if (!ok) return;
-
-    await supabaseBrowserClient.auth.signOut();
-    router.replace("/auth/login");
-  }
 
   // ----- Derived data -----
 
@@ -953,21 +895,12 @@ export default function DashboardPage() {
     return Number.isFinite(parsed) ? parsed : new Date().getFullYear();
   })();
 
-  const lastSecurityLabel = lastCheckAt
-    ? `${daysAgoFromMs(lastCheckAt)} day(s) ago`
-    : "Not recorded";
-
   // ---------- Visual system ----------
   const CARD = "gl-premium-card rounded-[1.35rem] p-4 sm:p-5";
   const CHART_CARD = "gl-premium-card gl-chart-card min-w-0 overflow-hidden rounded-[1.45rem] p-3.5 sm:p-6";
-  const CARD_TIGHT = "gl-premium-card rounded-[1.2rem] p-4";
-  const KPI_CARD = "gl-premium-card rounded-[1.2rem] p-4";
-  const SECTION_DIVIDER = "h-px bg-gray-800/80";
-  const SECTION_KICKER = "text-[11px] uppercase tracking-wide text-gray-500";
 
   // KPI typography helpers
   const KPI_VALUE = "font-semibold tracking-tight tabular-nums leading-none";
-  const KPI_VALUE_LG = `text-3xl sm:text-[34px] ${KPI_VALUE}`;
   const KPI_VALUE_MD = `text-xl sm:text-2xl ${KPI_VALUE}`;
 
   // Skeleton heights (stable layout, low CLS)

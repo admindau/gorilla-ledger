@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   LineChart,
   Line,
@@ -81,22 +81,11 @@ export default function FullHistoryIncomeExpenseChart({
 
   const hasCurrencyInfo = currencies.length > 0;
 
-  const [activeCurrency, setActiveCurrency] = useState<string | null>(
-    hasCurrencyInfo ? currencies[0] : null
-  );
-
-  // Best practice: keep activeCurrency valid when data/filters change
-  useEffect(() => {
-    if (!hasCurrencyInfo) {
-      if (activeCurrency !== null) setActiveCurrency(null);
-      return;
-    }
-
-    if (!activeCurrency || !currencies.includes(activeCurrency)) {
-      setActiveCurrency(currencies[0] ?? null);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasCurrencyInfo, currencies.join("|")]);
+  const [currencyPreference, setActiveCurrency] = useState<string | null>(null);
+  const activeCurrency =
+    currencyPreference && currencies.includes(currencyPreference)
+      ? currencyPreference
+      : currencies[0] ?? null;
 
   const chartData = useMemo(() => {
     if (!hasRawData) return [];

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 import ReceiptUploader, {
   validateReceiptFiles,
@@ -65,6 +65,19 @@ function extFromFile(file: File): string {
   if (file.type === "image/webp") return "webp";
   if (file.type === "image/heic") return "heic";
   return "bin";
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) return error.message;
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+  return fallback;
 }
 
 async function uploadReceiptForTransaction(params: {
@@ -160,8 +173,8 @@ async function uploadReceiptForTransaction(params: {
     }
 
     return { ok: true };
-  } catch (e: any) {
-    return { ok: false, error: e?.message ?? "Unknown upload error." };
+  } catch (error: unknown) {
+    return { ok: false, error: getErrorMessage(error, "Unknown upload error.") };
   }
 }
 

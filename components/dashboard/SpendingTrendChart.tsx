@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState, type PointerEvent } from "react";
+import { useId, useMemo, useState, type PointerEvent } from "react";
 import AccessibleChartSummary from "@/components/charts/AccessibleChartSummary";
 
 type TrendPoint = {
@@ -82,7 +82,10 @@ export default function SpendingTrendChart({ data }: Props) {
   const areaFillId = `spending-area-fill-${reactId}`;
   const lineStrokeId = `spending-line-stroke-${reactId}`;
   const lineGlowId = `spending-line-glow-${reactId}`;
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [activeSelection, setActiveSelection] = useState<{
+    currency: string;
+    index: number;
+  } | null>(null);
 
   const currencies = useMemo(
     () =>
@@ -98,24 +101,12 @@ export default function SpendingTrendChart({ data }: Props) {
     [data]
   );
 
-  const [selectedCurrency, setSelectedCurrency] = useState(
+  const [currencyPreference, setSelectedCurrency] = useState(
     () => currencies[0] ?? data[0]?.currencyCode?.trim().toUpperCase() ?? ""
   );
-
-  useEffect(() => {
-    if (currencies.length === 0) {
-      setSelectedCurrency("");
-      return;
-    }
-
-    if (!currencies.includes(selectedCurrency)) {
-      setSelectedCurrency(currencies[0]);
-    }
-  }, [currencies, selectedCurrency]);
-
-  useEffect(() => {
-    setActiveIndex(null);
-  }, [selectedCurrency]);
+  const selectedCurrency = currencies.includes(currencyPreference)
+    ? currencyPreference
+    : currencies[0] ?? "";
 
   const model = useMemo(() => {
     const filtered = selectedCurrency
@@ -190,7 +181,10 @@ export default function SpendingTrendChart({ data }: Props) {
     return { x, y, row };
   });
 
-  const activePoint = points[activeIndex ?? -1] ?? null;
+  const activePoint =
+    activeSelection?.currency === selectedCurrency
+      ? points[activeSelection.index] ?? null
+      : null;
   const first = rows[0];
   const last = rows[rows.length - 1];
   const linePath = buildSmoothPath(points);
@@ -202,12 +196,7 @@ export default function SpendingTrendChart({ data }: Props) {
 
   const highlightPoints = points.filter((point) => point.row.expense > 0);
   const yTicks = [1, 0.66, 0.33, 0];
-  const accessibleSummary = useMemo(() => {
-    if (rows.length === 0 || maxExpense <= 0) {
-      return "Daily spending trend: no expense data is available for the current period.";
-    }
-    return `Daily spending trend${selectedCurrency ? ` in ${selectedCurrency}` : ""} from ${first.label} to ${last.label}. Total spending ${formatCompactAmount(totalExpense)}, daily average ${formatCompactAmount(averageExpense)}, ${activeDays} active spending days, and peak spending ${peakRow ? formatCompactAmount(peakRow.expense) : "none"}${peakRow ? ` on ${peakRow.label}` : ""}.`;
-  }, [rows.length, maxExpense, selectedCurrency, first.label, last.label, totalExpense, averageExpense, activeDays, peakRow]);
+  const accessibleSummary = `Daily spending trend${selectedCurrency ? ` in ${selectedCurrency}` : ""} from ${first.label} to ${last.label}. Total spending ${formatCompactAmount(totalExpense)}, daily average ${formatCompactAmount(averageExpense)}, ${activeDays} active spending days, and peak spending ${peakRow ? formatCompactAmount(peakRow.expense) : "none"}${peakRow ? ` on ${peakRow.label}` : ""}.`;
 
 
   function handlePointerMove(event: PointerEvent<SVGSVGElement>) {
@@ -219,7 +208,10 @@ export default function SpendingTrendChart({ data }: Props) {
         ? 0
         : Math.round(((boundedX - paddingX) / plotWidth) * (rows.length - 1));
 
-    setActiveIndex(Math.max(0, Math.min(rows.length - 1, index)));
+    setActiveSelection({
+      currency: selectedCurrency,
+      index: Math.max(0, Math.min(rows.length - 1, index)),
+    });
   }
 
   return (
@@ -260,7 +252,10 @@ export default function SpendingTrendChart({ data }: Props) {
                   <button
                     key={currency}
                     type="button"
-                    onClick={() => setSelectedCurrency(currency)}
+                    onClick={() => {
+                      setSelectedCurrency(currency);
+                      setActiveSelection(null);
+                    }}
                     aria-pressed={active}
                     className={`min-w-[4.25rem] rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
                       active
@@ -339,7 +334,7 @@ export default function SpendingTrendChart({ data }: Props) {
           className="relative h-[250px] w-full sm:h-[310px]"
           preserveAspectRatio="none"
           onPointerMove={handlePointerMove}
-          onPointerLeave={() => setActiveIndex(null)}
+          onPointerLeave={() => setActiveSelection(null)}
         >
           <defs>
             <linearGradient id={areaFillId} x1="0" x2="0" y1="0" y2="1">

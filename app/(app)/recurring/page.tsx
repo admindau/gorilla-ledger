@@ -88,13 +88,11 @@ export default function RecurringPage() {
 
       try {
         const [
-          { data: u },
           { data: w, error: wErr },
           { data: c, error: cErr },
           { data: r, error: rErr },
           { data: logs, error: logsErr },
         ] = await Promise.all([
-          supabase.auth.getUser(),
           supabase
             .from("wallets")
             .select("id,name,currency_code")
@@ -284,20 +282,6 @@ export default function RecurringPage() {
     showToast("Recurring rule deleted.", "success");
     setRules((prev) => prev.filter((r) => r.id !== rule.id));
   }
-
-
-  function formatDateTime(value: string | null) {
-    if (!value) return "—";
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return "—";
-    return d.toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  }
-
-
   function formatDateTimeWithTime(value: string | null) {
     if (!value) return "—";
     const d = new Date(value);

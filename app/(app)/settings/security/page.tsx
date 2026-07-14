@@ -57,6 +57,19 @@ function looksLikeFriendlyNameExists(msg: string) {
   return m.includes("friendly name") && m.includes("already exists");
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) return error.message;
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+  return fallback;
+}
+
 /* =============================================================================
    Types
    ============================================================================= */
@@ -206,15 +219,15 @@ export default function SecuritySettingsPage() {
       loadLastCheck();
 
       try {
-        const [{ data: u }, _] = await Promise.all([
+        const [{ data: u }] = await Promise.all([
           supabaseBrowserClient.auth.getUser(),
           refreshFactors(),
         ]);
 
         if (!cancelled) setUserEmail(u?.user?.email ?? "");
-      } catch (e: any) {
+      } catch (error: unknown) {
         if (!cancelled) {
-          setErrorMsg(e?.message ?? "Unable to load security settings.");
+          setErrorMsg(getErrorMessage(error, "Unable to load security settings."));
         }
       } finally {
         if (!cancelled) setBooting(false);
@@ -293,8 +306,8 @@ export default function SecuritySettingsPage() {
         secret: data.totp.secret,
         qr: data.totp.qr_code,
       });
-    } catch (e: any) {
-      setErrorMsg(e?.message ?? "Failed to start MFA enrollment.");
+    } catch (error: unknown) {
+      setErrorMsg(getErrorMessage(error, "Failed to start MFA enrollment."));
     } finally {
       setLoading(false);
     }
@@ -347,8 +360,8 @@ export default function SecuritySettingsPage() {
 
       setEnroll({ status: "enabled" });
       setOtp("");
-    } catch (e: any) {
-      setErrorMsg(e?.message ?? "Verification failed.");
+    } catch (error: unknown) {
+      setErrorMsg(getErrorMessage(error, "Verification failed."));
     } finally {
       setLoading(false);
     }
