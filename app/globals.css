@@ -1390,6 +1390,34 @@ body {
     padding-top: 1.25rem !important;
   }
 
+  /*
+   * Mobile Safari can rasterize translucent radial gradients as opaque white
+   * discs when they are clipped inside a backdrop-filtered surface. Keep the
+   * premium depth, but use deterministic linear layers on narrow viewports.
+   */
+  .gl-hero-card {
+    background:
+      linear-gradient(145deg, rgba(255,255,255,0.105), rgba(255,255,255,0.03) 45%, rgba(0,0,0,0.76)),
+      rgba(6,6,6,0.94) !important;
+  }
+
+  .gl-hero-card::after {
+    display: none;
+  }
+
+  .gl-intelligence-suite {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.018)),
+      rgba(3,3,3,0.96) !important;
+  }
+
+  .gl-chart-card,
+  .gl-spending-trend-surface {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.016)),
+      rgba(3,3,3,0.96) !important;
+  }
+
   .gl-premium-card:hover {
     transform: none;
   }
