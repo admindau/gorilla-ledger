@@ -10,6 +10,7 @@ import { Input, Select } from "@/components/ui/Input";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageSection } from "@/components/ui/PageSection";
 import { PageShell } from "@/components/ui/PageShell";
+import Skeleton from "@/components/ui/Skeleton";
 import TrustIndicator from "@/components/ui/TrustIndicator";
 
 type Wallet = {
@@ -134,10 +135,18 @@ export default function WalletsPage() {
       setLoading(true);
       setErrorMsg("");
 
+      const [userResult, walletResult] = await Promise.all([
+        supabaseBrowserClient.auth.getUser(),
+        supabaseBrowserClient
+          .from("wallets")
+          .select("*")
+          .order("created_at", { ascending: true }),
+      ]);
+
       const {
         data: { user },
         error: userError,
-      } = await supabaseBrowserClient.auth.getUser();
+      } = userResult;
 
       if (userError || !user) {
         setErrorMsg("You must be logged in to view wallets.");
@@ -145,19 +154,7 @@ export default function WalletsPage() {
         return;
       }
 
-      // Ensure profile row exists for this user (keeps onboarding smooth)
-      await supabaseBrowserClient.from("profiles").upsert(
-        {
-          id: user.id,
-          full_name: user.email ?? null,
-        },
-        { onConflict: "id" }
-      );
-
-      const { data, error } = await supabaseBrowserClient
-        .from("wallets")
-        .select("*")
-        .order("created_at", { ascending: true });
+      const { data, error } = walletResult;
 
       if (error) {
         console.error(error);
@@ -168,6 +165,22 @@ export default function WalletsPage() {
 
       setWallets(data as Wallet[]);
       setLoading(false);
+
+      // Profile maintenance supports onboarding but must not delay wallet data.
+      void supabaseBrowserClient
+        .from("profiles")
+        .upsert(
+          {
+            id: user.id,
+            full_name: user.email ?? null,
+          },
+          { onConflict: "id" }
+        )
+        .then(({ error: profileError }) => {
+          if (profileError) {
+            console.warn("Unable to refresh wallet profile metadata", profileError);
+          }
+        });
     }
 
     loadWallets();
@@ -336,6 +349,7 @@ export default function WalletsPage() {
             type="button"
             variant={showCreatePanel ? "secondary" : "primary"}
             onClick={() => setShowCreatePanel((value) => !value)}
+            disabled={loading}
           >
             {showCreatePanel ? "Close Panel" : "+ Add Wallet"}
           </Button>
@@ -345,13 +359,28 @@ export default function WalletsPage() {
       {errorMsg ? <div className="gl-alert-error">{errorMsg}</div> : null}
 
       <PageSection>
-        <Card variant="premium" className="overflow-hidden p-6 sm:p-7">
+        <Card
+          variant="premium"
+          className="overflow-hidden p-6 sm:p-7"
+          aria-busy={loading}
+        >
           <div className="grid gap-6 lg:grid-cols-[1.25fr_1fr] lg:items-end">
             <div>
-              <div className="mb-5 flex flex-wrap items-center gap-2">
+              <div
+                className="mb-5 flex flex-wrap items-center gap-2"
+                aria-live="polite"
+              >
                 <Badge>Asset Position</Badge>
-                <Badge variant={wallets.length > 0 ? "success" : "warning"}>
-                  {wallets.length > 0 ? "Live" : "Setup Needed"}
+                <Badge
+                  variant={
+                    loading ? "neutral" : wallets.length > 0 ? "success" : "warning"
+                  }
+                >
+                  {loading
+                    ? "Syncing"
+                    : wallets.length > 0
+                      ? "Live"
+                      : "Setup Needed"}
                 </Badge>
               </div>
 
@@ -360,7 +389,12 @@ export default function WalletsPage() {
               </p>
 
               <div className="mt-4 space-y-2">
-                {currencyTotals.length > 0 ? (
+                {loading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-12 w-48 max-w-full" rounded="xl" />
+                    <Skeleton className="h-12 w-40 max-w-full" rounded="xl" />
+                  </div>
+                ) : currencyTotals.length > 0 ? (
                   currencyTotals.map(([currency, total]) => (
                     <div key={currency} className="flex flex-wrap items-end gap-x-3 gap-y-1">
                       <span className="text-4xl font-semibold tracking-[-0.05em] text-white sm:text-5xl">
@@ -388,38 +422,74 @@ export default function WalletsPage() {
               </p>
 
               <div className="mt-5 flex flex-wrap gap-2">
-                <TrustIndicator status="success" label="Live Ledger Data" />
-                <TrustIndicator status="success" label="Snapshot Updated" detail="Today" />
+                {loading ? (
+                  <>
+                    <Skeleton className="h-8 w-40" rounded="full" />
+                    <Skeleton className="h-8 w-36" rounded="full" />
+                  </>
+                ) : (
+                  <>
+                    <TrustIndicator status="success" label="Live Ledger Data" />
+                    <TrustIndicator status="success" label="Snapshot Updated" detail="Today" />
+                  </>
+                )}
               </div>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
               <div className="gl-inner-card p-4">
                 <p className="text-xs uppercase tracking-[0.22em] text-white/35">Wallets</p>
-                <p className="mt-2 text-3xl font-semibold text-white">{wallets.length}</p>
-                <p className="mt-1 text-xs text-white/45">financial assets tracked</p>
+                {loading ? (
+                  <div className="mt-2 space-y-2">
+                    <Skeleton className="h-9 w-14" rounded="lg" />
+                    <Skeleton className="h-3 w-36" rounded="full" />
+                  </div>
+                ) : (
+                  <>
+                    <p className="mt-2 text-3xl font-semibold text-white">{wallets.length}</p>
+                    <p className="mt-1 text-xs text-white/45">financial assets tracked</p>
+                  </>
+                )}
               </div>
 
               <div className="gl-inner-card p-4">
                 <p className="text-xs uppercase tracking-[0.22em] text-white/35">Currency Exposure</p>
-                <p className="mt-2 text-3xl font-semibold text-white">{currencyTotals.length}</p>
-                <p className="mt-1 text-xs text-white/45">
-                  {currencyTotals.length > 0
-                    ? currencyTotals.map(([currency]) => currency).join(" • ")
-                    : "No currency yet"}
-                </p>
+                {loading ? (
+                  <div className="mt-2 space-y-2">
+                    <Skeleton className="h-9 w-14" rounded="lg" />
+                    <Skeleton className="h-3 w-28" rounded="full" />
+                  </div>
+                ) : (
+                  <>
+                    <p className="mt-2 text-3xl font-semibold text-white">{currencyTotals.length}</p>
+                    <p className="mt-1 text-xs text-white/45">
+                      {currencyTotals.length > 0
+                        ? currencyTotals.map(([currency]) => currency).join(" • ")
+                        : "No currency yet"}
+                    </p>
+                  </>
+                )}
               </div>
 
               <div className="gl-inner-card p-4 sm:col-span-2 lg:col-span-1">
                 <p className="text-xs uppercase tracking-[0.22em] text-white/35">Wallet Health</p>
-                <p className="mt-2 text-3xl font-semibold text-white">
-                  {wallets.length > 0 ? "Healthy" : "Setup"}
-                </p>
-                <p className="mt-1 text-xs text-white/45">
-                  {wallets.length > 0
-                    ? "Assets actively tracked"
-                    : "Create your first wallet"}
-                </p>
+                {loading ? (
+                  <div className="mt-2 space-y-2">
+                    <Skeleton className="h-9 w-32" rounded="lg" />
+                    <Skeleton className="h-3 w-40" rounded="full" />
+                  </div>
+                ) : (
+                  <>
+                    <p className="mt-2 text-3xl font-semibold text-white">
+                      {wallets.length > 0 ? "Healthy" : "Setup"}
+                    </p>
+                    <p className="mt-1 text-xs text-white/45">
+                      {wallets.length > 0
+                        ? "Assets actively tracked"
+                        : "Create your first wallet"}
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -430,36 +500,63 @@ export default function WalletsPage() {
         <div className="grid gap-4 md:grid-cols-3">
           <Card variant="inner" className="p-5">
             <p className="text-xs uppercase tracking-[0.24em] text-white/35">Largest Wallet</p>
-            <p className="mt-3 truncate text-2xl font-semibold tracking-[-0.03em] text-white">
-              {largestWallet ? largestWallet.name : "—"}
-            </p>
-            <p className="mt-2 text-sm text-white/55">
-              {largestWallet
-                ? `${formatMinorToAmount(largestWallet.starting_balance_minor)} ${largestWallet.currency_code}`
-                : "Create a wallet to establish your first position."}
-            </p>
+            {loading ? (
+              <div className="mt-3 space-y-3">
+                <Skeleton className="h-8 w-36" rounded="lg" />
+                <Skeleton className="h-4 w-24" rounded="full" />
+              </div>
+            ) : (
+              <>
+                <p className="mt-3 truncate text-2xl font-semibold tracking-[-0.03em] text-white">
+                  {largestWallet ? largestWallet.name : "—"}
+                </p>
+                <p className="mt-2 text-sm text-white/55">
+                  {largestWallet
+                    ? `${formatMinorToAmount(largestWallet.starting_balance_minor)} ${largestWallet.currency_code}`
+                    : "Create a wallet to establish your first position."}
+                </p>
+              </>
+            )}
           </Card>
 
           <Card variant="inner" className="p-5">
             <p className="text-xs uppercase tracking-[0.24em] text-white/35">Asset Types</p>
-            <p className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-white">
-              {walletTypeCount}
-            </p>
-            <p className="mt-2 text-sm text-white/55">
-              {walletTypeCount === 1 ? "single wallet class active" : "wallet classes active"}
-            </p>
+            {loading ? (
+              <div className="mt-3 space-y-3">
+                <Skeleton className="h-8 w-14" rounded="lg" />
+                <Skeleton className="h-4 w-32" rounded="full" />
+              </div>
+            ) : (
+              <>
+                <p className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-white">
+                  {walletTypeCount}
+                </p>
+                <p className="mt-2 text-sm text-white/55">
+                  {walletTypeCount === 1 ? "single wallet class active" : "wallet classes active"}
+                </p>
+              </>
+            )}
           </Card>
 
           <Card variant="inner" className="p-5">
             <p className="text-xs uppercase tracking-[0.24em] text-white/35">Ledger Readiness</p>
-            <p className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-white">
-              {wallets.length > 0 ? "Ready" : "Pending"}
-            </p>
-            <p className="mt-2 text-sm text-white/55">
-              {wallets.length > 0
-                ? "Transactions, budgets, and recurring flows can reference your wallets."
-                : "Add your first wallet to unlock the ledger workflow."}
-            </p>
+            {loading ? (
+              <div className="mt-3 space-y-3">
+                <Skeleton className="h-8 w-24" rounded="lg" />
+                <Skeleton className="h-4 w-full max-w-64" rounded="full" />
+              </div>
+            ) : (
+              <>
+                <p className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-white">
+                  {wallets.length > 0 ? "Ready" : "Pending"}
+                </p>
+                <p className="mt-2 text-sm text-white/55">
+                  {wallets.length > 0
+                    ? "Transactions, budgets, and recurring flows can reference your wallets."
+                    : "Add your first wallet to unlock the ledger workflow."}
+                </p>
+              </>
+            )}
           </Card>
         </div>
       </PageSection>
