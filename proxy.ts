@@ -10,6 +10,7 @@ const PROTECTED_PREFIXES = [
   "/budgets",
   "/recurring",
   "/settings",
+  "/mfa",
 ];
 
 function isProtectedPath(pathname: string) {
