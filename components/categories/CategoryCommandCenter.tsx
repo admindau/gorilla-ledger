@@ -1,10 +1,12 @@
 import { Card } from "@/components/ui/Card";
+import { MetricGridState, type DataState } from "@/components/ui/MetricGridState";
 
 type CategoryCommandCenterProps = {
   totalCategories: number;
   incomeCategories: number;
   expenseCategories: number;
   recentlyAddedLabel: string;
+  dataState?: DataState;
 };
 
 function MetricCard({ label, value, helper }: { label: string; value: string | number; helper: string }) {
@@ -22,7 +24,10 @@ export function CategoryCommandCenter({
   incomeCategories,
   expenseCategories,
   recentlyAddedLabel,
+  dataState = "ready",
 }: CategoryCommandCenterProps) {
+  if (dataState !== "ready") return <MetricGridState state={dataState} />;
+
   return (
     <section className="grid gap-4 md:grid-cols-4">
       <MetricCard label="Total categories" value={totalCategories} helper="Active taxonomy" />

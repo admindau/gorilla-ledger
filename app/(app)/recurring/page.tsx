@@ -9,6 +9,7 @@ import { RecurringCommandCenter } from "@/components/recurring/RecurringCommandC
 import { RecurringInsights } from "@/components/recurring/RecurringInsights";
 import { RecurringRuleCard } from "@/components/recurring/RecurringRuleCard";
 import { RecurringTimeline } from "@/components/recurring/RecurringTimeline";
+import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
 
 type Wallet = {
   id: string;
@@ -64,6 +65,8 @@ export default function RecurringPage() {
   const [rules, setRules] = useState<RecurringRule[]>([]);
   const [runLogs, setRunLogs] = useState<RecurringRunLog[]>([]);
   const [loadingPage, setLoadingPage] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [loadVersion, setLoadVersion] = useState(0);
   const [saving, setSaving] = useState(false);
 
   // form state
@@ -84,6 +87,7 @@ export default function RecurringPage() {
 
     async function loadData() {
       setLoadingPage(true);
+      setLoadError(false);
       const supabase = supabaseBrowserClient;
 
       try {
@@ -116,10 +120,16 @@ export default function RecurringPage() {
 
         if (cancelled) return;
 
-        if (wErr) console.error("Error loading wallets", wErr);
-        if (cErr) console.error("Error loading categories", cErr);
-        if (rErr) console.error("Error loading recurring rules", rErr);
-        if (logsErr) console.error("Error loading recurring run logs", logsErr);
+        if (wErr || cErr || rErr || logsErr) {
+          console.error("Unable to certify recurring automation data:", {
+            walletError: wErr,
+            categoryError: cErr,
+            ruleError: rErr,
+            runLogError: logsErr,
+          });
+          setLoadError(true);
+          return;
+        }
 
         setWallets(w ?? []);
         setCategories(c ?? []);
@@ -134,7 +144,7 @@ export default function RecurringPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadVersion]);
 
   // Create a new recurring rule
   async function handleCreateRule(e: FormEvent) {
@@ -341,14 +351,22 @@ export default function RecurringPage() {
             description="Monitor recurring income, expenses, upcoming executions, run history, and automation health from one command center."
           />
 
-          <RecurringCommandCenter rules={rules} runLogs={runLogs} />
-
-          <RecurringTimeline
+          <RecurringCommandCenter
             rules={rules}
-            wallets={wallets}
-            categories={categories}
-            loading={loadingPage}
+            runLogs={runLogs}
+            dataState={loadingPage ? "loading" : loadError ? "error" : "ready"}
           />
+
+          {loadError ? <DataLoadAlert onRetry={() => setLoadVersion((value) => value + 1)} /> : null}
+
+          {!loadError ? (
+            <RecurringTimeline
+              rules={rules}
+              wallets={wallets}
+              categories={categories}
+              loading={loadingPage}
+            />
+          ) : null}
 
           <form
             onSubmit={handleCreateRule}
@@ -467,7 +485,7 @@ export default function RecurringPage() {
 
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || loadingPage || loadError}
               className="gl-btn gl-btn-primary gl-btn-md mt-2"
             >
               {saving ? "Saving..." : "Save Rule"}
@@ -487,12 +505,14 @@ export default function RecurringPage() {
                 </p>
               </div>
               <div className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] text-gray-400">
-                {rules.filter((rule) => rule.is_active).length} active / {rules.length} total
+                {loadError ? "Unavailable" : `${rules.filter((rule) => rule.is_active).length} active / ${rules.length} total`}
               </div>
             </div>
 
             {loadingPage ? (
               <p className="text-xs text-gray-500">Loading recurring rules…</p>
+            ) : loadError ? (
+              <p className="text-xs text-gray-500">Recurring rules are unavailable.</p>
             ) : rules.length === 0 ? (
               <EmptyState
                 compact
@@ -516,7 +536,9 @@ export default function RecurringPage() {
             )}
           </section>
 
-          <RecurringInsights rules={rules} runLogs={runLogs} wallets={wallets} categories={categories} />
+          {!loadingPage && !loadError ? (
+            <RecurringInsights rules={rules} runLogs={runLogs} wallets={wallets} categories={categories} />
+          ) : null}
 
           {/* Recurring run audit logs */}
           <section className="gl-premium-card mt-8 p-4 text-sm">
@@ -543,6 +565,8 @@ export default function RecurringPage() {
 
             {loadingPage ? (
               <p className="text-xs text-gray-500">Loading audit logs…</p>
+            ) : loadError ? (
+              <p className="text-xs text-gray-500">Run audit data is unavailable.</p>
             ) : runLogs.length === 0 ? (
               <EmptyState
                 compact

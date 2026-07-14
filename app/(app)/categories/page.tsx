@@ -7,6 +7,7 @@ import { CategoryInsights } from "@/components/categories/CategoryInsights";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageShell } from "@/components/ui/PageShell";
+import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
 type Category = {
@@ -33,6 +34,8 @@ export default function CategoriesPage() {
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
+  const [loadError, setLoadError] = useState(false);
+  const [loadVersion, setLoadVersion] = useState(0);
 
   const [name, setName] = useState("");
   const [type, setType] = useState<CategoryType>("expense");
@@ -57,6 +60,7 @@ export default function CategoriesPage() {
     async function loadCategories() {
       setLoading(true);
       setErrorMsg("");
+      setLoadError(false);
 
       const {
         data: { user },
@@ -64,7 +68,8 @@ export default function CategoriesPage() {
       } = await supabaseBrowserClient.auth.getUser();
 
       if (userError || !user) {
-        setErrorMsg("You must be logged in to view categories.");
+        console.error("Unable to verify the category session:", userError);
+        setLoadError(true);
         setLoading(false);
         return;
       }
@@ -77,8 +82,8 @@ export default function CategoriesPage() {
         .order("name", { ascending: true });
 
       if (error) {
-        console.error(error);
-        setErrorMsg(error.message);
+        console.error("Unable to load categories:", error);
+        setLoadError(true);
         setLoading(false);
         return;
       }
@@ -88,7 +93,7 @@ export default function CategoriesPage() {
     }
 
     loadCategories();
-  }, []);
+  }, [loadVersion]);
 
   useEffect(() => {
     if (!createOpen) return;
@@ -416,6 +421,7 @@ export default function CategoriesPage() {
           }
         />
 
+        {loadError ? <DataLoadAlert onRetry={() => setLoadVersion((value) => value + 1)} /> : null}
         {errorMsg ? <p className="rounded-2xl border border-red-900/70 bg-red-950/20 p-3 text-sm text-red-300">{errorMsg}</p> : null}
 
         <CategoryCommandCenter
@@ -423,15 +429,18 @@ export default function CategoriesPage() {
           incomeCategories={categories.filter((c) => c.type === "income").length}
           expenseCategories={categories.filter((c) => c.type === "expense").length}
           recentlyAddedLabel={latestName}
+          dataState={loading ? "loading" : loadError ? "error" : "ready"}
         />
 
-        <CategoryInsights
-          totalCategories={categories.length}
-          incomeCategories={categories.filter((c) => c.type === "income").length}
-          expenseCategories={categories.filter((c) => c.type === "expense").length}
-          latestCategoryName={latestName}
-          filteredCount={filteredCategories.length}
-        />
+        {!loading && !loadError ? (
+          <CategoryInsights
+            totalCategories={categories.length}
+            incomeCategories={categories.filter((c) => c.type === "income").length}
+            expenseCategories={categories.filter((c) => c.type === "expense").length}
+            latestCategoryName={latestName}
+            filteredCount={filteredCategories.length}
+          />
+        ) : null}
 
         <section className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-3">
@@ -445,6 +454,8 @@ export default function CategoriesPage() {
 
             {loading ? (
               <p className="text-sm text-gray-400">Loading categories...</p>
+            ) : loadError ? (
+              <p className="text-sm text-gray-500">Category records are unavailable.</p>
             ) : incomeCategories.length === 0 ? (
               <EmptyState
                 compact
@@ -475,6 +486,8 @@ export default function CategoriesPage() {
 
             {loading ? (
               <p className="text-sm text-gray-400">Loading categories...</p>
+            ) : loadError ? (
+              <p className="text-sm text-gray-500">Category records are unavailable.</p>
             ) : expenseCategories.length === 0 ? (
               <EmptyState
                 compact

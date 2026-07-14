@@ -1,5 +1,8 @@
 "use client";
 
+import { buildCurrencyFlows } from "@/lib/finance/currencyTotals";
+import { MetricGridState, type DataState } from "@/components/ui/MetricGridState";
+
 type TransactionType = "income" | "expense";
 
 type Transaction = {
@@ -12,60 +15,73 @@ type Transaction = {
 
 type TransactionCommandCenterProps = {
   transactions: Transaction[];
+  dataState?: DataState;
+  scopeLabel?: string;
 };
 
 function formatMinorToAmount(minor: number): string {
   return (minor / 100).toFixed(2);
 }
 
-function currentMonthKey(): string {
-  return new Date().toISOString().slice(0, 7);
-}
-
 function formatSignedAmount(amountMinor: number, currencyCode: string, sign = ""): string {
   return `${sign}${formatMinorToAmount(amountMinor)} ${currencyCode}`;
 }
 
-export function TransactionCommandCenter({ transactions }: TransactionCommandCenterProps) {
-  const monthKey = currentMonthKey();
-  const monthTransactions = transactions.filter((tx) => tx.occurred_at.slice(0, 7) === monthKey);
-  const displayTransactions = monthTransactions.length > 0 ? monthTransactions : transactions;
-  const primaryCurrency = displayTransactions[0]?.currency_code ?? transactions[0]?.currency_code ?? "SSP";
+function MoneyLines({
+  flows,
+  field,
+}: {
+  flows: ReturnType<typeof buildCurrencyFlows>;
+  field: "incomeMinor" | "expenseMinor" | "netMinor";
+}) {
+  if (flows.length === 0) return <span>—</span>;
 
-  const incomeMinor = displayTransactions
-    .filter((tx) => tx.type === "income")
-    .reduce((sum, tx) => sum + tx.amount_minor, 0);
+  return (
+    <span className="flex flex-col gap-1">
+      {flows.map((flow) => {
+        const value = flow[field];
+        const sign = field === "expenseMinor" ? "-" : value >= 0 ? "+" : "-";
+        return (
+          <span key={flow.currencyCode}>
+            {formatSignedAmount(Math.abs(value), flow.currencyCode, sign)}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
 
-  const expenseMinor = displayTransactions
-    .filter((tx) => tx.type === "expense")
-    .reduce((sum, tx) => sum + tx.amount_minor, 0);
+export function TransactionCommandCenter({
+  transactions,
+  dataState = "ready",
+  scopeLabel = "This month",
+}: TransactionCommandCenterProps) {
+  if (dataState !== "ready") return <MetricGridState state={dataState} />;
 
-  const netMinor = incomeMinor - expenseMinor;
-  const scopeLabel = monthTransactions.length > 0 ? "This month" : "Loaded records";
+  const flows = buildCurrencyFlows(transactions);
 
   const items = [
     {
       label: "Activity",
-      value: String(displayTransactions.length),
+      value: String(transactions.length),
       caption: scopeLabel,
     },
     {
       label: "Income",
-      value: formatSignedAmount(incomeMinor, primaryCurrency, "+"),
+      value: <MoneyLines flows={flows} field="incomeMinor" />,
       caption: scopeLabel,
       tone: "positive",
     },
     {
       label: "Expenses",
-      value: formatSignedAmount(expenseMinor, primaryCurrency, "-"),
+      value: <MoneyLines flows={flows} field="expenseMinor" />,
       caption: scopeLabel,
       tone: "negative",
     },
     {
       label: "Net Flow",
-      value: formatSignedAmount(Math.abs(netMinor), primaryCurrency, netMinor >= 0 ? "+" : "-"),
-      caption: netMinor >= 0 ? "Positive flow" : "Negative flow",
-      tone: netMinor >= 0 ? "positive" : "negative",
+      value: <MoneyLines flows={flows} field="netMinor" />,
+      caption: flows.length > 1 ? "Separated by currency" : "Income minus expenses",
     },
   ];
 
@@ -76,7 +92,7 @@ export function TransactionCommandCenter({ transactions }: TransactionCommandCen
           <p className="text-[11px] uppercase tracking-[0.22em] text-gray-500">{item.label}</p>
           <p
             className={[
-              "mt-2 truncate text-2xl font-semibold tracking-tight",
+              "mt-2 text-xl font-semibold tracking-tight",
               item.tone === "positive" ? "text-green-300" : "",
               item.tone === "negative" ? "text-red-300" : "",
             ]

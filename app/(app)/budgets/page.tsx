@@ -7,6 +7,7 @@ import { BudgetCommandCenter, type BudgetSummary } from "@/components/budgets/Bu
 import { BudgetInsights } from "@/components/budgets/BudgetInsights";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
 
 type Wallet = {
   id: string;
@@ -40,6 +41,29 @@ type Transaction = {
   occurred_at: string;
 };
 
+const BUDGET_TRANSACTION_PAGE_SIZE = 1000;
+
+async function loadAllExpenseTransactions(): Promise<{
+  data: Transaction[];
+  error: string | null;
+}> {
+  const rows: Transaction[] = [];
+
+  for (let from = 0; ; from += BUDGET_TRANSACTION_PAGE_SIZE) {
+    const { data, error } = await supabaseBrowserClient
+      .from("transactions")
+      .select("id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at")
+      .eq("type", "expense")
+      .order("occurred_at", { ascending: false })
+      .range(from, from + BUDGET_TRANSACTION_PAGE_SIZE - 1);
+
+    if (error) return { data: [], error: error.message };
+    const page = (data ?? []) as Transaction[];
+    rows.push(...page);
+    if (page.length < BUDGET_TRANSACTION_PAGE_SIZE) return { data: rows, error: null };
+  }
+}
+
 function parseAmountToMinor(amount: string): number {
   const cleaned = amount.replace(",", "").trim();
   const [whole, fractional = ""] = cleaned.split(".");
@@ -69,6 +93,8 @@ export default function BudgetsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [loadError, setLoadError] = useState(false);
+  const [loadVersion, setLoadVersion] = useState(0);
 
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -136,6 +162,7 @@ export default function BudgetsPage() {
     async function loadData() {
       setLoading(true);
       setErrorMsg("");
+      setLoadError(false);
 
       const {
         data: { user },
@@ -143,69 +170,40 @@ export default function BudgetsPage() {
       } = await supabaseBrowserClient.auth.getUser();
 
       if (userError || !user) {
-        setErrorMsg("You must be logged in to view budgets.");
+        console.error("Unable to verify the budget session:", userError);
+        setLoadError(true);
         setLoading(false);
         return;
       }
 
-      const { data: walletData, error: walletError } = await supabaseBrowserClient
-        .from("wallets")
-        .select("id, name, currency_code")
-        .order("created_at", { ascending: true });
+      const [walletResult, categoryResult, budgetResult, transactionResult] = await Promise.all([
+        supabaseBrowserClient.from("wallets").select("id, name, currency_code").order("created_at", { ascending: true }),
+        supabaseBrowserClient.from("categories").select("id, name, type").eq("is_active", true).order("type", { ascending: true }).order("name", { ascending: true }),
+        supabaseBrowserClient.from("budgets").select("*").order("year", { ascending: false }).order("month", { ascending: false }).order("created_at", { ascending: false }).limit(200),
+        loadAllExpenseTransactions(),
+      ]);
 
-      if (walletError) {
-        console.error(walletError);
-        setErrorMsg(walletError.message);
+      const { data: walletData, error: walletError } = walletResult;
+      const { data: categoryData, error: categoryError } = categoryResult;
+      const { data: budgetData, error: budgetError } = budgetResult;
+      const transactionData = transactionResult.data;
+      const transactionError = transactionResult.error;
+
+      if (walletError || categoryError || budgetError || transactionError) {
+        console.error("Unable to certify budget data:", {
+          walletError,
+          categoryError,
+          budgetError,
+          transactionError,
+        });
+        setLoadError(true);
         setLoading(false);
         return;
       }
       setWallets(walletData as Wallet[]);
-
-      const { data: categoryData, error: categoryError } = await supabaseBrowserClient
-        .from("categories")
-        .select("id, name, type")
-        .eq("is_active", true)
-        .order("type", { ascending: true })
-        .order("name", { ascending: true });
-
-      if (categoryError) {
-        console.error(categoryError);
-        setErrorMsg(categoryError.message);
-        setLoading(false);
-        return;
-      }
       setCategories(categoryData as Category[]);
-
-      const { data: budgetData, error: budgetError } = await supabaseBrowserClient
-        .from("budgets")
-        .select("*")
-        .order("year", { ascending: false })
-        .order("month", { ascending: false })
-        .order("created_at", { ascending: false })
-        .limit(200);
-
-      if (budgetError) {
-        console.error(budgetError);
-        setErrorMsg(budgetError.message);
-        setLoading(false);
-        return;
-      }
-
       setBudgets(budgetData as Budget[]);
-
-      const { data: transactionData, error: transactionError } = await supabaseBrowserClient
-        .from("transactions")
-        .select("id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at")
-        .eq("type", "expense")
-        .order("occurred_at", { ascending: false })
-        .limit(1000);
-
-      if (transactionError) {
-        console.warn("Unable to load budget spending context:", transactionError.message);
-        setTransactions([]);
-      } else {
-        setTransactions(transactionData as Transaction[]);
-      }
+      setTransactions(transactionData as Transaction[]);
 
       if (walletData && walletData.length > 0 && !walletId) setWalletId(walletData[0].id);
       if (categoryData && categoryData.length > 0 && !categoryId) setCategoryId(categoryData[0].id);
@@ -215,7 +213,7 @@ export default function BudgetsPage() {
 
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadVersion]);
 
   const walletMap = useMemo(() => Object.fromEntries(wallets.map((w) => [w.id, w] as const)), [
     wallets,
@@ -258,6 +256,7 @@ export default function BudgetsPage() {
         actualMinor: matchingSpend,
         remainingMinor,
         usedRatio,
+        currencyCode: budget.wallet_id ? walletMap[budget.wallet_id]?.currency_code ?? null : null,
         wallet: budget.wallet_id ? walletMap[budget.wallet_id] ?? null : null,
         category: categoryMap[budget.category_id] ?? null,
       };
@@ -423,6 +422,7 @@ export default function BudgetsPage() {
           }
         />
 
+        {loadError ? <DataLoadAlert onRetry={() => setLoadVersion((value) => value + 1)} /> : null}
         {errorMsg && <p className="text-sm text-red-400">{errorMsg}</p>}
 
         <section className="gl-inner-card rounded-2xl p-4">
@@ -466,9 +466,13 @@ export default function BudgetsPage() {
           </div>
         </section>
 
-        <BudgetCommandCenter summaries={budgetSummaries} monthLabel={monthLabel} />
+        <BudgetCommandCenter
+          summaries={budgetSummaries}
+          monthLabel={monthLabel}
+          dataState={loading ? "loading" : loadError ? "error" : "ready"}
+        />
 
-        <BudgetInsights summaries={budgetSummaries} />
+        {!loading && !loadError ? <BudgetInsights summaries={budgetSummaries} /> : null}
 
         <section className="gl-card p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -565,6 +569,8 @@ export default function BudgetsPage() {
 
           {loading ? (
             <p className="text-sm text-gray-400">Loading...</p>
+          ) : loadError ? (
+            <p className="text-sm text-gray-500">Budget records are unavailable.</p>
           ) : budgetsForPeriod.length === 0 ? (
             <EmptyState
               eyebrow="Budget Command Center"

@@ -1,5 +1,8 @@
 "use client";
 
+import { sumCurrencyAmounts } from "@/lib/finance/currencyTotals";
+import { MetricGridState, type DataState } from "@/components/ui/MetricGridState";
+
 type Wallet = {
   id: string;
   name: string;
@@ -18,6 +21,7 @@ export type BudgetSummary = {
   actualMinor: number;
   remainingMinor: number;
   usedRatio: number;
+  currencyCode: string | null;
   wallet?: Wallet | null;
   category?: Category | null;
 };
@@ -25,6 +29,7 @@ export type BudgetSummary = {
 type BudgetCommandCenterProps = {
   summaries: BudgetSummary[];
   monthLabel: string;
+  dataState?: DataState;
 };
 
 function formatMinor(minor: number): string {
@@ -34,20 +39,6 @@ function formatMinor(minor: number): string {
   });
 }
 
-function primaryCurrency(summaries: BudgetSummary[]): string {
-  return summaries.find((summary) => summary.wallet?.currency_code)?.wallet?.currency_code ?? "SSP";
-}
-
-function sumForCurrency(
-  summaries: BudgetSummary[],
-  selector: (summary: BudgetSummary) => number,
-  currency: string
-): number {
-  return summaries
-    .filter((summary) => (summary.wallet?.currency_code ?? currency) === currency)
-    .reduce((sum, summary) => sum + selector(summary), 0);
-}
-
 function healthLabel(score: number | null): string {
   if (score === null) return "No budgets";
   if (score >= 85) return "Healthy";
@@ -55,7 +46,24 @@ function healthLabel(score: number | null): string {
   return "At risk";
 }
 
-export function BudgetCommandCenter({ summaries, monthLabel }: BudgetCommandCenterProps) {
+function MoneyLines({ amounts }: { amounts: ReturnType<typeof sumCurrencyAmounts> }) {
+  if (amounts.length === 0) return <span>—</span>;
+  return (
+    <span className="flex flex-col gap-1">
+      {amounts.map(({ currencyCode, amountMinor }) => (
+        <span key={currencyCode}>{formatMinor(amountMinor)} {currencyCode}</span>
+      ))}
+    </span>
+  );
+}
+
+export function BudgetCommandCenter({
+  summaries,
+  monthLabel,
+  dataState = "ready",
+}: BudgetCommandCenterProps) {
+  if (dataState !== "ready") return <MetricGridState state={dataState} />;
+
   const totalBudgets = summaries.length;
   const overBudget = summaries.filter((summary) => summary.usedRatio > 1).length;
   const atRisk = summaries.filter((summary) => summary.usedRatio >= 0.8 && summary.usedRatio <= 1).length;
@@ -66,12 +74,20 @@ export function BudgetCommandCenter({ summaries, monthLabel }: BudgetCommandCent
       ? null
       : Math.max(0, Math.round(100 - (overBudget / totalBudgets) * 45 - (atRisk / totalBudgets) * 20));
 
-  const currency = primaryCurrency(summaries);
-  const allocatedMinor = sumForCurrency(summaries, (summary) => summary.amountMinor, currency);
-  const remainingMinor = sumForCurrency(
-    summaries,
-    (summary) => Math.max(0, summary.remainingMinor),
-    currency
+  const assignedSummaries = summaries.filter(
+    (summary): summary is BudgetSummary & { currencyCode: string } => Boolean(summary.currencyCode)
+  );
+  const allocated = sumCurrencyAmounts(
+    assignedSummaries.map((summary) => ({
+      currencyCode: summary.currencyCode,
+      amountMinor: summary.amountMinor,
+    }))
+  );
+  const remaining = sumCurrencyAmounts(
+    assignedSummaries.map((summary) => ({
+      currencyCode: summary.currencyCode,
+      amountMinor: summary.remainingMinor,
+    }))
   );
 
   const items = [
@@ -94,9 +110,8 @@ export function BudgetCommandCenter({ summaries, monthLabel }: BudgetCommandCent
     },
     {
       label: "Remaining",
-      value: `${formatMinor(remainingMinor)} ${currency}`,
-      caption: `${formatMinor(allocatedMinor)} ${currency} allocated`,
-      tone: remainingMinor > 0 ? "positive" : "",
+      value: <MoneyLines amounts={remaining} />,
+      caption: allocated.length > 1 ? "Separated by currency" : "Budget minus recorded spend",
     },
   ];
 
@@ -107,7 +122,7 @@ export function BudgetCommandCenter({ summaries, monthLabel }: BudgetCommandCent
           <p className="text-[11px] uppercase tracking-[0.22em] text-gray-500">{item.label}</p>
           <p
             className={[
-              "mt-2 truncate text-2xl font-semibold tracking-tight",
+              "mt-2 text-xl font-semibold tracking-tight",
               item.tone === "positive" ? "text-green-300" : "",
               item.tone === "warning" ? "text-yellow-200" : "",
               item.tone === "negative" ? "text-red-300" : "",

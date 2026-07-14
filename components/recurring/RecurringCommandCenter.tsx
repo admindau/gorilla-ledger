@@ -1,4 +1,5 @@
 import TrustIndicator from "@/components/ui/TrustIndicator";
+import { MetricGridState, type DataState } from "@/components/ui/MetricGridState";
 
 type RecurringRule = {
   id: string;
@@ -19,6 +20,7 @@ type RecurringRunLog = {
 type RecurringCommandCenterProps = {
   rules: RecurringRule[];
   runLogs: RecurringRunLog[];
+  dataState?: DataState;
 };
 
 function isThisMonth(value: string | null) {
@@ -93,7 +95,13 @@ function getNextRun(rules: RecurringRule[]) {
   return upcoming[0]?.next_run_at ?? null;
 }
 
-export function RecurringCommandCenter({ rules, runLogs }: RecurringCommandCenterProps) {
+export function RecurringCommandCenter({
+  rules,
+  runLogs,
+  dataState = "ready",
+}: RecurringCommandCenterProps) {
+  if (dataState !== "ready") return <MetricGridState state={dataState} />;
+
   const activeRules = rules.filter((rule) => rule.is_active);
   const upcomingRuns = activeRules.filter((rule) => isUpcoming(rule.next_run_at));
   const executedThisMonth = runLogs.filter(

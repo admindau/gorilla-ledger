@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { TransactionCommandCenter } from "@/components/transactions/TransactionCommandCenter";
 import { TransactionActivityCard } from "@/components/transactions/TransactionActivityCard";
 import { TransactionTimeline } from "@/components/transactions/TransactionTimeline";
+import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
 
 type Wallet = {
   id: string;
@@ -41,6 +42,43 @@ type Transaction = {
 };
 
 const PAGE_SIZE = 25;
+const SUMMARY_PAGE_SIZE = 1000;
+
+function currentMonthBounds() {
+  const now = new Date();
+  const start = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const end = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}-01`;
+  return { start, end };
+}
+
+function isCurrentMonthTransaction(transaction: Pick<Transaction, "occurred_at">) {
+  const { start, end } = currentMonthBounds();
+  return transaction.occurred_at >= start && transaction.occurred_at < end;
+}
+
+async function loadCurrentMonthTransactions(): Promise<{
+  data: Transaction[];
+  error: string | null;
+}> {
+  const { start, end } = currentMonthBounds();
+  const rows: Transaction[] = [];
+
+  for (let from = 0; ; from += SUMMARY_PAGE_SIZE) {
+    const { data, error } = await supabaseBrowserClient
+      .from("transactions")
+      .select("id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at, description, created_at")
+      .gte("occurred_at", start)
+      .lt("occurred_at", end)
+      .order("occurred_at", { ascending: false })
+      .range(from, from + SUMMARY_PAGE_SIZE - 1);
+
+    if (error) return { data: [], error: error.message };
+    const page = (data ?? []) as Transaction[];
+    rows.push(...page);
+    if (page.length < SUMMARY_PAGE_SIZE) return { data: rows, error: null };
+  }
+}
 
 function parseAmountToMinor(amount: string): number {
   const cleaned = amount.replace(",", "").trim();
@@ -189,11 +227,14 @@ export default function TransactionsPage() {
   const [saving, setSaving] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [loadError, setLoadError] = useState(false);
+  const [loadVersion, setLoadVersion] = useState(0);
   const [showCreateForm, setShowCreateForm] = useState(false);
 
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [monthTransactions, setMonthTransactions] = useState<Transaction[]>([]);
 
   // Add transaction form
   const [walletId, setWalletId] = useState("");
@@ -238,6 +279,7 @@ export default function TransactionsPage() {
     async function loadInitial() {
       setLoading(true);
       setErrorMsg("");
+      setLoadError(false);
 
       const {
         data: { user },
@@ -245,56 +287,40 @@ export default function TransactionsPage() {
       } = await supabaseBrowserClient.auth.getUser();
 
       if (userError || !user) {
-        setErrorMsg("You must be logged in to view transactions.");
+        console.error("Unable to verify the transaction session:", userError);
+        setLoadError(true);
         setLoading(false);
         return;
       }
 
-      const { data: walletData, error: walletError } = await supabaseBrowserClient
-        .from("wallets")
-        .select("id, name, currency_code")
-        .order("created_at", { ascending: true });
+      const [walletResult, categoryResult, transactionResult, monthResult] = await Promise.all([
+        supabaseBrowserClient.from("wallets").select("id, name, currency_code").order("created_at", { ascending: true }),
+        supabaseBrowserClient.from("categories").select("id, name, type").eq("is_active", true).order("type", { ascending: true }).order("name", { ascending: true }),
+        supabaseBrowserClient.from("transactions").select("*").order("occurred_at", { ascending: false }).limit(PAGE_SIZE),
+        loadCurrentMonthTransactions(),
+      ]);
 
-      if (walletError) {
-        console.error(walletError);
-        setErrorMsg(walletError.message);
+      const { data: walletData, error: walletError } = walletResult;
+      const { data: categoryData, error: categoryError } = categoryResult;
+      const { data: txData, error: txError } = transactionResult;
+
+      if (walletError || categoryError || txError || monthResult.error) {
+        console.error("Unable to certify transaction data:", {
+          walletError,
+          categoryError,
+          transactionError: txError,
+          monthSummaryError: monthResult.error,
+        });
+        setLoadError(true);
         setLoading(false);
         return;
       }
 
       setWallets(walletData as Wallet[]);
-
-      const { data: categoryData, error: categoryError } = await supabaseBrowserClient
-        .from("categories")
-        .select("id, name, type")
-        .eq("is_active", true)
-        .order("type", { ascending: true })
-        .order("name", { ascending: true });
-
-      if (categoryError) {
-        console.error(categoryError);
-        setErrorMsg(categoryError.message);
-        setLoading(false);
-        return;
-      }
-
       setCategories(categoryData as Category[]);
-
-      const { data: txData, error: txError } = await supabaseBrowserClient
-        .from("transactions")
-        .select("*")
-        .order("occurred_at", { ascending: false })
-        .limit(PAGE_SIZE);
-
-      if (txError) {
-        console.error(txError);
-        setErrorMsg(txError.message);
-        setLoading(false);
-        return;
-      }
-
       const castTx = (txData ?? []) as Transaction[];
       setTransactions(castTx);
+      setMonthTransactions(monthResult.data);
 
       if (castTx.length > 0) {
         setOldestOccurredAt(castTx[castTx.length - 1].occurred_at);
@@ -313,7 +339,7 @@ export default function TransactionsPage() {
 
     loadInitial();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadVersion]);
 
   async function handleLoadMore() {
     if (!oldestOccurredAt || !hasMore || loadingMore) return;
@@ -512,6 +538,9 @@ export default function TransactionsPage() {
       combined.sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
       return combined;
     });
+    if (isCurrentMonthTransaction(created)) {
+      setMonthTransactions((prev) => [created, ...prev]);
+    }
 
     if (!oldestOccurredAt) setOldestOccurredAt(created.occurred_at);
 
@@ -604,6 +633,10 @@ export default function TransactionsPage() {
       combined.sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
       return combined;
     });
+    setMonthTransactions((prev) => {
+      const withoutEdited = prev.filter((tx) => tx.id !== editingTxId);
+      return isCurrentMonthTransaction(updated) ? [updated, ...withoutEdited] : withoutEdited;
+    });
 
     setSavingEdit(false);
     handleCancelInlineEdit();
@@ -629,6 +662,7 @@ export default function TransactionsPage() {
     }
 
     setTransactions((prev) => prev.filter((t) => t.id !== tx.id));
+    setMonthTransactions((prev) => prev.filter((item) => item.id !== tx.id));
     if (editingTxId === tx.id) handleCancelInlineEdit();
 
     const timeoutId = setTimeout(() => {
@@ -651,6 +685,12 @@ export default function TransactionsPage() {
       combined.sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
       return combined;
     });
+    if (isCurrentMonthTransaction(pendingDelete.tx)) {
+      setMonthTransactions((prev) => {
+        if (prev.some((tx) => tx.id === pendingDelete.tx.id)) return prev;
+        return [pendingDelete.tx, ...prev];
+      });
+    }
 
     setPendingDelete(null);
   }
@@ -719,8 +759,13 @@ export default function TransactionsPage() {
           description="Track income, expenses and supporting receipts across all wallets."
         />
 
-        <TransactionCommandCenter transactions={transactions} />
+        <TransactionCommandCenter
+          transactions={monthTransactions}
+          dataState={loading ? "loading" : loadError ? "error" : "ready"}
+          scopeLabel="This month"
+        />
 
+        {loadError ? <DataLoadAlert onRetry={() => setLoadVersion((value) => value + 1)} /> : null}
         {errorMsg && <p className="text-red-400 text-sm">{errorMsg}</p>}
 
         {/* Add Transaction */}
@@ -945,6 +990,8 @@ export default function TransactionsPage() {
 
             {loading ? (
               <p className="text-gray-400 text-sm">Loading...</p>
+            ) : loadError ? (
+              <p className="text-gray-500 text-sm">Transaction records are unavailable.</p>
             ) : transactions.length === 0 ? (
               <EmptyState
                 compact
