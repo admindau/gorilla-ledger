@@ -234,16 +234,13 @@ async function handler(req: NextRequest) {
         break;
       }
 
-      const { data: existingTx, error: exErr } = await supabase
+      const existingQuery = supabase
         .from("transactions")
         .select("id")
-        .eq("user_id", rule.user_id)
-        .eq("wallet_id", rule.wallet_id)
-        .eq("amount_minor", rule.amount_minor)
-        .eq("currency_code", rule.currency_code)
-        .eq("type", rule.type)
-        .eq("occurred_at", dueAtIso)
-        .maybeSingle();
+        .eq("recurring_rule_id", rule.id)
+        .eq("scheduled_for", dueAtIso);
+
+      const { data: existingTx, error: exErr } = await existingQuery.maybeSingle();
 
       if (exErr) {
         failedCount += 1;
@@ -284,11 +281,30 @@ async function handler(req: NextRequest) {
             type: rule.type,
             description: rule.description,
             occurred_at: dueAtIso,
+            recurring_rule_id: rule.id,
+            scheduled_for: dueAtIso,
+            transaction_kind: "operational",
           })
           .select("id")
           .single();
 
-        if (insertError) {
+        if (insertError?.code === "23505") {
+          const { data: concurrentTx } = await supabase
+            .from("transactions")
+            .select("id")
+            .eq("recurring_rule_id", rule.id)
+            .eq("scheduled_for", dueAtIso)
+            .maybeSingle();
+          transactionId = concurrentTx?.id ?? null;
+          skippedCount += 1;
+          await writeRunLog({
+            ruleId: rule.id,
+            userId: rule.user_id,
+            transactionId,
+            status: "skipped",
+            details: `A concurrent worker already created scheduled run ${dueAtIso}.`,
+          });
+        } else if (insertError) {
           failedCount += 1;
           ruleHadFailure = true;
           console.error(
@@ -302,18 +318,18 @@ async function handler(req: NextRequest) {
             details: `Transaction insert failed for scheduled run ${dueAtIso}: ${insertError.message}`,
           });
           break;
+        } else {
+          transactionId = insertedTx?.id ?? null;
+          createdCount += 1;
+
+          await writeRunLog({
+            ruleId: rule.id,
+            userId: rule.user_id,
+            transactionId,
+            status: "success",
+            details: `Backfilled recurring transaction for scheduled run ${dueAtIso}.`,
+          });
         }
-
-        transactionId = insertedTx?.id ?? null;
-        createdCount += 1;
-
-        await writeRunLog({
-          ruleId: rule.id,
-          userId: rule.user_id,
-          transactionId,
-          status: "success",
-          details: `Backfilled recurring transaction for scheduled run ${dueAtIso}.`,
-        });
       }
 
       runsHandledForRule += 1;

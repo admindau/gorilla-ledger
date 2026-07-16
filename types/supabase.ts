@@ -629,7 +629,11 @@ export type Database = {
           description: string | null
           id: string
           occurred_at: string
+          recurring_rule_id: string | null
+          scheduled_for: string | null
           total_runs: number
+          transaction_kind: string
+          transfer_id: string | null
           type: string
           updated_at: string
           user_id: string
@@ -643,7 +647,11 @@ export type Database = {
           description?: string | null
           id?: string
           occurred_at?: string
+          recurring_rule_id?: string | null
+          scheduled_for?: string | null
           total_runs?: number
+          transaction_kind?: string
+          transfer_id?: string | null
           type: string
           updated_at?: string
           user_id: string
@@ -657,13 +665,24 @@ export type Database = {
           description?: string | null
           id?: string
           occurred_at?: string
+          recurring_rule_id?: string | null
+          scheduled_for?: string | null
           total_runs?: number
+          transaction_kind?: string
+          transfer_id?: string | null
           type?: string
           updated_at?: string
           user_id?: string
           wallet_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "transactions_recurring_rule_id_fkey"
+            columns: ["recurring_rule_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_rules"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "transactions_category_id_fkey"
             columns: ["category_id"]
@@ -807,6 +826,18 @@ export type Database = {
       }
     }
     Functions: {
+      create_wallet_transfer: {
+        Args: {
+          p_destination_amount_minor: number
+          p_destination_wallet_id: string
+          p_description?: string | null
+          p_kind?: string
+          p_occurred_at: string
+          p_source_amount_minor: number
+          p_source_wallet_id: string
+        }
+        Returns: string
+      }
       is_admin: { Args: { p_uid?: string }; Returns: boolean }
     }
     Enums: {

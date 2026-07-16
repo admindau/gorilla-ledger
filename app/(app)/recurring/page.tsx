@@ -11,6 +11,7 @@ import { RecurringRuleCard } from "@/components/recurring/RecurringRuleCard";
 import { RecurringTimeline } from "@/components/recurring/RecurringTimeline";
 import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
 import { PrerequisiteGuide } from "@/components/activation/PrerequisiteGuide";
+import { isValidLedgerDate, parsePositiveMoneyToMinor } from "@/lib/finance/money";
 
 type Wallet = {
   id: string;
@@ -22,6 +23,7 @@ type Category = {
   id: string;
   name: string;
   type: "income" | "expense";
+  is_active: boolean;
 };
 
 type RecurringFrequency = "daily" | "weekly" | "monthly" | "yearly";
@@ -81,6 +83,10 @@ export default function RecurringPage() {
   const now = useMemo(() => new Date(), []);
   const monthName = now.toLocaleString("en-US", { month: "long" });
   const year = now.getFullYear();
+  const activeCategories = useMemo(
+    () => categories.filter((category) => category.is_active),
+    [categories]
+  );
 
   // Load wallets, categories, existing rules, and user email
   useEffect(() => {
@@ -104,8 +110,7 @@ export default function RecurringPage() {
             .order("name", { ascending: true }),
           supabase
             .from("categories")
-            .select("id,name,type")
-            .eq("is_active", true)
+            .select("id,name,type,is_active")
             .order("name", { ascending: true }),
           supabase
             .from("recurring_rules")
@@ -157,9 +162,9 @@ export default function RecurringPage() {
       return;
     }
 
-    const parsedAmount = Number(amount);
-    if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
-      showToast("Amount must be a positive number.", "error");
+    const parsedAmount = parsePositiveMoneyToMinor(amount);
+    if (!parsedAmount.ok) {
+      showToast(parsedAmount.error, "error");
       return;
     }
 
@@ -180,15 +185,11 @@ export default function RecurringPage() {
       return;
     }
 
-    const amountMinor = Math.round(parsedAmount * 100);
-    if (!Number.isSafeInteger(amountMinor) || amountMinor <= 0) {
-      showToast("Enter a valid recurring amount greater than zero.", "error");
-      return;
-    }
+    const amountMinor = parsedAmount.minor;
 
     const selectedWallet = wallets.find((w) => w.id === walletId);
     const selectedCategory = categories.find((c) => c.id === categoryId);
-    if (!selectedWallet || !selectedCategory) {
+    if (!selectedWallet || !selectedCategory?.is_active) {
       showToast("Select a valid wallet and category.", "error");
       return;
     }
@@ -196,11 +197,11 @@ export default function RecurringPage() {
     const currencyCode = selectedWallet.currency_code;
     const type: "income" | "expense" = selectedCategory.type;
 
-    const firstDate = new Date(`${firstRunDate}T00:00:00Z`);
-    if (Number.isNaN(firstDate.getTime())) {
+    if (!isValidLedgerDate(firstRunDate)) {
       showToast("Select a valid first run date.", "error");
       return;
     }
+    const firstDate = new Date(`${firstRunDate}T00:00:00Z`);
     const dayOfMonth = firstDate.getUTCDate();
     const dayOfWeek = firstDate.getUTCDay();
     const nextRunAt = firstDate.toISOString(); // timestamptz-safe
@@ -400,7 +401,7 @@ export default function RecurringPage() {
               title="Prepare the ledger before adding automation"
               items={[
                 { label: "Wallet", complete: wallets.length > 0, href: "/wallets", actionLabel: "Add wallet" },
-                { label: "Category", complete: categories.length > 0, href: "/categories", actionLabel: "Add category" },
+                { label: "Category", complete: activeCategories.length > 0, href: "/categories", actionLabel: "Add category" },
               ]}
             />
 
@@ -435,7 +436,7 @@ export default function RecurringPage() {
                   required
                 >
                   <option value="">Select category</option>
-                  {categories.map((c) => (
+                  {activeCategories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name} ({c.type})
                       </option>
@@ -505,7 +506,7 @@ export default function RecurringPage() {
 
             <button
               type="submit"
-              disabled={saving || loadingPage || loadError || wallets.length === 0 || categories.length === 0}
+              disabled={saving || loadingPage || loadError || wallets.length === 0 || activeCategories.length === 0}
               className="gl-btn gl-btn-primary gl-btn-md mt-2"
             >
               {saving ? "Saving..." : "Save Rule"}

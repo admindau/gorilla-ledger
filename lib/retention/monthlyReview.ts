@@ -85,7 +85,7 @@ function expenseTrend(current: number, previous: number): MonthlyReviewCurrency[
 function dateParts(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return { year: date.getFullYear(), month0: date.getMonth() };
+  return { year: date.getUTCFullYear(), month0: date.getUTCMonth() };
 }
 
 export function buildMonthlyReview({

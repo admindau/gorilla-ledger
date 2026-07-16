@@ -13,6 +13,7 @@ import { TransactionActivityCard } from "@/components/transactions/TransactionAc
 import { TransactionTimeline } from "@/components/transactions/TransactionTimeline";
 import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
 import { PrerequisiteGuide } from "@/components/activation/PrerequisiteGuide";
+import { isValidLedgerDate, parsePositiveMoneyToMinor } from "@/lib/finance/money";
 
 type Wallet = {
   id: string;
@@ -26,6 +27,7 @@ type Category = {
   id: string;
   name: string;
   type: CategoryType;
+  is_active: boolean;
 };
 
 type TransactionType = "income" | "expense";
@@ -40,6 +42,8 @@ type Transaction = {
   occurred_at: string;
   description: string | null;
   created_at: string;
+  transaction_kind?: string | null;
+  transfer_id?: string | null;
 };
 
 const PAGE_SIZE = 25;
@@ -68,7 +72,7 @@ async function loadCurrentMonthTransactions(): Promise<{
   for (let from = 0; ; from += SUMMARY_PAGE_SIZE) {
     const { data, error } = await supabaseBrowserClient
       .from("transactions")
-      .select("id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at, description, created_at")
+      .select("id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at, description, created_at, transaction_kind, transfer_id")
       .gte("occurred_at", start)
       .lt("occurred_at", end)
       .order("occurred_at", { ascending: false })
@@ -79,15 +83,6 @@ async function loadCurrentMonthTransactions(): Promise<{
     rows.push(...page);
     if (page.length < SUMMARY_PAGE_SIZE) return { data: rows, error: null };
   }
-}
-
-function parseAmountToMinor(amount: string): number {
-  const cleaned = amount.replace(",", "").trim();
-  const [whole, fractional = ""] = cleaned.split(".");
-  const fracPadded = (fractional + "00").slice(0, 2);
-  const wholeNum = Number(whole) || 0;
-  const fracNum = Number(fracPadded) || 0;
-  return wholeNum * 100 + fracNum;
 }
 
 function formatMinorToAmount(minor: number): string {
@@ -244,6 +239,14 @@ export default function TransactionsPage() {
   const [amount, setAmount] = useState("0");
   const [date, setDate] = useState("");
   const [description, setDescription] = useState("");
+  const [showTransferForm, setShowTransferForm] = useState(false);
+  const [sourceWalletId, setSourceWalletId] = useState("");
+  const [destinationWalletId, setDestinationWalletId] = useState("");
+  const [sourceAmount, setSourceAmount] = useState("");
+  const [destinationAmount, setDestinationAmount] = useState("");
+  const [transferDate, setTransferDate] = useState("");
+  const [transferDescription, setTransferDescription] = useState("");
+  const [savingTransfer, setSavingTransfer] = useState(false);
 
   // Receipt selection for new transaction
   const [newReceiptFiles, setNewReceiptFiles] = useState<File[]>([]);
@@ -296,7 +299,7 @@ export default function TransactionsPage() {
 
       const [walletResult, categoryResult, transactionResult, monthResult] = await Promise.all([
         supabaseBrowserClient.from("wallets").select("id, name, currency_code").order("created_at", { ascending: true }),
-        supabaseBrowserClient.from("categories").select("id, name, type").eq("is_active", true).order("type", { ascending: true }).order("name", { ascending: true }),
+        supabaseBrowserClient.from("categories").select("id, name, type, is_active").order("type", { ascending: true }).order("name", { ascending: true }),
         supabaseBrowserClient.from("transactions").select("*").order("occurred_at", { ascending: false }).limit(PAGE_SIZE),
         loadCurrentMonthTransactions(),
       ]);
@@ -332,13 +335,16 @@ export default function TransactionsPage() {
       }
 
       if (walletData && walletData.length > 0 && !walletId) setWalletId(walletData[0].id);
+      if (walletData && walletData.length > 0 && !sourceWalletId) setSourceWalletId(walletData[0].id);
+      if (walletData && walletData.length > 1 && !destinationWalletId) setDestinationWalletId(walletData[1].id);
       const loadedCategories = (categoryData as Category[] | null) ?? [];
-      const initialCategory = loadedCategories.find((category) => category.type === "expense") ?? loadedCategories[0];
+      const initialCategory = loadedCategories.find((category) => category.is_active && category.type === "expense") ?? loadedCategories.find((category) => category.is_active);
       if (initialCategory && !categoryId) {
         setCategoryId(initialCategory.id);
         setType(initialCategory.type);
       }
       if (!date) setDate(new Date().toISOString().slice(0, 10));
+      if (!transferDate) setTransferDate(new Date().toISOString().slice(0, 10));
 
       setLoading(false);
     }
@@ -479,7 +485,7 @@ export default function TransactionsPage() {
     }
 
     const selectedCategory = categories.find((category) => category.id === categoryId);
-    if (!selectedCategory || selectedCategory.type !== type) {
+    if (!selectedCategory?.is_active || selectedCategory.type !== type) {
       setErrorMsg(`Please select an ${type} category for this ${type} transaction.`);
       setSaving(false);
       return;
@@ -503,13 +509,14 @@ export default function TransactionsPage() {
       return;
     }
 
-    const amount_minor = parseAmountToMinor(amount);
-    if (!Number.isSafeInteger(amount_minor) || amount_minor <= 0) {
-      setErrorMsg("Enter an amount greater than zero.");
+    const parsedAmount = parsePositiveMoneyToMinor(amount);
+    if (!parsedAmount.ok) {
+      setErrorMsg(parsedAmount.error);
       setSaving(false);
       return;
     }
-    if (!date || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) {
+    const amount_minor = parsedAmount.minor;
+    if (!isValidLedgerDate(date)) {
       setErrorMsg("Select a valid transaction date.");
       setSaving(false);
       return;
@@ -574,6 +581,63 @@ export default function TransactionsPage() {
     setSaving(false);
   }
 
+  async function handleCreateTransfer(e: React.FormEvent) {
+    e.preventDefault();
+    setErrorMsg("");
+    setSavingTransfer(true);
+
+    const sourceWallet = wallets.find((wallet) => wallet.id === sourceWalletId);
+    const destinationWallet = wallets.find((wallet) => wallet.id === destinationWalletId);
+    if (!sourceWallet || !destinationWallet || sourceWallet.id === destinationWallet.id) {
+      setErrorMsg("Select two different wallets.");
+      setSavingTransfer(false);
+      return;
+    }
+
+    const source = parsePositiveMoneyToMinor(sourceAmount);
+    const destination = parsePositiveMoneyToMinor(destinationAmount);
+    if (!source.ok || !destination.ok) {
+      setErrorMsg(!source.ok ? source.error : destination.ok ? "Enter valid amounts." : destination.error);
+      setSavingTransfer(false);
+      return;
+    }
+    if (!isValidLedgerDate(transferDate)) {
+      setErrorMsg("Select a valid transfer date.");
+      setSavingTransfer(false);
+      return;
+    }
+
+    const kind = sourceWallet.currency_code === destinationWallet.currency_code ? "transfer" : "fx";
+    if (kind === "transfer" && source.minor !== destination.minor) {
+      setErrorMsg("Transfers between wallets in the same currency must use the same amount.");
+      setSavingTransfer(false);
+      return;
+    }
+
+    const { error } = await supabaseBrowserClient.rpc("create_wallet_transfer", {
+      p_source_wallet_id: sourceWallet.id,
+      p_destination_wallet_id: destinationWallet.id,
+      p_source_amount_minor: source.minor,
+      p_destination_amount_minor: destination.minor,
+      p_occurred_at: new Date(`${transferDate}T00:00:00.000Z`).toISOString(),
+      p_kind: kind,
+      p_description: transferDescription.trim() || null,
+    });
+
+    if (error) {
+      setErrorMsg(error.message);
+      setSavingTransfer(false);
+      return;
+    }
+
+    setSourceAmount("");
+    setDestinationAmount("");
+    setTransferDescription("");
+    setShowTransferForm(false);
+    setSavingTransfer(false);
+    setLoadVersion((value) => value + 1);
+  }
+
   function handleStartInlineEdit(tx: Transaction) {
     setEditingTxId(tx.id);
     setEditWalletId(tx.wallet_id);
@@ -624,7 +688,25 @@ export default function TransactionsPage() {
       return;
     }
 
-    const amount_minor = parseAmountToMinor(editAmount);
+    const selectedCategory = categories.find((category) => category.id === editCategoryId);
+    if (!selectedCategory || selectedCategory.type !== editType) {
+      setErrorMsg(`Please select an ${editType} category for this ${editType} transaction.`);
+      setSavingEdit(false);
+      return;
+    }
+
+    const parsedAmount = parsePositiveMoneyToMinor(editAmount);
+    if (!parsedAmount.ok) {
+      setErrorMsg(parsedAmount.error);
+      setSavingEdit(false);
+      return;
+    }
+    if (!isValidLedgerDate(editDate)) {
+      setErrorMsg("Select a valid transaction date.");
+      setSavingEdit(false);
+      return;
+    }
+    const amount_minor = parsedAmount.minor;
     const occurred_at = new Date(editDate + "T00:00:00Z").toISOString();
 
     const { data, error } = await supabaseBrowserClient
@@ -722,6 +804,7 @@ export default function TransactionsPage() {
   const categoryMap = Object.fromEntries(
     categories.map((c) => [c.id, c] as const)
   );
+  const activeCategories = categories.filter((category) => category.is_active);
 
   const dateFilteredTransactions = transactions.filter((tx) => {
     const dateStr = tx.occurred_at.slice(0, 10);
@@ -784,6 +867,7 @@ export default function TransactionsPage() {
 
         <TransactionCommandCenter
           transactions={monthTransactions}
+          categoriesById={categoryMap}
           dataState={loading ? "loading" : loadError ? "error" : "ready"}
           scopeLabel="This month"
         />
@@ -813,12 +897,12 @@ export default function TransactionsPage() {
 
           {showCreateForm ? (
           <div className="p-4">
-            {wallets.length === 0 || categories.length === 0 ? (
+            {wallets.length === 0 || activeCategories.length === 0 ? (
               <PrerequisiteGuide
                 title="Prepare the ledger before adding activity"
                 items={[
                   { label: "Wallet", complete: wallets.length > 0, href: "/wallets", actionLabel: "Add wallet" },
-                  { label: "Category", complete: categories.length > 0, href: "/categories", actionLabel: "Add category" },
+                  { label: "Category", complete: activeCategories.length > 0, href: "/categories", actionLabel: "Add category" },
                 ]}
               />
             ) : (
@@ -841,6 +925,9 @@ export default function TransactionsPage() {
                       </option>
                     ))}
                   </select>
+                  <p className="mt-1 text-[11px] font-medium text-amber-300">
+                    This transaction will be recorded in {walletMap[walletId]?.currency_code ?? "the wallet currency"}.
+                  </p>
                 </div>
 
                 <div>
@@ -860,7 +947,7 @@ export default function TransactionsPage() {
                     }}
                   >
                     <optgroup label="Expense categories">
-                      {categories
+                      {activeCategories
                         .filter((category) => category.type === "expense")
                         .map((category) => (
                           <option key={category.id} value={category.id}>
@@ -869,7 +956,7 @@ export default function TransactionsPage() {
                         ))}
                     </optgroup>
                     <optgroup label="Income categories">
-                      {categories
+                      {activeCategories
                         .filter((category) => category.type === "income")
                         .map((category) => (
                           <option key={category.id} value={category.id}>
@@ -879,7 +966,7 @@ export default function TransactionsPage() {
                     </optgroup>
                   </select>
                   <p className="mt-1 text-[11px] leading-4 text-gray-500">
-                    All {categories.length} active categories are shown. Selecting one sets the transaction type.
+                    All {activeCategories.length} active categories are shown. Historical inactive categories remain available when reviewing records.
                   </p>
                 </div>
 
@@ -893,7 +980,7 @@ export default function TransactionsPage() {
                     onChange={(e) => {
                       const nextType = e.target.value as TransactionType;
                       setType(nextType);
-                      setCategoryId(categories.find((category) => category.type === nextType)?.id ?? "");
+                      setCategoryId(activeCategories.find((category) => category.type === nextType)?.id ?? "");
                     }}
                   >
                     <option value="expense">Expense</option>
@@ -963,6 +1050,61 @@ export default function TransactionsPage() {
               </form>
             )}
           </div>
+          ) : null}
+        </section>
+
+        <section className="gl-card">
+          <div className="flex items-center justify-between gap-4 border-b border-gray-800 px-4 py-3">
+            <div>
+              <div className="text-[11px] uppercase tracking-wider text-gray-400">Balance movement</div>
+              <h2 className="mt-1 text-sm font-semibold">Transfer or exchange currency</h2>
+              <p className="mt-1 text-xs text-gray-500">Creates both ledger entries together. Balances change; income, expenses and budgets do not.</p>
+            </div>
+            <button
+              type="button"
+              className="gl-btn gl-btn-secondary gl-btn-sm"
+              onClick={() => setShowTransferForm((value) => !value)}
+              disabled={wallets.length < 2}
+            >
+              {showTransferForm ? "Hide Form" : "+ Transfer / FX"}
+            </button>
+          </div>
+          {showTransferForm ? (
+            <form onSubmit={handleCreateTransfer} className="grid gap-4 p-4 md:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">From wallet</label>
+                <select className="gl-input" value={sourceWalletId} onChange={(event) => setSourceWalletId(event.target.value)}>
+                  {wallets.map((wallet) => <option key={wallet.id} value={wallet.id}>{wallet.name} ({wallet.currency_code})</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">To wallet</label>
+                <select className="gl-input" value={destinationWalletId} onChange={(event) => setDestinationWalletId(event.target.value)}>
+                  {wallets.map((wallet) => <option key={wallet.id} value={wallet.id}>{wallet.name} ({wallet.currency_code})</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">Amount sent ({walletMap[sourceWalletId]?.currency_code ?? "—"})</label>
+                <input className="gl-input" inputMode="decimal" value={sourceAmount} onChange={(event) => setSourceAmount(event.target.value)} placeholder="0.00" />
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">Amount received ({walletMap[destinationWalletId]?.currency_code ?? "—"})</label>
+                <input className="gl-input" inputMode="decimal" value={destinationAmount} onChange={(event) => setDestinationAmount(event.target.value)} placeholder="0.00" />
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">Date</label>
+                <input type="date" className="gl-input" value={transferDate} onChange={(event) => setTransferDate(event.target.value)} />
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">Description</label>
+                <input className="gl-input" value={transferDescription} onChange={(event) => setTransferDescription(event.target.value)} placeholder="Optional transfer or exchange note" />
+              </div>
+              <div className="md:col-span-2">
+                <button type="submit" disabled={savingTransfer} className="gl-btn gl-btn-primary gl-btn-md">
+                  {savingTransfer ? "Saving both entries..." : "Save balance movement"}
+                </button>
+              </div>
+            </form>
           ) : null}
         </section>
 

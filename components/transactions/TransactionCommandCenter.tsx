@@ -1,6 +1,7 @@
 "use client";
 
 import { buildCurrencyFlows } from "@/lib/finance/currencyTotals";
+import { isOperationalTransaction, type ClassifiableCategory } from "@/lib/transactions/classification";
 import { MetricGridState, type DataState } from "@/components/ui/MetricGridState";
 
 type TransactionType = "income" | "expense";
@@ -11,12 +12,16 @@ type Transaction = {
   amount_minor: number;
   currency_code: string;
   occurred_at: string;
+  category_id?: string | null;
+  transaction_kind?: string | null;
+  transfer_id?: string | null;
 };
 
 type TransactionCommandCenterProps = {
   transactions: Transaction[];
   dataState?: DataState;
   scopeLabel?: string;
+  categoriesById?: Record<string, ClassifiableCategory>;
 };
 
 function formatMinorToAmount(minor: number): string {
@@ -55,16 +60,23 @@ export function TransactionCommandCenter({
   transactions,
   dataState = "ready",
   scopeLabel = "This month",
+  categoriesById = {},
 }: TransactionCommandCenterProps) {
   if (dataState !== "ready") return <MetricGridState state={dataState} />;
 
-  const flows = buildCurrencyFlows(transactions);
+  const operationalTransactions = transactions.filter((transaction) =>
+    isOperationalTransaction(
+      transaction,
+      transaction.category_id ? categoriesById[transaction.category_id] : null
+    )
+  );
+  const flows = buildCurrencyFlows(operationalTransactions);
 
   const items = [
     {
       label: "Activity",
-      value: String(transactions.length),
-      caption: scopeLabel,
+      value: String(operationalTransactions.length),
+      caption: `${scopeLabel} · excludes transfers and FX`,
     },
     {
       label: "Income",

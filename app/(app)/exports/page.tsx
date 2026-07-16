@@ -55,7 +55,7 @@ export default function ExportCenterPage() {
           supabaseBrowserClient.auth.getUser(),
           loadPagedTable("wallets", "id,name,type,currency_code,starting_balance_minor,created_at,updated_at"),
           loadPagedTable("categories", "id,name,type,is_active,created_at"),
-          loadPagedTable("transactions", "id,wallet_id,category_id,type,amount_minor,currency_code,occurred_at,description,created_at"),
+          loadPagedTable("transactions", "id,wallet_id,category_id,type,amount_minor,currency_code,occurred_at,description,created_at,transaction_kind,transfer_id,recurring_rule_id,scheduled_for"),
           loadPagedTable("budgets", "id,wallet_id,category_id,year,month,amount_minor,created_at,updated_at"),
           loadPagedTable("recurring_rules", "id,wallet_id,category_id,type,amount_minor,currency_code,frequency,interval,day_of_month,day_of_week,start_date,end_date,next_run_at,last_run_at,total_runs,description,is_active,created_at"),
         ]);

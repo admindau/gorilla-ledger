@@ -26,6 +26,10 @@ export type ExportTransaction = {
   occurred_at: string;
   description: string | null;
   created_at: string;
+  transaction_kind?: string | null;
+  transfer_id?: string | null;
+  recurring_rule_id?: string | null;
+  scheduled_for?: string | null;
 };
 
 export type ExportBudget = {
@@ -129,11 +133,15 @@ export function buildLedgerExports(input: LedgerExportInput): LedgerExportDatase
   );
 
   const transactionsCsv = buildCsv(
-    ["Transaction ID", "Occurred At", "Type", "Description", "Wallet ID", "Wallet", "Category ID", "Category", "Currency", "Amount Minor", "Amount", "Created At"],
+    ["Transaction ID", "Occurred At", "Type", "Transaction Kind", "Transfer ID", "Recurring Rule ID", "Scheduled For", "Description", "Wallet ID", "Wallet", "Category ID", "Category", "Currency", "Amount Minor", "Amount", "Created At"],
     input.transactions.map((transaction) => [
       transaction.id,
       transaction.occurred_at,
       transaction.type,
+      transaction.transaction_kind ?? "operational",
+      transaction.transfer_id,
+      transaction.recurring_rule_id,
+      transaction.scheduled_for,
       transaction.description,
       transaction.wallet_id,
       walletById[transaction.wallet_id]?.name ?? "Unknown wallet",

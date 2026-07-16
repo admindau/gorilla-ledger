@@ -32,6 +32,8 @@ export type BudgetReconciliationTransaction = {
   amount_minor: number;
   currency_code: string;
   occurred_at: string;
+  transaction_kind?: string | null;
+  transfer_id?: string | null;
 };
 
 export type BudgetStatus = "healthy" | "atRisk" | "over" | "unscored";
@@ -85,7 +87,7 @@ type BudgetReconciliationInput = {
 function localMonthParts(value: string): { year: number; month0: number } | null {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return { year: date.getFullYear(), month0: date.getMonth() };
+  return { year: date.getUTCFullYear(), month0: date.getUTCMonth() };
 }
 
 function aggregateKey(

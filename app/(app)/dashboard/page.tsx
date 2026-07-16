@@ -68,6 +68,7 @@ const SpendingTrendChart = dynamic(
 );
 
 import { isInternalTransfer } from "@/lib/transactions/classification";
+import { ledgerMonthParts } from "@/lib/finance/money";
 import { buildDashboardReconciliation } from "@/lib/dashboard/reconciliation";
 import {
   buildDailyIncomeExpenseSeries,
@@ -100,12 +101,15 @@ type Transaction = {
   amount_minor: number;
   currency_code: string;
   occurred_at: string;
+  transaction_kind?: string | null;
+  transfer_id?: string | null;
 };
 
 type Category = {
   id: string;
   name: string;
   type: "income" | "expense";
+  is_active: boolean;
 };
 
 type Budget = {
@@ -193,7 +197,7 @@ async function fetchAllTransactions(
     const result = await supabaseBrowserClient
       .from("transactions")
       .select(
-        "id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at"
+        "id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at, transaction_kind, transfer_id"
       )
       .order("occurred_at", { ascending: false })
       .order("id", { ascending: false })
@@ -314,6 +318,7 @@ export default function DashboardPage() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
+  const [dataVersion, setDataVersion] = useState(0);
 
   // --- Month selector state (0–11) ---
   const today = new Date();
@@ -350,6 +355,18 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") setDataVersion((version) => version + 1);
+    };
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, []);
+
+  useEffect(() => {
     const controller = new AbortController();
     const { signal } = controller;
     let isMounted = true;
@@ -372,8 +389,7 @@ export default function DashboardPage() {
               .abortSignal(signal),
             supabaseBrowserClient
               .from("categories")
-              .select("id, name, type")
-              .eq("is_active", true)
+              .select("id, name, type, is_active")
               .order("type", { ascending: true })
               .order("name", { ascending: true })
               .abortSignal(signal),
@@ -445,7 +461,7 @@ export default function DashboardPage() {
       isMounted = false;
       controller.abort();
     };
-  }, []);
+  }, [dataVersion]);
 
   // ----- Derived data -----
 
@@ -465,8 +481,8 @@ export default function DashboardPage() {
     () =>
       buildActivationModel({
         walletCount: wallets.length,
-        incomeCategoryCount: categories.filter((category) => category.type === "income").length,
-        expenseCategoryCount: categories.filter((category) => category.type === "expense").length,
+        incomeCategoryCount: categories.filter((category) => category.is_active && category.type === "income").length,
+        expenseCategoryCount: categories.filter((category) => category.is_active && category.type === "expense").length,
         transactionCount: transactions.length,
         budgetCount: budgets.length,
         recurringRuleCount: recurringRules.length,
@@ -477,24 +493,15 @@ export default function DashboardPage() {
   // Per-wallet balances and currency totals are derived once per source-data
   // change instead of being rebuilt by every unrelated UI interaction.
   const totalsByCurrency = useMemo(() => {
-    const deltaByWallet: Record<string, number> = {};
-
+    const totals: Record<string, number> = {};
+    for (const wallet of wallets) {
+      totals[wallet.currency_code] =
+        (totals[wallet.currency_code] ?? 0) + wallet.starting_balance_minor;
+    }
     for (const tx of transactions) {
       const sign = tx.type === "income" ? 1 : -1;
-      deltaByWallet[tx.wallet_id] =
-        (deltaByWallet[tx.wallet_id] ?? 0) + sign * tx.amount_minor;
-    }
-
-    const balances = wallets.map((wallet) => ({
-      ...wallet,
-      balanceMinor:
-        wallet.starting_balance_minor + (deltaByWallet[wallet.id] ?? 0),
-    }));
-
-    const totals: Record<string, number> = {};
-    for (const wallet of balances) {
-      totals[wallet.currency_code] =
-        (totals[wallet.currency_code] ?? 0) + wallet.balanceMinor;
+      totals[tx.currency_code] =
+        (totals[tx.currency_code] ?? 0) + sign * tx.amount_minor;
     }
 
     return totals;
@@ -511,11 +518,11 @@ export default function DashboardPage() {
     const activityTransactions: Transaction[] = [];
 
     for (const tx of transactions) {
-      const date = new Date(tx.occurred_at);
+      const date = ledgerMonthParts(tx.occurred_at);
       if (
-        Number.isNaN(date.getTime()) ||
-        date.getFullYear() !== selectedYear ||
-        date.getMonth() !== selectedMonth
+        !date ||
+        date.year !== selectedYear ||
+        date.month0 !== selectedMonth
       ) {
         continue;
       }
@@ -777,9 +784,9 @@ export default function DashboardPage() {
   const transactionMonthsTracked = new Set(
     transactions
       .map((tx) => {
-        const date = new Date(tx.occurred_at);
-        if (Number.isNaN(date.getTime())) return null;
-        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+        const date = ledgerMonthParts(tx.occurred_at);
+        if (!date) return null;
+        return `${date.year}-${String(date.month0 + 1).padStart(2, "0")}`;
       })
       .filter(Boolean)
   ).size;
@@ -848,10 +855,8 @@ export default function DashboardPage() {
       Array.from(
         new Set(
           transactions.map((tx) => {
-            const date = new Date(tx.occurred_at);
-            return Number.isNaN(date.getTime())
-              ? null
-              : String(date.getFullYear());
+            const date = ledgerMonthParts(tx.occurred_at);
+            return date ? String(date.year) : null;
           })
         )
       )

@@ -9,6 +9,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
 import { PrerequisiteGuide } from "@/components/activation/PrerequisiteGuide";
+import { parsePositiveMoneyToMinor } from "@/lib/finance/money";
+import { isOperationalTransaction } from "@/lib/transactions/classification";
 
 type Wallet = {
   id: string;
@@ -20,6 +22,7 @@ type Category = {
   id: string;
   name: string;
   type: "income" | "expense";
+  is_active: boolean;
 };
 
 type Budget = {
@@ -40,6 +43,8 @@ type Transaction = {
   amount_minor: number;
   currency_code: string;
   occurred_at: string;
+  transaction_kind?: string | null;
+  transfer_id?: string | null;
 };
 
 const BUDGET_TRANSACTION_PAGE_SIZE = 1000;
@@ -53,7 +58,7 @@ async function loadAllExpenseTransactions(): Promise<{
   for (let from = 0; ; from += BUDGET_TRANSACTION_PAGE_SIZE) {
     const { data, error } = await supabaseBrowserClient
       .from("transactions")
-      .select("id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at")
+      .select("id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at, transaction_kind, transfer_id")
       .eq("type", "expense")
       .order("occurred_at", { ascending: false })
       .range(from, from + BUDGET_TRANSACTION_PAGE_SIZE - 1);
@@ -63,15 +68,6 @@ async function loadAllExpenseTransactions(): Promise<{
     rows.push(...page);
     if (page.length < BUDGET_TRANSACTION_PAGE_SIZE) return { data: rows, error: null };
   }
-}
-
-function parseAmountToMinor(amount: string): number {
-  const cleaned = amount.replace(",", "").trim();
-  const [whole, fractional = ""] = cleaned.split(".");
-  const fracPadded = (fractional + "00").slice(0, 2);
-  const wholeNum = Number(whole) || 0;
-  const fracNum = Number(fracPadded) || 0;
-  return wholeNum * 100 + fracNum;
 }
 
 function formatMinorToAmount(minor: number): string {
@@ -179,7 +175,7 @@ export default function BudgetsPage() {
 
       const [walletResult, categoryResult, budgetResult, transactionResult] = await Promise.all([
         supabaseBrowserClient.from("wallets").select("id, name, currency_code").order("created_at", { ascending: true }),
-        supabaseBrowserClient.from("categories").select("id, name, type").eq("is_active", true).order("type", { ascending: true }).order("name", { ascending: true }),
+        supabaseBrowserClient.from("categories").select("id, name, type, is_active").order("type", { ascending: true }).order("name", { ascending: true }),
         supabaseBrowserClient.from("budgets").select("*").order("year", { ascending: false }).order("month", { ascending: false }).order("created_at", { ascending: false }).limit(200),
         loadAllExpenseTransactions(),
       ]);
@@ -207,7 +203,7 @@ export default function BudgetsPage() {
       setTransactions(transactionData as Transaction[]);
 
       if (walletData && walletData.length > 0 && !walletId) setWalletId(walletData[0].id);
-      const initialExpenseCategory = (categoryData as Category[] | null)?.find((category) => category.type === "expense");
+      const initialExpenseCategory = (categoryData as Category[] | null)?.find((category) => category.is_active && category.type === "expense");
       if (initialExpenseCategory && !categoryId) setCategoryId(initialExpenseCategory.id);
 
       setLoading(false);
@@ -222,6 +218,10 @@ export default function BudgetsPage() {
   ]);
   const categoryMap = useMemo(
     () => Object.fromEntries(categories.map((c) => [c.id, c] as const)),
+    [categories]
+  );
+  const activeExpenseCategories = useMemo(
+    () => categories.filter((category) => category.is_active && category.type === "expense"),
     [categories]
   );
 
@@ -245,7 +245,8 @@ export default function BudgetsPage() {
           const sameMonth = tx.occurred_at.slice(0, 7) === selectedMonthKey;
           const sameCategory = tx.category_id === budget.category_id;
           const sameWallet = budget.wallet_id ? tx.wallet_id === budget.wallet_id : true;
-          return sameMonth && sameCategory && sameWallet;
+          const category = tx.category_id ? categoryMap[tx.category_id] : null;
+          return sameMonth && sameCategory && sameWallet && isOperationalTransaction(tx, category);
         })
         .reduce((sum, tx) => sum + tx.amount_minor, 0);
 
@@ -280,7 +281,7 @@ export default function BudgetsPage() {
       setSaving(false);
       return;
     }
-    if (categoryMap[categoryId]?.type !== "expense") {
+    if (!categoryMap[categoryId]?.is_active || categoryMap[categoryId]?.type !== "expense") {
       setErrorMsg("Budgets require an expense category.");
       setSaving(false);
       return;
@@ -297,12 +298,13 @@ export default function BudgetsPage() {
       return;
     }
 
-    const amount_minor = parseAmountToMinor(amount);
-    if (!Number.isSafeInteger(amount_minor) || amount_minor <= 0) {
-      setErrorMsg("Enter a budget amount greater than zero.");
+    const parsedAmount = parsePositiveMoneyToMinor(amount);
+    if (!parsedAmount.ok) {
+      setErrorMsg(parsedAmount.error);
       setSaving(false);
       return;
     }
+    const amount_minor = parsedAmount.minor;
 
     const { data, error } = await supabaseBrowserClient
       .from("budgets")
@@ -357,7 +359,13 @@ export default function BudgetsPage() {
       return;
     }
 
-    const amount_minor = parseAmountToMinor(editAmount);
+    const parsedAmount = parsePositiveMoneyToMinor(editAmount);
+    if (!parsedAmount.ok) {
+      setErrorMsg(parsedAmount.error);
+      setRowBusyId(null);
+      return;
+    }
+    const amount_minor = parsedAmount.minor;
 
     const { data, error } = await supabaseBrowserClient
       .from("budgets")
@@ -539,7 +547,7 @@ export default function BudgetsPage() {
                       value={categoryId}
                       onChange={(e) => setCategoryId(e.target.value)}
                     >
-                      {categories.filter((category) => category.type === "expense").map((c) => (
+                      {activeExpenseCategories.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name} ({c.type})
                         </option>

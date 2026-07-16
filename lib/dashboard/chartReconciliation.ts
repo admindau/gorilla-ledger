@@ -8,6 +8,8 @@ export type DashboardChartTransaction = {
   amount_minor: number;
   currency_code: string;
   occurred_at: string;
+  transaction_kind?: string | null;
+  transfer_id?: string | null;
 };
 
 export type DashboardChartCategory = {
@@ -39,9 +41,9 @@ export function getCalendarDateParts(value: string): {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
 
-  const year = date.getFullYear();
-  const monthIndex = date.getMonth();
-  const day = date.getDate();
+  const year = date.getUTCFullYear();
+  const monthIndex = date.getUTCMonth();
+  const day = date.getUTCDate();
 
   return {
     date,

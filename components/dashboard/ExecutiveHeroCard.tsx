@@ -93,7 +93,7 @@ export default function ExecutiveHeroCard({
             />
             <TrustIndicator
               status="info"
-              label="Updated just now"
+              label="Synced recently"
               detail="Refreshed on page load"
             />
           </div>

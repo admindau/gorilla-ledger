@@ -29,7 +29,7 @@ function isThisMonth(value: string | null) {
   if (Number.isNaN(date.getTime())) return false;
 
   const now = new Date();
-  return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+  return date.getUTCFullYear() === now.getFullYear() && date.getUTCMonth() === now.getMonth();
 }
 
 function isUpcoming(value: string | null) {

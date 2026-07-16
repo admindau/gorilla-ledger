@@ -34,6 +34,10 @@ const INTERNAL_TRANSFER_KEYS = new Set([
   "wallet_transfer_out",
   "account_transfer_in",
   "account_transfer_out",
+  "fx",
+  "foreign_exchange",
+  "currency_exchange",
+  "currency_conversion",
 ]);
 
 const INTERNAL_TRANSFER_NAMES = new Set([
@@ -53,7 +57,18 @@ const INTERNAL_TRANSFER_NAMES = new Set([
   "wallet transfer out",
   "account transfer in",
   "account transfer out",
+  "fx",
+  "foreign exchange",
+  "currency exchange",
+  "currency conversion",
 ]);
+
+export function isOperationalTransaction(
+  transaction?: ClassifiableTransaction | null,
+  category?: ClassifiableCategory | null
+): boolean {
+  return !isInternalTransfer(transaction, category);
+}
 
 function normalizeKey(value?: string | null): string {
   return (value ?? "")

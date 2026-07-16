@@ -12,6 +12,7 @@ import { PageSection } from "@/components/ui/PageSection";
 import { PageShell } from "@/components/ui/PageShell";
 import Skeleton from "@/components/ui/Skeleton";
 import TrustIndicator from "@/components/ui/TrustIndicator";
+import { parseMoneyToMinor } from "@/lib/finance/money";
 
 type Wallet = {
   id: string;
@@ -54,15 +55,6 @@ const WALLET_TYPE_META: Record<
     description: "Custom asset wallet",
   },
 };
-
-function parseAmountToMinor(amount: string): number {
-  const cleaned = amount.replace(/,/g, "").trim();
-  const [whole, fractional = ""] = cleaned.split(".");
-  const fracPadded = (fractional + "00").slice(0, 2);
-  const wholeNum = Number(whole) || 0;
-  const fracNum = Number(fracPadded) || 0;
-  return wholeNum * 100 + fracNum;
-}
 
 function formatMinorToAmount(minor: number): string {
   return (minor / 100).toLocaleString(undefined, {
@@ -211,7 +203,20 @@ export default function WalletsPage() {
     setSaving(true);
     setErrorMsg("");
 
-    const starting_balance_minor = parseAmountToMinor(startingBalance);
+    const normalizedCurrency = currencyCode.trim().toUpperCase();
+    if (!name.trim() || !/^[A-Z]{3}$/.test(normalizedCurrency)) {
+      setErrorMsg("Enter a wallet name and a valid three-letter currency code.");
+      setSaving(false);
+      return;
+    }
+
+    const parsedBalance = parseMoneyToMinor(startingBalance);
+    if (!parsedBalance.ok) {
+      setErrorMsg(parsedBalance.error);
+      setSaving(false);
+      return;
+    }
+    const starting_balance_minor = parsedBalance.minor;
 
     const {
       data: { user },
@@ -228,9 +233,9 @@ export default function WalletsPage() {
       .from("wallets")
       .insert({
         user_id: user.id,
-        name,
+        name: name.trim(),
         type,
-        currency_code: currencyCode,
+        currency_code: normalizedCurrency,
         starting_balance_minor,
       })
       .select()
@@ -256,7 +261,20 @@ export default function WalletsPage() {
     setRowBusyId(id);
     setErrorMsg("");
 
-    const starting_balance_minor = parseAmountToMinor(editStartingBalance);
+    const normalizedCurrency = editCurrencyCode.trim().toUpperCase();
+    if (!editName.trim() || !/^[A-Z]{3}$/.test(normalizedCurrency)) {
+      setErrorMsg("Enter a wallet name and a valid three-letter currency code.");
+      setRowBusyId(null);
+      return;
+    }
+
+    const parsedBalance = parseMoneyToMinor(editStartingBalance);
+    if (!parsedBalance.ok) {
+      setErrorMsg(parsedBalance.error);
+      setRowBusyId(null);
+      return;
+    }
+    const starting_balance_minor = parsedBalance.minor;
 
     const {
       data: { user },
@@ -269,12 +287,30 @@ export default function WalletsPage() {
       return;
     }
 
+    const originalWallet = walletById[id];
+    if (originalWallet && originalWallet.currency_code !== normalizedCurrency) {
+      const { count, error: referenceError } = await supabaseBrowserClient
+        .from("transactions")
+        .select("id", { count: "exact", head: true })
+        .eq("wallet_id", id);
+      if (referenceError) {
+        setErrorMsg("Unable to verify whether this wallet has ledger activity.");
+        setRowBusyId(null);
+        return;
+      }
+      if ((count ?? 0) > 0) {
+        setErrorMsg("Currency cannot be changed after a wallet has transactions. Create a new wallet and transfer the balance instead.");
+        setRowBusyId(null);
+        return;
+      }
+    }
+
     const { data, error } = await supabaseBrowserClient
       .from("wallets")
       .update({
-        name: editName,
+        name: editName.trim(),
         type: editType,
-        currency_code: editCurrencyCode,
+        currency_code: normalizedCurrency,
         starting_balance_minor,
       })
       .eq("id", id)
@@ -385,7 +421,7 @@ export default function WalletsPage() {
               </div>
 
               <p className="text-sm uppercase tracking-[0.28em] text-white/35">
-                Total registered position
+                Opening balances
               </p>
 
               <div className="mt-4 space-y-2">
