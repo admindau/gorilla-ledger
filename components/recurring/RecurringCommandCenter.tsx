@@ -118,11 +118,11 @@ export function RecurringCommandCenter({
 
   return (
     <section>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
         {cards.map((card) => (
-          <div key={card.label} className="gl-premium-card p-4">
+          <div key={card.label} className="gl-premium-card min-w-0 p-3.5 sm:p-4">
             <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500">{card.label}</p>
-            <p className="mt-3 text-2xl font-semibold tracking-tight text-white">{card.value}</p>
+            <p className="mt-3 break-words text-xl font-semibold tracking-tight text-white sm:text-2xl">{card.value}</p>
             <p className="mt-1 text-xs text-gray-500">{card.detail}</p>
           </div>
         ))}

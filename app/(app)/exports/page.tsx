@@ -132,7 +132,7 @@ export default function ExportCenterPage() {
   if (loadError && !loading) {
     return (
       <div className="gl-page-migrated">
-        <PageShell className="max-w-5xl">
+        <PageShell className="max-w-6xl">
           <PageHeader
             title="Export your data"
             description="Download a copy of your records as CSV files."
@@ -149,7 +149,7 @@ export default function ExportCenterPage() {
 
   return (
     <div className="gl-page-migrated">
-      <PageShell className="max-w-5xl">
+      <PageShell className="max-w-6xl">
         <PageHeader
           title="Export your data"
           description="Download a copy of your records as CSV files."

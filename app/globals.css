@@ -1729,6 +1729,192 @@ body {
   }
 }
 
+/* GL-POLISH-04 — Final visual system unification */
+:root {
+  --gl-surface-1: rgba(11, 11, 12, 0.94);
+  --gl-surface-2: rgba(17, 17, 18, 0.82);
+  --gl-border: rgba(255, 255, 255, 0.115);
+  --gl-border-strong: rgba(255, 255, 255, 0.18);
+  --gl-muted: rgba(209, 213, 219, 0.62);
+  --gl-radius-card: 1.25rem;
+  --gl-radius-mobile: 1rem;
+}
+
+.gl-app-root {
+  background:
+    radial-gradient(circle at 50% -8%, rgba(255, 255, 255, 0.075), transparent 31rem),
+    linear-gradient(180deg, #060606 0%, #020202 25rem, #010101 100%);
+}
+
+.gl-app-root::before {
+  background-size: 80px 80px;
+  opacity: 0.7;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.38), transparent 48%);
+}
+
+.gl-app-topnav {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+  background: rgba(5, 5, 6, 0.9);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.035), 0 16px 48px rgba(0, 0, 0, 0.38);
+  -webkit-backdrop-filter: blur(22px) saturate(130%);
+  backdrop-filter: blur(22px) saturate(130%);
+}
+
+.gl-app-nav {
+  border-color: rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.028);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.gl-premium-card,
+.gl-card {
+  border-radius: var(--gl-radius-card);
+  border-color: var(--gl-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.018)),
+    var(--gl-surface-1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    0 16px 44px rgba(0, 0, 0, 0.26);
+}
+
+.gl-hero-card,
+.gl-intelligence-suite {
+  border-radius: 1.5rem;
+}
+
+.gl-inner-card {
+  border-color: rgba(255, 255, 255, 0.085);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018));
+}
+
+.gl-premium-card :where(.text-gray-500),
+.gl-card :where(.text-gray-500) {
+  color: var(--gl-muted);
+}
+
+.gl-page-migrated .gl-page-shell {
+  padding-top: 2.25rem;
+}
+
+.gl-page-title,
+.gl-dashboard-page-header h1 {
+  font-size: clamp(1.75rem, 3vw, 2.15rem);
+  font-weight: 720;
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+}
+
+.gl-page-description,
+.gl-dashboard-page-header > div > p {
+  max-width: 38rem;
+  color: rgba(209, 213, 219, 0.66);
+  line-height: 1.55;
+}
+
+.gl-page-section + .gl-page-section {
+  margin-top: 2rem;
+}
+
+.gl-page-migrated .gl-page-shell:not(.gl-page-stack) > :is(section, .gl-card, .gl-premium-card, .gl-inner-card, [role="alert"]) + :is(section, .gl-card, .gl-premium-card, .gl-inner-card, [role="alert"]) {
+  margin-top: 1.25rem;
+}
+
+.gl-section-eyebrow,
+.gl-badge {
+  letter-spacing: 0.13em;
+}
+
+.gl-input,
+.gl-dashboard-filter-select {
+  min-height: 2.75rem;
+  border-color: rgba(255, 255, 255, 0.13);
+  border-radius: 0.85rem;
+  background: rgba(0, 0, 0, 0.52);
+}
+
+select.gl-input,
+select.gl-dashboard-filter-select {
+  cursor: pointer;
+}
+
+.gl-input:hover:not(:disabled),
+.gl-dashboard-filter-select:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.gl-btn-sm {
+  min-height: 2.35rem;
+  padding-inline: 0.95rem;
+}
+
+.gl-btn-md {
+  min-height: 2.75rem;
+  padding-inline: 1.1rem;
+}
+
+.gl-btn-primary {
+  background: linear-gradient(180deg, #ffffff, #e5e5e5);
+  box-shadow: inset 0 1px 0 #ffffff, 0 10px 28px rgba(255, 255, 255, 0.07);
+}
+
+@media (max-width: 700px) {
+  .gl-app-root::before {
+    opacity: 0.42;
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.34), transparent 34%);
+  }
+
+  .gl-page-shell,
+  .gl-page-migrated .gl-page-shell {
+    padding-top: 1.5rem;
+    padding-inline: 1rem;
+  }
+
+  .gl-page-header {
+    margin-bottom: 1.5rem;
+  }
+
+  .gl-page-title,
+  .gl-dashboard-page-header h1 {
+    font-size: 1.75rem;
+  }
+
+  .gl-premium-card,
+  .gl-card,
+  .gl-hero-card,
+  .gl-intelligence-suite {
+    border-radius: var(--gl-radius-mobile);
+  }
+
+  .gl-page-section + .gl-page-section {
+    margin-top: 1.5rem;
+  }
+
+  .gl-page-migrated .gl-page-shell:not(.gl-page-stack) > :is(section, .gl-card, .gl-premium-card, .gl-inner-card, [role="alert"]) + :is(section, .gl-card, .gl-premium-card, .gl-inner-card, [role="alert"]) {
+    margin-top: 1rem;
+  }
+
+  .gl-mobile-nav {
+    border-top-color: rgba(255, 255, 255, 0.11);
+    background: rgba(6, 6, 7, 0.96);
+    box-shadow: 0 -14px 40px rgba(0, 0, 0, 0.45);
+  }
+
+  .gl-mobile-nav-link {
+    min-height: 3.5rem;
+    border-radius: 0.9rem;
+  }
+
+  .gl-mobile-nav-link-active {
+    background: rgba(255, 255, 255, 0.09);
+  }
+
+  .gl-btn-sm,
+  .gl-btn-md {
+    min-height: 2.75rem;
+  }
+}
+
 /* GL-POLISH-03 — Clear hierarchy, compact summaries, and native mobile navigation */
 body {
   overflow-x: hidden;
@@ -1997,5 +2183,43 @@ body {
 
   .gl-category-toolbar-controls .gl-btn {
     grid-column: 1 / -1;
+  }
+}
+
+/* Keep the final surface and mobile rhythm above earlier compatibility layers. */
+.gl-premium-card,
+.gl-card {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    0 16px 44px rgba(0, 0, 0, 0.26);
+}
+
+@media (max-width: 700px) {
+  .gl-page-shell,
+  .gl-page-migrated .gl-page-shell {
+    padding-top: 1.5rem;
+  }
+
+  .gl-page-header {
+    margin-bottom: 1.5rem;
+  }
+
+  .gl-page-title {
+    font-size: 1.75rem;
+  }
+
+  .gl-mobile-nav {
+    border-top-color: rgba(255, 255, 255, 0.11);
+    background: rgba(6, 6, 7, 0.96);
+    box-shadow: 0 -14px 40px rgba(0, 0, 0, 0.45);
+  }
+
+  .gl-mobile-nav-link {
+    min-height: 3.5rem;
+    border-radius: 0.9rem;
+  }
+
+  .gl-mobile-nav-link-active {
+    background: rgba(255, 255, 255, 0.09);
   }
 }

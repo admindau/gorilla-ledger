@@ -43,9 +43,9 @@ function StatCard({
   detail?: string;
 }) {
   return (
-    <div className="gl-premium-card p-4">
+    <div className="gl-premium-card min-w-0 p-3.5 sm:p-4">
       <p className="text-[11px] uppercase tracking-[0.2em] text-gray-500">{label}</p>
-      <p className="mt-3 text-2xl font-semibold text-white">{value}</p>
+      <p className="mt-3 break-words text-xl font-semibold text-white sm:text-2xl">{value}</p>
       {detail ? <p className="mt-1 text-xs text-gray-400">{detail}</p> : null}
     </div>
   );
@@ -67,8 +67,8 @@ export function SecurityCommandCenter({
 
   return (
     <section>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="gl-premium-card p-4">
+      <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
+        <div className="gl-premium-card min-w-0 p-3.5 sm:p-4">
           <p className="text-[11px] uppercase tracking-[0.2em] text-gray-500">
             Security score
           </p>

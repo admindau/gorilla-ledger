@@ -1059,7 +1059,7 @@ export default function TransactionsPage() {
   return (
     <div className="gl-page-migrated">
       {/* Tight, app-like header (less link-bar) */}
-        <div className="gl-page-shell max-w-5xl">
+        <div className="gl-page-shell max-w-6xl">
         <PageHeader
           title="Transactions"
           description="Add and review income, expenses, transfers, and receipts."

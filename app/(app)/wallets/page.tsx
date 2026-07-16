@@ -447,7 +447,7 @@ export default function WalletsPage() {
               </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-1">
               <div className="gl-inner-card p-4">
                 <p className="text-xs uppercase tracking-[0.22em] text-white/35">Wallets</p>
                 {loading ? (

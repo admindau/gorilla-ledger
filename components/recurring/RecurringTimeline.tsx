@@ -87,10 +87,10 @@ export function RecurringTimeline({ rules, wallets, categories, loading = false 
     <section className="gl-premium-card p-4">
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Timeline</p>
-          <h2 className="mt-1 text-sm font-semibold text-white">Upcoming Automation Timeline</h2>
+          <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Upcoming</p>
+          <h2 className="mt-1 text-sm font-semibold text-white">Scheduled transactions</h2>
           <p className="mt-1 text-xs text-gray-500">
-            A forward view of scheduled recurring transactions based on each rule&apos;s next run date.
+            Your next scheduled income and expenses.
           </p>
         </div>
         <div className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] text-gray-400">
@@ -99,12 +99,12 @@ export function RecurringTimeline({ rules, wallets, categories, loading = false 
       </div>
 
       {loading ? (
-        <p className="text-xs text-gray-500">Loading upcoming automations…</p>
+        <p className="text-xs text-gray-500">Loading scheduled transactions…</p>
       ) : upcomingRules.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-5 text-sm">
-          <p className="font-medium text-white">No upcoming automations</p>
+          <p className="font-medium text-white">Nothing scheduled</p>
           <p className="mt-1 text-xs text-gray-500">
-            Activate a recurring rule with a next run date to populate the automation timeline.
+            Add or activate a recurring transaction to see it here.
           </p>
         </div>
       ) : (
@@ -132,7 +132,9 @@ export function RecurringTimeline({ rules, wallets, categories, loading = false 
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-base">{rule.type === "income" ? "💰" : "🔁"}</span>
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-xs text-gray-300">
+                              {rule.type === "income" ? "↗" : "↘"}
+                            </span>
                             <p className="truncate text-sm font-semibold text-white">
                               {getRuleTitle(rule, categories)}
                             </p>

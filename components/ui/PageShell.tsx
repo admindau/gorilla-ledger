@@ -9,7 +9,7 @@ type PageShellProps = HTMLAttributes<HTMLDivElement> & {
 const sizeClass: Record<NonNullable<PageShellProps["size"]>, string> = {
   md: "max-w-4xl",
   lg: "max-w-5xl",
-  xl: "max-w-7xl",
+  xl: "max-w-6xl",
   full: "max-w-none",
 };
 

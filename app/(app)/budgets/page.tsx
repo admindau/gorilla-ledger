@@ -447,7 +447,7 @@ export default function BudgetsPage() {
 
   return (
     <div className="gl-page-migrated">
-      <div className="gl-page-shell max-w-5xl">
+      <div className="gl-page-shell max-w-6xl">
         <PageHeader
           title="Budgets"
           description="Set monthly targets and monitor spending against each plan."

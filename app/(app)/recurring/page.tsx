@@ -368,7 +368,7 @@ export default function RecurringPage() {
     <div className="gl-page-migrated">
       {/* ========================= Hardened Top Navigation ========================= */}
 {/* ========================= Page Content ========================= */}
-      <div className="gl-page-shell max-w-5xl">
+      <div className="gl-page-shell max-w-6xl">
           <PageHeader
             title="Recurring transactions"
             description={`Scheduled income and expenses for ${monthName} ${year}.`}
@@ -421,7 +421,7 @@ export default function RecurringPage() {
                 <select
                   value={walletId}
                   onChange={(e) => setWalletId(e.target.value)}
-                  className="w-full bg-black border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-white"
+                  className="gl-input"
                   required
                 >
                   <option value="">Select wallet</option>
@@ -440,7 +440,7 @@ export default function RecurringPage() {
                 <select
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full bg-black border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-white"
+                  className="gl-input"
                   required
                 >
                   <option value="">Select category</option>
@@ -468,7 +468,7 @@ export default function RecurringPage() {
                   min="0"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full bg-black border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-white"
+                  className="gl-input"
                   placeholder="e.g. 50.00"
                   required
                 />
@@ -482,7 +482,7 @@ export default function RecurringPage() {
                   type="date"
                   value={firstRunDate}
                   onChange={(e) => setFirstRunDate(e.target.value)}
-                  className="w-full bg-black border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-white"
+                  className="gl-input"
                   required
                 />
               </div>
@@ -494,7 +494,7 @@ export default function RecurringPage() {
                 <select
                   value={frequency}
                   onChange={(e) => setFrequency(e.target.value as RecurringFrequency)}
-                  className="w-full bg-black border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-white"
+                  className="gl-input"
                   required
                 >
                   <option value="daily">Daily</option>
@@ -513,7 +513,7 @@ export default function RecurringPage() {
                 type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full bg-black border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-white"
+                className="gl-input"
                 placeholder="e.g. Starlink subscription"
               />
             </div>

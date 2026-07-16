@@ -412,7 +412,7 @@ export default function SecuritySettingsPage() {
   // ---------------------------------------------------------------------------
   return (
     <div className="gl-page-migrated">
-      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="gl-page-shell max-w-6xl">
         <PageHeader
           title="Security & access"
           description="Manage multi-factor authentication and backup access."
