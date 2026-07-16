@@ -1728,3 +1728,248 @@ body {
     color: rgb(209 213 219);
   }
 }
+
+/* GL-POLISH-03 — Clear hierarchy, compact summaries, and native mobile navigation */
+body {
+  overflow-x: hidden;
+}
+
+.gl-mobile-nav {
+  display: none;
+}
+
+.gl-page-header {
+  margin-bottom: 1.75rem;
+}
+
+.gl-page-stack > .gl-page-header {
+  margin-bottom: 0;
+}
+
+.gl-page-description {
+  color: rgba(209, 213, 219, 0.72);
+}
+
+.gl-premium-card,
+.gl-card {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 18px 52px rgba(0, 0, 0, 0.28);
+}
+
+.gl-premium-card:hover {
+  transform: none;
+}
+
+.gl-card-interactive.gl-premium-card:hover {
+  transform: translateY(-1px);
+}
+
+.gl-dashboard-hero-slot {
+  min-height: 0;
+}
+
+.gl-category-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1.1rem;
+  background: rgba(255, 255, 255, 0.025);
+  padding: 0.8rem 0.9rem;
+}
+
+.gl-category-toolbar-controls {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(12rem, 1fr) minmax(9rem, auto) auto;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.gl-category-toolbar-controls .gl-input {
+  min-width: 0;
+  width: 100%;
+}
+
+@media (max-width: 700px) {
+  .gl-app-page-region {
+    min-height: calc(100vh - 4rem);
+    padding-bottom: calc(4.75rem + env(safe-area-inset-bottom));
+  }
+
+  .gl-app-topnav-inner {
+    min-height: 4rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "brand action";
+    padding: 0.7rem 1rem;
+  }
+
+  .gl-app-nav {
+    display: none;
+  }
+
+  .gl-app-brand {
+    font-size: 0.9rem;
+  }
+
+  .gl-app-current-section {
+    margin-top: 0.25rem;
+    font-size: 0.6rem;
+  }
+
+  .gl-app-nav-meta .gl-btn {
+    min-height: 2.35rem;
+    padding-inline: 0.8rem;
+  }
+
+  .gl-mobile-nav {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 80;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(8, 8, 9, 0.94);
+    padding: 0.38rem 0.5rem calc(0.38rem + env(safe-area-inset-bottom));
+    box-shadow: 0 -18px 48px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(22px);
+  }
+
+  .gl-mobile-nav-link {
+    position: relative;
+    display: flex;
+    min-height: 3.35rem;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.22rem;
+    border-radius: 0.8rem;
+    color: rgb(156 163 175);
+    font-size: 0.62rem;
+    font-weight: 650;
+    line-height: 1;
+  }
+
+  .gl-mobile-nav-link svg {
+    height: 1.2rem;
+    width: 1.2rem;
+  }
+
+  .gl-mobile-nav-link-active {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+  }
+
+  .gl-mobile-nav-link-active::before {
+    position: absolute;
+    inset: 0.1rem auto auto;
+    width: 1.1rem;
+    height: 2px;
+    border-radius: 999px;
+    background: #ffffff;
+    content: "";
+  }
+
+  .gl-mobile-more {
+    min-width: 0;
+  }
+
+  .gl-mobile-more > summary {
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .gl-mobile-more > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .gl-mobile-more:not([open]) .gl-mobile-more-menu {
+    display: none;
+  }
+
+  .gl-mobile-more-menu {
+    position: fixed;
+    right: 0.75rem;
+    bottom: calc(4.45rem + env(safe-area-inset-bottom));
+    display: grid;
+    width: min(18rem, calc(100vw - 1.5rem));
+    gap: 0.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 1.2rem;
+    background: rgba(14, 14, 16, 0.98);
+    padding: 0.55rem;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7);
+  }
+
+  .gl-mobile-more-menu > p {
+    padding: 0.5rem 0.65rem 0.35rem;
+    color: rgb(107 114 128);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .gl-mobile-more-menu a {
+    display: flex;
+    min-height: 2.85rem;
+    align-items: center;
+    gap: 0.75rem;
+    border-radius: 0.8rem;
+    padding: 0.65rem 0.75rem;
+    color: rgb(209 213 219);
+    font-size: 0.82rem;
+    font-weight: 650;
+  }
+
+  .gl-mobile-more-menu a.is-active,
+  .gl-mobile-more-menu a:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+  }
+
+  .gl-mobile-more-menu svg {
+    height: 1.15rem;
+    width: 1.15rem;
+    flex: 0 0 auto;
+  }
+
+  .gl-page-shell,
+  .gl-page-migrated .gl-page-shell {
+    padding-top: 1.35rem;
+    padding-bottom: 2.5rem;
+  }
+
+  .gl-page-header {
+    margin-bottom: 1.25rem;
+  }
+
+  .gl-page-title {
+    font-size: 1.7rem;
+  }
+
+  .gl-page-description {
+    font-size: 0.84rem;
+    line-height: 1.5;
+  }
+
+  .gl-dashboard-hero-slot {
+    min-height: 0;
+  }
+
+  .gl-category-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .gl-category-toolbar-controls {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .gl-category-toolbar-controls .gl-btn {
+    grid-column: 1 / -1;
+  }
+}

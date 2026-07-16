@@ -415,16 +415,8 @@ export default function SecuritySettingsPage() {
       <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <PageHeader
           eyebrow="Account Protection"
-          title="Security Command Center"
-          description="Protect your Gorilla Ledger™ account with multi-factor authentication, recovery readiness, and security best practices."
-          action={
-            userEmail ? (
-              <div className="hidden text-right text-xs text-gray-400 sm:block">
-                <div>Signed in as</div>
-                <div className="max-w-[220px] truncate text-white">{userEmail}</div>
-              </div>
-            ) : null
-          }
+          title="Security & access"
+          description="Manage multi-factor authentication, recovery readiness, and account security."
         />
 
         {errorMsg && (

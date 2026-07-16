@@ -397,9 +397,9 @@ export default function WalletsPage() {
   return (
     <PageShell className="gl-page-stack" size="xl">
       <PageHeader
-        eyebrow="Financial Assets"
-        title="Wallet Command Center"
-        description="Track cash, bank, mobile money, and other financial positions from one premium asset view."
+        eyebrow="Accounts & cash"
+        title="Wallets"
+        description="Track balances across cash, bank, mobile money, and other accounts."
         action={
           <Button
             type="button"
@@ -528,7 +528,7 @@ export default function WalletsPage() {
               </div>
 
               <div className="gl-inner-card p-4 sm:col-span-2 lg:col-span-1">
-                <p className="text-xs uppercase tracking-[0.22em] text-white/35">Wallet Health</p>
+                <p className="text-xs uppercase tracking-[0.22em] text-white/35">Ledger status</p>
                 {loading ? (
                   <div className="mt-2 space-y-2">
                     <Skeleton className="h-9 w-32" rounded="lg" />
@@ -537,11 +537,11 @@ export default function WalletsPage() {
                 ) : (
                   <>
                     <p className="mt-2 text-3xl font-semibold text-white">
-                      {wallets.length > 0 ? "Healthy" : "Setup"}
+                      {wallets.length > 0 ? "Active" : "Setup"}
                     </p>
                     <p className="mt-1 text-xs text-white/45">
                       {wallets.length > 0
-                        ? "Assets actively tracked"
+                        ? "Balances updating from ledger activity"
                         : "Create your first wallet"}
                     </p>
                   </>

@@ -1061,9 +1061,9 @@ export default function TransactionsPage() {
       {/* Tight, app-like header (less link-bar) */}
         <div className="gl-page-shell max-w-5xl">
         <PageHeader
-          eyebrow="Activity Ledger"
-          title="Financial Activity"
-          description="Track income, expenses and supporting receipts across all wallets."
+          eyebrow="Activity ledger"
+          title="Transactions"
+          description="Record and review income, expenses, transfers, and supporting receipts."
         />
 
         <TransactionCommandCenter

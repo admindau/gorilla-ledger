@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CategoryCard, type CategoryType } from "@/components/categories/CategoryCard";
 import { CategoryCommandCenter } from "@/components/categories/CategoryCommandCenter";
-import { CategoryInsights } from "@/components/categories/CategoryInsights";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageShell } from "@/components/ui/PageShell";
@@ -307,49 +306,6 @@ export default function CategoriesPage() {
 
   return (
     <div className="gl-page-migrated">
-      <div className="sticky top-0 z-30 border-b border-gray-900 bg-black/85 backdrop-blur">
-        <div className="mx-auto w-full max-w-7xl px-4 py-2.5 sm:px-6">
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex min-w-0 items-baseline gap-2">
-              <div className="text-[11px] uppercase tracking-widest text-gray-500">Configuration</div>
-              <div className="truncate text-xs text-gray-300">Category intelligence</div>
-              <span className="text-gray-700">•</span>
-              <div className="text-[11px] text-gray-400">
-                Showing <span className="font-medium text-gray-200">{filteredCategories.length}</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Search categories..."
-                className="gl-input w-full py-1.5 text-xs sm:w-56"
-              />
-
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value as "all" | CategoryType)}
-                className="gl-input py-1.5 text-xs"
-              >
-                <option value="all">All categories</option>
-                <option value="income">Income only</option>
-                <option value="expense">Expenses only</option>
-              </select>
-
-              <div className="flex items-center gap-2">
-                <button type="button" onClick={openCreateModal} className="gl-btn gl-btn-primary gl-btn-sm">
-                  Add Category
-                </button>
-                <button type="button" onClick={clearCommandBar} className="gl-btn gl-btn-secondary gl-btn-sm">
-                  Clear
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {createOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4" role="dialog" aria-modal="true" aria-label="Add Category">
           <button type="button" aria-label="Close modal" onClick={closeCreateModal} className="absolute inset-0 bg-black/70" />
@@ -409,17 +365,50 @@ export default function CategoriesPage() {
         </div>
       ) : null}
 
-      <PageShell size="xl" className="space-y-6">
+      <PageShell size="xl" className="gl-page-stack">
         <PageHeader
-          eyebrow="Configuration intelligence"
-          title="Category Intelligence Center"
-          description="Organize income and expenses into a clean taxonomy for sharper reporting, cleaner dashboards, and better spending intelligence."
+          eyebrow="Organization"
+          title="Categories"
+          description="Organize income and expenses for accurate reporting, budgets, and transaction entry."
           action={
             <button type="button" onClick={openCreateModal} className="gl-btn gl-btn-primary gl-btn-sm">
               Add Category
             </button>
           }
         />
+
+        <section className="gl-category-toolbar" aria-label="Category filters">
+          <div className="min-w-0">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Category list</p>
+            <p className="mt-1 text-sm text-gray-300">
+              Showing <span className="font-semibold text-white">{filteredCategories.length}</span> of {categories.length}
+            </p>
+          </div>
+          <div className="gl-category-toolbar-controls">
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search categories…"
+              aria-label="Search categories"
+              className="gl-input"
+            />
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value as "all" | CategoryType)}
+              aria-label="Filter categories by type"
+              className="gl-input"
+            >
+              <option value="all">All categories</option>
+              <option value="income">Income only</option>
+              <option value="expense">Expenses only</option>
+            </select>
+            {(q || typeFilter !== "all") ? (
+              <button type="button" onClick={clearCommandBar} className="gl-btn gl-btn-secondary gl-btn-sm">
+                Clear
+              </button>
+            ) : null}
+          </div>
+        </section>
 
         {loadError ? <DataLoadAlert onRetry={() => setLoadVersion((value) => value + 1)} /> : null}
         {errorMsg ? <p className="rounded-2xl border border-red-900/70 bg-red-950/20 p-3 text-sm text-red-300">{errorMsg}</p> : null}
@@ -431,16 +420,6 @@ export default function CategoriesPage() {
           recentlyAddedLabel={latestName}
           dataState={loading ? "loading" : loadError ? "error" : "ready"}
         />
-
-        {!loading && !loadError ? (
-          <CategoryInsights
-            totalCategories={categories.length}
-            incomeCategories={categories.filter((c) => c.type === "income").length}
-            expenseCategories={categories.filter((c) => c.type === "expense").length}
-            latestCategoryName={latestName}
-            filteredCount={filteredCategories.length}
-          />
-        ) : null}
 
         <section className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-3">

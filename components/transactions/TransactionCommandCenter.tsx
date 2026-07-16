@@ -25,7 +25,10 @@ type TransactionCommandCenterProps = {
 };
 
 function formatMinorToAmount(minor: number): string {
-  return (minor / 100).toFixed(2);
+  return (minor / 100).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function formatSignedAmount(amountMinor: number, currencyCode: string, sign = ""): string {
@@ -98,13 +101,13 @@ export function TransactionCommandCenter({
   ];
 
   return (
-    <section className="grid gap-4 md:grid-cols-4">
+    <section className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
       {items.map((item) => (
-        <div key={item.label} className="gl-premium-card p-4">
+        <div key={item.label} className="gl-premium-card min-w-0 p-3 sm:p-4">
           <p className="text-[11px] uppercase tracking-[0.22em] text-gray-500">{item.label}</p>
           <p
             className={[
-              "mt-2 text-xl font-semibold tracking-tight",
+              "mt-2 break-words text-base font-semibold tracking-tight sm:text-xl",
               item.tone === "positive" ? "text-green-300" : "",
               item.tone === "negative" ? "text-red-300" : "",
             ]

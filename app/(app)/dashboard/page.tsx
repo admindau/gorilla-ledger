@@ -932,9 +932,9 @@ export default function DashboardPage() {
         <div className="gl-page-shell gl-dashboard-main max-w-7xl" aria-labelledby="dashboard-title">
           <div className="gl-dashboard-page-header">
             <div>
-              <h1 id="dashboard-title" className="text-2xl font-semibold tracking-[-0.035em] sm:text-3xl">Command Center</h1>
+              <h1 id="dashboard-title" className="text-2xl font-semibold tracking-[-0.035em] sm:text-3xl">Overview</h1>
               <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-400">
-                Premium financial intelligence across wallets, budgets, recurring flows, and activity.
+                Balances, cash flow, budgets, and upcoming activity in one clear view.
               </p>
             </div>
           </div>
@@ -954,9 +954,9 @@ export default function DashboardPage() {
 <div className="gl-page-shell gl-dashboard-main max-w-7xl" aria-labelledby="dashboard-title">
         <div className="gl-dashboard-page-header">
           <div>
-            <h1 id="dashboard-title" className="text-2xl font-semibold tracking-[-0.035em] sm:text-3xl">Command Center</h1>
+            <h1 id="dashboard-title" className="text-2xl font-semibold tracking-[-0.035em] sm:text-3xl">Overview</h1>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-400">
-              Premium financial intelligence across wallets, budgets, recurring flows, and activity.
+              Balances, cash flow, budgets, and upcoming activity in one clear view.
             </p>
           </div>
 

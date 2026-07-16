@@ -68,7 +68,7 @@ export default function ExecutiveHeroCard({
         <div className="max-w-3xl">
           <div className="flex flex-wrap items-center gap-2">
             <span className="gl-section-eyebrow">
-              Financial Command Center
+              Monthly overview
             </span>
             <span className={`rounded-full border bg-white/[0.035] px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${classes.pill}`}>
               {riskLevel}
@@ -88,9 +88,9 @@ export default function ExecutiveHeroCard({
             />
           </div>
 
-          <h1 className="mt-4 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl lg:text-5xl">
+          <h2 className="mt-4 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">
             {monthLabel}
-          </h1>
+          </h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-300">
             {message}
           </p>

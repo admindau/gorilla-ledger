@@ -371,8 +371,8 @@ export default function RecurringPage() {
       <div className="gl-page-shell max-w-5xl">
           <PageHeader
             eyebrow="Automation"
-            title={`Recurring Automation Center – ${monthName} ${year}`}
-            description="Monitor recurring income, expenses, upcoming executions, run history, and automation health from one command center."
+            title="Recurring transactions"
+            description={`Manage scheduled income and expenses, upcoming runs, and history for ${monthName} ${year}.`}
           />
 
           <RecurringCommandCenter

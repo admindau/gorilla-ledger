@@ -450,15 +450,15 @@ export default function BudgetsPage() {
       <div className="gl-page-shell max-w-5xl">
         <PageHeader
           eyebrow="Planning"
-          title="Budget Command Center"
-          description="Set monthly targets, monitor budget health and identify spending pressure across wallets."
+          title="Budgets"
+          description="Set monthly targets and monitor spending against each plan."
           action={
             <button
               type="button"
               onClick={() => setShowCreateForm((value) => !value)}
               className="gl-btn gl-btn-primary gl-btn-sm"
             >
-              {showCreateForm ? "Hide Form" : "+ Create Budget"}
+              {showCreateForm ? "Close form" : "+ Create budget"}
             </button>
           }
         />
@@ -518,20 +518,18 @@ export default function BudgetsPage() {
         <section className="gl-card p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.22em] text-gray-500">Budget Setup</p>
-              <h2 className="mt-1 text-lg font-semibold">Create Budget</h2>
+              <p className="text-[11px] uppercase tracking-[0.22em] text-gray-500">Budget setup</p>
+              <h2 className="mt-1 text-lg font-semibold">New budget</h2>
               <p className="mt-1 text-sm text-gray-400">
                 Add a monthly target for a wallet and expense category.
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setShowCreateForm((value) => !value)}
-              className="gl-btn gl-btn-secondary gl-btn-sm"
-            >
-              {showCreateForm ? "Collapse" : "Open Form"}
-            </button>
+            {!showCreateForm ? (
+              <button type="button" onClick={() => setShowCreateForm(true)} className="gl-btn gl-btn-secondary gl-btn-sm">
+                Create budget
+              </button>
+            ) : null}
           </div>
 
           {showCreateForm ? (

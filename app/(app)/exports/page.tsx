@@ -136,7 +136,7 @@ export default function ExportCenterPage() {
         <PageShell className="max-w-5xl">
           <PageHeader
             eyebrow="Data Portability"
-            title="Export Center"
+            title="Export your data"
             description="Take a complete, currency-explicit copy of your Gorilla Ledger records for analysis, reporting, or safekeeping."
           />
           <DataLoadAlert
@@ -154,7 +154,7 @@ export default function ExportCenterPage() {
       <PageShell className="max-w-5xl">
         <PageHeader
           eyebrow="Data Portability"
-          title="Export Center"
+          title="Export your data"
           description="Take a complete, currency-explicit copy of your Gorilla Ledger records for analysis, reporting, or safekeeping."
         />
 
