@@ -3,6 +3,8 @@ const LEDGER_METADATA_COLUMNS = [
   "transfer_id",
   "recurring_rule_id",
   "scheduled_for",
+  "occurred_at_precision",
+  "occurred_timezone",
 ];
 
 export function isMissingLedgerMetadata(error: { message?: string | null; code?: string | null } | null): boolean {

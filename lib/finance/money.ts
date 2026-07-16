@@ -37,8 +37,11 @@ export function isValidLedgerDate(value: string): boolean {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
-export function ledgerMonthParts(iso: string): { year: number; month0: number } | null {
-  const match = /^(\d{4})-(\d{2})-\d{2}/.exec(iso);
+export function ledgerMonthParts(
+  iso: string,
+  dateKey = iso.slice(0, 10)
+): { year: number; month0: number } | null {
+  const match = /^(\d{4})-(\d{2})-\d{2}/.exec(dateKey);
   if (!match) return null;
   const year = Number(match[1]);
   const month0 = Number(match[2]) - 1;

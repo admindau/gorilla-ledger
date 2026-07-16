@@ -1,3 +1,5 @@
+import { formatOccurredAt, type OccurredAtPrecision } from "@/lib/time/ledgerTime";
+
 type RecentTransaction = {
   id: string;
   type: "income" | "expense";
@@ -6,6 +8,8 @@ type RecentTransaction = {
   amountMinor: number;
   currencyCode: string;
   occurredAt: string;
+  occurredAtPrecision?: OccurredAtPrecision | null;
+  occurredTimezone?: string | null;
 };
 
 type RecentTransactionsWidgetProps = {
@@ -17,16 +21,6 @@ function formatMinor(minor: number) {
   return (minor / 100).toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  });
-}
-
-function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Unknown date";
-
-  return date.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
   });
 }
 
@@ -60,6 +54,11 @@ export default function RecentTransactionsWidget({
           {transactions.map((tx) => {
             const isIncome = tx.type === "income";
             const sign = isIncome ? "+" : "-";
+            const occurredAt = formatOccurredAt(
+              tx.occurredAt,
+              tx.occurredAtPrecision === "datetime" ? "datetime" : "date",
+              tx.occurredTimezone
+            );
 
             return (
               <div
@@ -76,7 +75,7 @@ export default function RecentTransactionsWidget({
                     </span>
                   </div>
                   <div className="mt-1 text-xs text-gray-400">
-                    {tx.walletName} • {formatDate(tx.occurredAt)}
+                    {tx.walletName} • {occurredAt.date}{occurredAt.time ? ` · ${occurredAt.time}` : ""}
                   </div>
                 </div>
 

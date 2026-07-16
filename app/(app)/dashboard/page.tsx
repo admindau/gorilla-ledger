@@ -71,6 +71,7 @@ const SpendingTrendChart = dynamic(
 
 import { isInternalTransfer } from "@/lib/transactions/classification";
 import { ledgerMonthParts } from "@/lib/finance/money";
+import { occurredAtDateKey } from "@/lib/time/ledgerTime";
 import { buildDashboardReconciliation } from "@/lib/dashboard/reconciliation";
 import {
   buildDailyIncomeExpenseSeries,
@@ -103,6 +104,8 @@ type Transaction = {
   amount_minor: number;
   currency_code: string;
   occurred_at: string;
+  occurred_at_precision?: "date" | "datetime" | null;
+  occurred_timezone?: string | null;
   transaction_kind?: string | null;
   transfer_id?: string | null;
 };
@@ -149,7 +152,10 @@ type SmartAlert = {
 
 
 function formatMinorToAmount(minor: number): string {
-  return (minor / 100).toFixed(2);
+  return (minor / 100).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 
@@ -199,7 +205,7 @@ async function fetchAllTransactions(
     const enhancedResult = await supabaseBrowserClient
       .from("transactions")
       .select(
-        "id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at, transaction_kind, transfer_id"
+        "id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at, occurred_at_precision, occurred_timezone, transaction_kind, transfer_id"
       )
       .order("occurred_at", { ascending: false })
       .order("id", { ascending: false })
@@ -530,7 +536,14 @@ export default function DashboardPage() {
     const activityTransactions: Transaction[] = [];
 
     for (const tx of transactions) {
-      const date = ledgerMonthParts(tx.occurred_at);
+      const date = ledgerMonthParts(
+        tx.occurred_at,
+        occurredAtDateKey(
+          tx.occurred_at,
+          tx.occurred_at_precision === "datetime" ? "datetime" : "date",
+          tx.occurred_timezone
+        )
+      );
       if (
         !date ||
         date.year !== selectedYear ||
@@ -603,6 +616,8 @@ export default function DashboardPage() {
         amountMinor: tx.amount_minor,
         currencyCode: tx.currency_code,
         occurredAt: tx.occurred_at,
+        occurredAtPrecision: tx.occurred_at_precision,
+        occurredTimezone: tx.occurred_timezone,
         categoryName: tx.category_id
           ? categoryMap[tx.category_id]?.name ?? "Uncategorized"
           : "Uncategorized",
@@ -796,7 +811,14 @@ export default function DashboardPage() {
   const transactionMonthsTracked = new Set(
     transactions
       .map((tx) => {
-        const date = ledgerMonthParts(tx.occurred_at);
+        const date = ledgerMonthParts(
+          tx.occurred_at,
+          occurredAtDateKey(
+            tx.occurred_at,
+            tx.occurred_at_precision === "datetime" ? "datetime" : "date",
+            tx.occurred_timezone
+          )
+        );
         if (!date) return null;
         return `${date.year}-${String(date.month0 + 1).padStart(2, "0")}`;
       })
@@ -811,42 +833,6 @@ export default function DashboardPage() {
       : transactionMonthsTracked >= 3
       ? "Emerging"
       : "Building History";
-
-  const executiveBalanceSummary =
-    dashboardInsightModel.currencies.length > 0
-      ? dashboardInsightModel.currencies
-          .slice(0, 2)
-          .map(
-            (currency) =>
-              `${formatMinorToAmount(currency.balanceMinor)} ${currency.currencyCode}`
-          )
-          .join(" · ")
-      : "No wallet balance yet";
-
-  const executiveNetFlowSummary =
-    dashboardInsightModel.currencies.length > 0
-      ? dashboardInsightModel.currencies
-          .slice(0, 2)
-          .map(
-            (currency) =>
-              `${formatMinorToAmount(currency.netMinor)} ${currency.currencyCode}`
-          )
-          .join(" · ")
-      : "0.00";
-
-  const forecastableCurrencies = dashboardInsightModel.currencies.filter(
-    (currency) => currency.forecast.availability === "available"
-  );
-  const forecastSummary =
-    forecastableCurrencies.length > 0
-      ? forecastableCurrencies
-          .slice(0, 2)
-          .map(
-            (currency) =>
-              `${formatMinorToAmount(currency.forecast.projectedBalanceMinor)} ${currency.currencyCode}`
-          )
-          .join(" · ")
-      : "Create a wallet to unlock forecast";
 
   const executiveHeroMessage =
     executiveRiskLevel === "Critical"
@@ -867,7 +853,14 @@ export default function DashboardPage() {
       Array.from(
         new Set(
           transactions.map((tx) => {
-            const date = ledgerMonthParts(tx.occurred_at);
+            const date = ledgerMonthParts(
+              tx.occurred_at,
+              occurredAtDateKey(
+                tx.occurred_at,
+                tx.occurred_at_precision === "datetime" ? "datetime" : "date",
+                tx.occurred_timezone
+              )
+            );
             return date ? String(date.year) : null;
           })
         )
@@ -1011,11 +1004,6 @@ export default function DashboardPage() {
               healthCurrency={weakestCurrencyHealth.currencyCode}
               riskLevel={executiveRiskLevel}
               message={executiveHeroMessage}
-              balanceSummary={executiveBalanceSummary}
-              netFlowSummary={executiveNetFlowSummary}
-              forecastSummary={forecastSummary}
-              alertsCount={smartAlerts.length}
-              criticalAlertsCount={criticalAlertsCount}
               forecastConfidence={forecastConfidence}
             />
           )}

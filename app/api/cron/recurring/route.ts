@@ -301,6 +301,18 @@ async function handler(req: NextRequest) {
           type: rule.type,
           description: rule.description,
           occurred_at: dueAtIso,
+          occurred_at_precision: "datetime",
+          occurred_timezone: "UTC",
+        };
+        const legacyBaseTransaction = {
+          user_id: rule.user_id,
+          wallet_id: rule.wallet_id,
+          category_id: rule.category_id,
+          amount_minor: rule.amount_minor,
+          currency_code: rule.currency_code,
+          type: rule.type,
+          description: rule.description,
+          occurred_at: dueAtIso,
         };
         let insertResult = await supabase
           .from("transactions")
@@ -317,7 +329,7 @@ async function handler(req: NextRequest) {
           metadataAvailable = false;
           insertResult = await supabase
             .from("transactions")
-            .insert(baseTransaction)
+            .insert(legacyBaseTransaction)
             .select("id")
             .single();
         }

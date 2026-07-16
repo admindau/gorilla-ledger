@@ -12,6 +12,7 @@ import { PrerequisiteGuide } from "@/components/activation/PrerequisiteGuide";
 import { parsePositiveMoneyToMinor } from "@/lib/finance/money";
 import { isOperationalTransaction } from "@/lib/transactions/classification";
 import { isMissingLedgerMetadata } from "@/lib/supabase/schemaCompatibility";
+import { occurredAtDateKey, type OccurredAtPrecision } from "@/lib/time/ledgerTime";
 
 type Wallet = {
   id: string;
@@ -44,6 +45,8 @@ type Transaction = {
   amount_minor: number;
   currency_code: string;
   occurred_at: string;
+  occurred_at_precision?: OccurredAtPrecision | null;
+  occurred_timezone?: string | null;
   transaction_kind?: string | null;
   transfer_id?: string | null;
 };
@@ -59,7 +62,7 @@ async function loadAllExpenseTransactions(): Promise<{
   for (let from = 0; ; from += BUDGET_TRANSACTION_PAGE_SIZE) {
     const enhancedResult = await supabaseBrowserClient
       .from("transactions")
-      .select("id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at, transaction_kind, transfer_id")
+      .select("id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at, occurred_at_precision, occurred_timezone, transaction_kind, transfer_id")
       .eq("type", "expense")
       .order("occurred_at", { ascending: false })
       .range(from, from + BUDGET_TRANSACTION_PAGE_SIZE - 1);
@@ -256,7 +259,11 @@ export default function BudgetsPage() {
     return budgetsForPeriod.map((budget) => {
       const matchingSpend = transactions
         .filter((tx) => {
-          const sameMonth = tx.occurred_at.slice(0, 7) === selectedMonthKey;
+          const sameMonth = occurredAtDateKey(
+            tx.occurred_at,
+            tx.occurred_at_precision === "datetime" ? "datetime" : "date",
+            tx.occurred_timezone
+          ).slice(0, 7) === selectedMonthKey;
           const sameCategory = tx.category_id === budget.category_id;
           const sameWallet = budget.wallet_id ? tx.wallet_id === budget.wallet_id : true;
           const category = tx.category_id ? categoryMap[tx.category_id] : null;
@@ -440,7 +447,7 @@ export default function BudgetsPage() {
 
   return (
     <div className="gl-page-migrated">
-      <main className="gl-page-shell max-w-5xl">
+      <div className="gl-page-shell max-w-5xl">
         <PageHeader
           eyebrow="Planning"
           title="Budget Command Center"
@@ -655,7 +662,7 @@ export default function BudgetsPage() {
             </div>
           )}
         </section>
-      </main>
+      </div>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import TrustIndicator from "@/components/ui/TrustIndicator";
 import { MetricGridState, type DataState } from "@/components/ui/MetricGridState";
+import { browserTimeZone, calendarMonthKey } from "@/lib/time/ledgerTime";
 
 type RecurringRule = {
   id: string;
@@ -25,11 +26,8 @@ type RecurringCommandCenterProps = {
 
 function isThisMonth(value: string | null) {
   if (!value) return false;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return false;
-
-  const now = new Date();
-  return date.getUTCFullYear() === now.getFullYear() && date.getUTCMonth() === now.getMonth();
+  const timeZone = browserTimeZone();
+  return calendarMonthKey(value, timeZone) === calendarMonthKey(new Date(), timeZone);
 }
 
 function isUpcoming(value: string | null) {

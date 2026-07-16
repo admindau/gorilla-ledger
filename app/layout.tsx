@@ -1,11 +1,8 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/ToastProvider";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import BfcacheAuthGuard from "@/components/auth/BfcacheAuthGuard";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Gorilla Ledger™",
@@ -19,7 +16,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body>
         <ToastProvider>
           <BfcacheAuthGuard />
           {children}

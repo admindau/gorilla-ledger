@@ -36,6 +36,8 @@ const fixture = {
       amount_minor: 25_00,
       currency_code: "USD",
       occurred_at: "2026-07-02T00:00:00Z",
+      occurred_at_precision: "datetime",
+      occurred_timezone: "Africa/Juba",
       description: "=HYPERLINK(\"https://example.test\")",
       created_at: "2026-07-02T00:00:00Z",
     },
@@ -58,6 +60,8 @@ test("transaction export resolves names and preserves explicit currency", () => 
   assert.match(csv, /Cash/);
   assert.match(csv, /Subscriptions/);
   assert.match(csv, /USD,2500,25/);
+  assert.match(csv, /Time Precision,Event Timezone/);
+  assert.match(csv, /datetime,Africa\/Juba/);
 });
 
 test("spreadsheet formulas from user text are neutralized", () => {

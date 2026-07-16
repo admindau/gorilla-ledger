@@ -39,30 +39,57 @@ export default function AppTopNav() {
   const [signingOut, setSigningOut] = useState(false);
   const [mfaEnabled, setMfaEnabled] = useState<boolean | null>(null);
   const [lastCheckAt, setLastCheckAt] = useState<number | null>(null);
+  const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
 
   const activeLabel = useMemo(() => {
     return navItems.find((item) => pathname === item.href || pathname?.startsWith(`${item.href}/`))?.label ?? "Gorilla Ledger";
   }, [pathname]);
+  const isNavigating = Boolean(navigatingTo && navigatingTo !== pathname);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadNavState() {
       try {
-        const [{ data: userData }, factors] = await Promise.all([
-          supabaseBrowserClient.auth.getUser(),
+        const { data: userData } = await supabaseBrowserClient.auth.getUser();
+        const user = userData?.user;
+        const [factors, profileResult] = await Promise.all([
           supabaseBrowserClient.auth.mfa.listFactors().catch(() => null),
+          user
+            ? supabaseBrowserClient
+                .from("profiles")
+                .select("security_reviewed_at,timezone")
+                .eq("id", user.id)
+                .maybeSingle()
+            : Promise.resolve({ data: null, error: null }),
         ]);
 
         if (cancelled) return;
 
-        setEmail(userData?.user?.email ?? "");
+        setEmail(user?.email ?? "");
         const verifiedTotp = factors?.data?.totp?.filter((factor) => factor.status === "verified") ?? [];
         setMfaEnabled(verifiedTotp.length > 0);
 
-        const raw = typeof window !== "undefined" ? localStorage.getItem(LAST_SECURITY_CHECK_AT_KEY) : null;
-        const parsed = raw ? Number(raw) : null;
-        setLastCheckAt(parsed && Number.isFinite(parsed) ? parsed : null);
+        const serverReview = profileResult.data?.security_reviewed_at as string | null | undefined;
+        if (serverReview) {
+          setLastCheckAt(Date.parse(serverReview));
+        } else {
+          const raw = typeof window !== "undefined" ? localStorage.getItem(LAST_SECURITY_CHECK_AT_KEY) : null;
+          const parsed = raw ? Number(raw) : null;
+          setLastCheckAt(parsed && Number.isFinite(parsed) ? parsed : null);
+        }
+
+        if (user && !profileResult.error) {
+          const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          if (timeZone && profileResult.data?.timezone !== timeZone) {
+            void supabaseBrowserClient
+              .from("profiles")
+              .upsert(
+                { id: user.id, full_name: user.email ?? null, timezone: timeZone },
+                { onConflict: "id" }
+              );
+          }
+        }
       } catch {
         if (!cancelled) setMfaEnabled(null);
       }
@@ -89,7 +116,8 @@ export default function AppTopNav() {
   }
 
   return (
-    <header className="gl-app-topnav">
+    <header className="gl-app-topnav" aria-busy={isNavigating}>
+      {isNavigating ? <div className="gl-navigation-progress" aria-label="Loading page" role="progressbar" /> : null}
       <div className="gl-app-topnav-inner">
         <div className="min-w-0">
           <Link href="/dashboard" className="gl-app-brand" aria-label="Go to dashboard">
@@ -107,6 +135,9 @@ export default function AppTopNav() {
                 href={item.href}
                 className={["gl-app-nav-link", active ? "gl-app-nav-link-active" : ""].filter(Boolean).join(" ")}
                 aria-current={active ? "page" : undefined}
+                onClick={() => {
+                  if (!active) setNavigatingTo(item.href);
+                }}
               >
                 <span className="hidden sm:inline">{item.label}</span>
                 <span className="sm:hidden">{item.shortLabel}</span>

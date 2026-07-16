@@ -112,7 +112,7 @@ export default function SecuritySettingsPage() {
 
   // Nav / auth
   const [userEmail, setUserEmail] = useState<string>("");
-  const [signingOut, setSigningOut] = useState(false);
+  const [userId, setUserId] = useState("");
 
   // ---------------------------------------------------------------------------
   // Derived labels
@@ -124,22 +124,6 @@ export default function SecuritySettingsPage() {
     if (!lastCheckAt || lastCheckAt <= 0) return "Not recorded";
     return `${daysAgoFromMs(lastCheckAt)} day(s) ago`;
   }, [lastCheckAt]);
-
-  async function handleLogout() {
-    if (signingOut) return;
-
-    const ok = window.confirm(
-      "You are about to log out of Gorilla Ledger™. Continue?"
-    );
-    if (!ok) return;
-
-    setSigningOut(true);
-    try {
-      await supabaseBrowserClient.auth.signOut();
-    } finally {
-      window.location.href = "/";
-    }
-  }
 
   // ---------------------------------------------------------------------------
   // Data loaders
@@ -160,9 +144,23 @@ export default function SecuritySettingsPage() {
     return totp;
   }
 
-  function bumpLastSecurityCheck() {
+  async function bumpLastSecurityCheck() {
+    const nowIso = new Date().toISOString();
+    if (userId) {
+      const { error } = await supabaseBrowserClient
+        .from("profiles")
+        .upsert(
+          { id: userId, full_name: userEmail || null, security_reviewed_at: nowIso },
+          { onConflict: "id" }
+        );
+      if (!error) {
+        setLastCheckAt(Date.parse(nowIso));
+        return;
+      }
+      console.warn("Unable to sync security review across devices", error);
+    }
     try {
-      const now = Date.now();
+      const now = Date.parse(nowIso);
       localStorage.setItem(LAST_SECURITY_CHECK_AT_KEY, String(now));
       setLastCheckAt(now);
     } catch {
@@ -216,15 +214,30 @@ export default function SecuritySettingsPage() {
       setErrorMsg("");
       setSuccessMsg("");
 
-      loadLastCheck();
-
       try {
         const [{ data: u }] = await Promise.all([
           supabaseBrowserClient.auth.getUser(),
           refreshFactors(),
         ]);
 
-        if (!cancelled) setUserEmail(u?.user?.email ?? "");
+        if (!cancelled) {
+          setUserEmail(u?.user?.email ?? "");
+          setUserId(u?.user?.id ?? "");
+        }
+        if (u?.user?.id) {
+          const { data: profile, error: profileError } = await supabaseBrowserClient
+            .from("profiles")
+            .select("security_reviewed_at")
+            .eq("id", u.user.id)
+            .maybeSingle();
+          if (!cancelled && !profileError && profile?.security_reviewed_at) {
+            setLastCheckAt(Date.parse(profile.security_reviewed_at as string));
+          } else if (!cancelled) {
+            loadLastCheck();
+          }
+        } else if (!cancelled) {
+          loadLastCheck();
+        }
       } catch (error: unknown) {
         if (!cancelled) {
           setErrorMsg(getErrorMessage(error, "Unable to load security settings."));
@@ -399,7 +412,7 @@ export default function SecuritySettingsPage() {
   // ---------------------------------------------------------------------------
   return (
     <div className="gl-page-migrated">
-      <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <PageHeader
           eyebrow="Account Protection"
           title="Security Command Center"
@@ -466,18 +479,10 @@ export default function SecuritySettingsPage() {
           <p className="mt-4 text-xs text-gray-400">Loading security settings…</p>
         )}
 
-        <div className="mt-8 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs text-gray-400">
-          <span>Security changes are handled through encrypted Supabase Auth MFA factors.</span>
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={signingOut}
-            className="gl-btn gl-btn-secondary gl-btn-sm"
-          >
-            {signingOut ? "Signing out…" : "Log out"}
-          </button>
+        <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs text-gray-400">
+          Security changes are handled through encrypted Supabase Auth MFA factors.
         </div>
-      </main>
+      </div>
     </div>
   );
 }

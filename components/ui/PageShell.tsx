@@ -21,7 +21,7 @@ export function PageShell({
   ...props
 }: PageShellProps) {
   return (
-    <main
+    <div
       className={[
         "gl-page-shell",
         bleed ? "gl-page-shell-bleed" : "",
@@ -33,6 +33,6 @@ export function PageShell({
       {...props}
     >
       {children}
-    </main>
+    </div>
   );
 }

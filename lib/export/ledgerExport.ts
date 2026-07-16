@@ -24,6 +24,8 @@ export type ExportTransaction = {
   amount_minor: number;
   currency_code: string;
   occurred_at: string;
+  occurred_at_precision?: "date" | "datetime" | null;
+  occurred_timezone?: string | null;
   description: string | null;
   created_at: string;
   transaction_kind?: string | null;
@@ -102,6 +104,7 @@ function decimalAmount(minor: number) {
 }
 
 export function buildLedgerExports(input: LedgerExportInput): LedgerExportDataset[] {
+  const exportStamp = new Date().toISOString().replace(/[:.]/g, "-");
   const walletById = Object.fromEntries(input.wallets.map((wallet) => [wallet.id, wallet] as const));
   const categoryById = Object.fromEntries(
     input.categories.map((category) => [category.id, category] as const)
@@ -133,10 +136,12 @@ export function buildLedgerExports(input: LedgerExportInput): LedgerExportDatase
   );
 
   const transactionsCsv = buildCsv(
-    ["Transaction ID", "Occurred At", "Type", "Transaction Kind", "Transfer ID", "Recurring Rule ID", "Scheduled For", "Description", "Wallet ID", "Wallet", "Category ID", "Category", "Currency", "Amount Minor", "Amount", "Created At"],
+    ["Transaction ID", "Occurred At UTC", "Time Precision", "Event Timezone", "Type", "Transaction Kind", "Transfer ID", "Recurring Rule ID", "Scheduled For", "Description", "Wallet ID", "Wallet", "Category ID", "Category", "Currency", "Amount Minor", "Amount", "Recorded At"],
     input.transactions.map((transaction) => [
       transaction.id,
       transaction.occurred_at,
+      transaction.occurred_at_precision ?? "date",
+      transaction.occurred_timezone,
       transaction.type,
       transaction.transaction_kind ?? "operational",
       transaction.transfer_id,
@@ -205,10 +210,10 @@ export function buildLedgerExports(input: LedgerExportInput): LedgerExportDatase
   );
 
   return [
-    { id: "transactions", label: "Transactions", description: "Complete activity history with wallet, category, amount, currency, and date context.", filename: "transactions.csv", rowCount: input.transactions.length, csv: transactionsCsv },
-    { id: "wallets", label: "Wallets", description: "Asset definitions and opening positions, explicitly separated by currency.", filename: "wallets.csv", rowCount: input.wallets.length, csv: walletsCsv },
-    { id: "categories", label: "Categories", description: "Active and disabled income and expense classifications.", filename: "categories.csv", rowCount: input.categories.length, csv: categoriesCsv },
-    { id: "budgets", label: "Budgets", description: "Monthly planning limits with resolved wallet, category, and currency context.", filename: "budgets.csv", rowCount: input.budgets.length, csv: budgetsCsv },
-    { id: "recurring", label: "Recurring Rules", description: "Automation schedules, run state, and upcoming execution details.", filename: "recurring-rules.csv", rowCount: input.recurringRules.length, csv: recurringCsv },
+    { id: "transactions", label: "Transactions", description: "Complete activity history with wallet, category, amount, currency, event time precision, and recording timestamp.", filename: `gorilla-ledger-transactions-${exportStamp}.csv`, rowCount: input.transactions.length, csv: transactionsCsv },
+    { id: "wallets", label: "Wallets", description: "Asset definitions and opening positions, explicitly separated by currency.", filename: `gorilla-ledger-wallets-${exportStamp}.csv`, rowCount: input.wallets.length, csv: walletsCsv },
+    { id: "categories", label: "Categories", description: "Active and disabled income and expense classifications.", filename: `gorilla-ledger-categories-${exportStamp}.csv`, rowCount: input.categories.length, csv: categoriesCsv },
+    { id: "budgets", label: "Budgets", description: "Monthly planning limits with resolved wallet, category, and currency context.", filename: `gorilla-ledger-budgets-${exportStamp}.csv`, rowCount: input.budgets.length, csv: budgetsCsv },
+    { id: "recurring", label: "Recurring Rules", description: "Automation schedules, run state, and upcoming execution details.", filename: `gorilla-ledger-recurring-rules-${exportStamp}.csv`, rowCount: input.recurringRules.length, csv: recurringCsv },
   ];
 }

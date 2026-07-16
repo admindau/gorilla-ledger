@@ -368,7 +368,7 @@ export default function RecurringPage() {
     <div className="gl-page-migrated">
       {/* ========================= Hardened Top Navigation ========================= */}
 {/* ========================= Page Content ========================= */}
-      <main className="gl-page-shell max-w-5xl">
+      <div className="gl-page-shell max-w-5xl">
           <PageHeader
             eyebrow="Automation"
             title={`Recurring Automation Center – ${monthName} ${year}`}
@@ -652,7 +652,7 @@ export default function RecurringPage() {
               </div>
             )}
           </section>
-      </main>
+      </div>
     </div>
   );
 }

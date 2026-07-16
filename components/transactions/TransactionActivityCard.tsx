@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import ReceiptList from "@/components/receipts/ReceiptList";
+import { formatOccurredAt, type OccurredAtPrecision } from "@/lib/time/ledgerTime";
 
 type Wallet = {
   id: string;
@@ -26,6 +28,8 @@ type Transaction = {
   amount_minor: number;
   currency_code: string;
   occurred_at: string;
+  occurred_at_precision?: OccurredAtPrecision | null;
+  occurred_timezone?: string | null;
   description: string | null;
   created_at: string;
   transaction_kind?: string | null;
@@ -41,19 +45,10 @@ type TransactionActivityCardProps = {
 };
 
 function formatMinorToAmount(minor: number): string {
-  return (minor / 100).toFixed(2);
-}
-
-function formatDateLabel(isoDate: string): string {
-  try {
-    return new Intl.DateTimeFormat("en", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }).format(new Date(isoDate));
-  } catch {
-    return isoDate.slice(0, 10);
-  }
+  return (minor / 100).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 export function TransactionActivityCard({
@@ -63,9 +58,14 @@ export function TransactionActivityCard({
   onEdit,
   onDelete,
 }: TransactionActivityCardProps) {
+  const [showActions, setShowActions] = useState(false);
   const isIncome = tx.type === "income";
   const title = category?.name ?? "Uncategorized";
-  const dateLabel = formatDateLabel(tx.occurred_at);
+  const occurredAt = formatOccurredAt(
+    tx.occurred_at,
+    tx.occurred_at_precision === "datetime" ? "datetime" : "date",
+    tx.occurred_timezone
+  );
 
   return (
     <article className="gl-premium-card p-4 transition-all hover:border-white/20">
@@ -86,7 +86,7 @@ export function TransactionActivityCard({
             <div className="min-w-0">
               <h3 className="truncate text-sm font-semibold text-white">{title}</h3>
               <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500">
-                {tx.type} • {wallet?.name ?? "Unknown wallet"}
+              {tx.type} • {wallet?.name ?? "Unknown wallet"} · {wallet?.currency_code ?? tx.currency_code}
               </p>
             </div>
           </div>
@@ -104,7 +104,7 @@ export function TransactionActivityCard({
               </span>
             ) : null}
             <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1">
-              {dateLabel}
+              {occurredAt.date}{occurredAt.time ? ` · ${occurredAt.time}` : " · Time not recorded"}
             </span>
             <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1">
               {tx.currency_code}
@@ -123,13 +123,26 @@ export function TransactionActivityCard({
             {formatMinorToAmount(tx.amount_minor)} {tx.currency_code}
           </div>
 
-          <div className="flex gap-2 text-[11px]">
+          <button
+            type="button"
+            onClick={() => setShowActions((value) => !value)}
+            className="gl-btn gl-btn-secondary gl-btn-sm"
+            aria-expanded={showActions}
+          >
+            {showActions ? "Close" : "Manage"}
+          </button>
+        </div>
+      </div>
+
+      {showActions ? (
+        <div className="mt-4 border-t border-white/10 pt-3">
+          <div className="mb-3 flex flex-wrap justify-end gap-2 text-[11px]">
             <button
               type="button"
               onClick={() => onEdit(tx)}
               className="gl-btn gl-btn-secondary gl-btn-sm"
             >
-              Edit
+              Edit transaction
             </button>
             <button
               type="button"
@@ -139,12 +152,9 @@ export function TransactionActivityCard({
               Delete
             </button>
           </div>
+          <ReceiptList transactionId={tx.id} />
         </div>
-      </div>
-
-      <div className="mt-4 border-t border-white/10 pt-3">
-        <ReceiptList transactionId={tx.id} />
-      </div>
+      ) : null}
     </article>
   );
 }

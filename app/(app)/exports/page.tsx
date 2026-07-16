@@ -41,7 +41,7 @@ async function loadPagedTable(table: string, columns: string) {
 async function loadTransactionsForExport() {
   const enhanced = await loadPagedTable(
     "transactions",
-    "id,wallet_id,category_id,type,amount_minor,currency_code,occurred_at,description,created_at,transaction_kind,transfer_id,recurring_rule_id,scheduled_for"
+    "id,wallet_id,category_id,type,amount_minor,currency_code,occurred_at,occurred_at_precision,occurred_timezone,description,created_at,transaction_kind,transfer_id,recurring_rule_id,scheduled_for"
   );
   if (!enhanced.error || !isMissingLedgerMetadata({ message: enhanced.error })) return enhanced;
   return loadPagedTable(

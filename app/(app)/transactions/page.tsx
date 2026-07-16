@@ -16,6 +16,17 @@ import { PrerequisiteGuide } from "@/components/activation/PrerequisiteGuide";
 import { isValidLedgerDate, parsePositiveMoneyToMinor } from "@/lib/finance/money";
 import { isMissingLedgerMetadata } from "@/lib/supabase/schemaCompatibility";
 import { isInternalTransferCategory } from "@/lib/transactions/classification";
+import {
+  browserTimeZone,
+  buildOccurredAt,
+  compareLedgerTransactions,
+  currentLocalMonthBoundsIso,
+  currentLocalDate,
+  currentLocalTime,
+  occurredAtFormValues,
+  occurredAtDateKey,
+  type OccurredAtPrecision,
+} from "@/lib/time/ledgerTime";
 
 type Wallet = {
   id: string;
@@ -42,6 +53,8 @@ type Transaction = {
   amount_minor: number;
   currency_code: string;
   occurred_at: string;
+  occurred_at_precision?: OccurredAtPrecision | null;
+  occurred_timezone?: string | null;
   description: string | null;
   created_at: string;
   transaction_kind?: string | null;
@@ -52,11 +65,7 @@ const PAGE_SIZE = 25;
 const SUMMARY_PAGE_SIZE = 1000;
 
 function currentMonthBounds() {
-  const now = new Date();
-  const start = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  const end = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}-01`;
-  return { start, end };
+  return currentLocalMonthBoundsIso();
 }
 
 function isCurrentMonthTransaction(transaction: Pick<Transaction, "occurred_at">) {
@@ -254,6 +263,8 @@ export default function TransactionsPage() {
   const [type, setType] = useState<TransactionType>("expense");
   const [amount, setAmount] = useState("0");
   const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+  const [timeKnown, setTimeKnown] = useState(true);
   const [description, setDescription] = useState("");
   const [showTransferForm, setShowTransferForm] = useState(false);
   const [sourceWalletId, setSourceWalletId] = useState("");
@@ -261,6 +272,8 @@ export default function TransactionsPage() {
   const [sourceAmount, setSourceAmount] = useState("");
   const [destinationAmount, setDestinationAmount] = useState("");
   const [transferDate, setTransferDate] = useState("");
+  const [transferTime, setTransferTime] = useState("");
+  const [transferTimeKnown, setTransferTimeKnown] = useState(true);
   const [transferDescription, setTransferDescription] = useState("");
   const [savingTransfer, setSavingTransfer] = useState(false);
 
@@ -275,6 +288,8 @@ export default function TransactionsPage() {
   const [editType, setEditType] = useState<TransactionType>("expense");
   const [editAmount, setEditAmount] = useState("0");
   const [editDate, setEditDate] = useState("");
+  const [editTime, setEditTime] = useState("");
+  const [editTimeKnown, setEditTimeKnown] = useState(false);
   const [editDescription, setEditDescription] = useState("");
 
   // receipts upload while editing a transaction
@@ -293,6 +308,7 @@ export default function TransactionsPage() {
 
   // Pagination cursor
   const [oldestOccurredAt, setOldestOccurredAt] = useState<string | null>(null);
+  const [oldestTransactionId, setOldestTransactionId] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
 
   useEffect(() => {
@@ -316,7 +332,7 @@ export default function TransactionsPage() {
       const [walletResult, categoryResult, transactionResult, monthResult] = await Promise.all([
         supabaseBrowserClient.from("wallets").select("id, name, currency_code").order("created_at", { ascending: true }),
         supabaseBrowserClient.from("categories").select("id, name, type, is_active").order("type", { ascending: true }).order("name", { ascending: true }),
-        supabaseBrowserClient.from("transactions").select("*").order("occurred_at", { ascending: false }).limit(PAGE_SIZE),
+        supabaseBrowserClient.from("transactions").select("*").order("occurred_at", { ascending: false }).order("id", { ascending: false }).limit(PAGE_SIZE),
         loadCurrentMonthTransactions(),
       ]);
 
@@ -344,9 +360,11 @@ export default function TransactionsPage() {
 
       if (castTx.length > 0) {
         setOldestOccurredAt(castTx[castTx.length - 1].occurred_at);
+        setOldestTransactionId(castTx[castTx.length - 1].id);
         setHasMore(castTx.length === PAGE_SIZE);
       } else {
         setOldestOccurredAt(null);
+        setOldestTransactionId(null);
         setHasMore(false);
       }
 
@@ -366,8 +384,10 @@ export default function TransactionsPage() {
         setCategoryId(initialCategory.id);
         setType(initialCategory.type);
       }
-      if (!date) setDate(new Date().toISOString().slice(0, 10));
-      if (!transferDate) setTransferDate(new Date().toISOString().slice(0, 10));
+      if (!date) setDate(currentLocalDate());
+      if (!time) setTime(currentLocalTime());
+      if (!transferDate) setTransferDate(currentLocalDate());
+      if (!transferTime) setTransferTime(currentLocalTime());
 
       setLoading(false);
     }
@@ -377,7 +397,7 @@ export default function TransactionsPage() {
   }, [loadVersion]);
 
   async function handleLoadMore() {
-    if (!oldestOccurredAt || !hasMore || loadingMore) return;
+    if (!oldestOccurredAt || !oldestTransactionId || !hasMore || loadingMore) return;
 
     setLoadingMore(true);
     setErrorMsg("");
@@ -385,8 +405,11 @@ export default function TransactionsPage() {
     const { data, error } = await supabaseBrowserClient
       .from("transactions")
       .select("*")
-      .lt("occurred_at", oldestOccurredAt)
+      .or(
+        `occurred_at.lt.${oldestOccurredAt},and(occurred_at.eq.${oldestOccurredAt},id.lt.${oldestTransactionId})`
+      )
       .order("occurred_at", { ascending: false })
+      .order("id", { ascending: false })
       .limit(PAGE_SIZE);
 
     if (error) {
@@ -408,12 +431,13 @@ export default function TransactionsPage() {
       const existingIds = new Set(prev.map((t) => t.id));
       const filteredNew = newTx.filter((t) => !existingIds.has(t.id));
       const combined = [...prev, ...filteredNew];
-      combined.sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
+      combined.sort(compareLedgerTransactions);
       return combined;
     });
 
     if (newTx.length < PAGE_SIZE) setHasMore(false);
     setOldestOccurredAt(newTx[newTx.length - 1].occurred_at);
+    setOldestTransactionId(newTx[newTx.length - 1].id);
     setLoadingMore(false);
   }
 
@@ -549,7 +573,13 @@ export default function TransactionsPage() {
       setSaving(false);
       return;
     }
-    const occurred_at = new Date(date + "T00:00:00Z").toISOString();
+    const precision: OccurredAtPrecision = timeKnown ? "datetime" : "date";
+    const occurred_at = buildOccurredAt({ date, time, precision });
+    if (!occurred_at) {
+      setErrorMsg(timeKnown ? "Select a valid transaction date and time." : "Select a valid transaction date.");
+      setSaving(false);
+      return;
+    }
 
     const { data, error } = await supabaseBrowserClient
       .from("transactions")
@@ -561,6 +591,8 @@ export default function TransactionsPage() {
         amount_minor,
         currency_code: selectedWallet.currency_code,
         occurred_at,
+        occurred_at_precision: precision,
+        occurred_timezone: timeKnown ? browserTimeZone() : null,
         description: description || null,
       })
       .select()
@@ -593,17 +625,23 @@ export default function TransactionsPage() {
 
     setTransactions((prev) => {
       const combined = [created, ...prev];
-      combined.sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
+      combined.sort(compareLedgerTransactions);
       return combined;
     });
     if (isCurrentMonthTransaction(created)) {
       setMonthTransactions((prev) => [created, ...prev]);
     }
 
-    if (!oldestOccurredAt) setOldestOccurredAt(created.occurred_at);
+    if (!oldestOccurredAt) {
+      setOldestOccurredAt(created.occurred_at);
+      setOldestTransactionId(created.id);
+    }
 
     setAmount("0");
     setDescription("");
+    setDate(currentLocalDate());
+    setTime(currentLocalTime());
+    setTimeKnown(true);
     setNewReceiptFiles([]);
     setReceiptWarn("");
     setSaving(false);
@@ -642,12 +680,24 @@ export default function TransactionsPage() {
       return;
     }
 
-    const { error } = await supabaseBrowserClient.rpc("create_wallet_transfer", {
+    const transferPrecision: OccurredAtPrecision = transferTimeKnown ? "datetime" : "date";
+    const transferOccurredAt = buildOccurredAt({
+      date: transferDate,
+      time: transferTime,
+      precision: transferPrecision,
+    });
+    if (!transferOccurredAt) {
+      setErrorMsg(transferTimeKnown ? "Select a valid transfer date and time." : "Select a valid transfer date.");
+      setSavingTransfer(false);
+      return;
+    }
+
+    const { data: transferId, error } = await supabaseBrowserClient.rpc("create_wallet_transfer", {
       p_source_wallet_id: sourceWallet.id,
       p_destination_wallet_id: destinationWallet.id,
       p_source_amount_minor: source.minor,
       p_destination_amount_minor: destination.minor,
-      p_occurred_at: new Date(`${transferDate}T00:00:00.000Z`).toISOString(),
+      p_occurred_at: transferOccurredAt,
       p_kind: kind,
       p_description: transferDescription.trim() || null,
     });
@@ -662,9 +712,25 @@ export default function TransactionsPage() {
       return;
     }
 
+    if (transferId) {
+      const { error: metadataError } = await supabaseBrowserClient
+        .from("transactions")
+        .update({
+          occurred_at_precision: transferPrecision,
+          occurred_timezone: transferTimeKnown ? browserTimeZone() : null,
+        })
+        .eq("transfer_id", transferId as string);
+      if (metadataError) {
+        console.warn("Balance movement saved, but its time metadata could not be certified", metadataError);
+      }
+    }
+
     setSourceAmount("");
     setDestinationAmount("");
     setTransferDescription("");
+    setTransferDate(currentLocalDate());
+    setTransferTime(currentLocalTime());
+    setTransferTimeKnown(true);
     setShowTransferForm(false);
     setSavingTransfer(false);
     setLoadVersion((value) => value + 1);
@@ -677,7 +743,11 @@ export default function TransactionsPage() {
     else if (categories.length > 0) setEditCategoryId(categories[0].id);
     setEditType(tx.type);
     setEditAmount(formatMinorToAmount(tx.amount_minor));
-    setEditDate(tx.occurred_at.slice(0, 10));
+    const precision = tx.occurred_at_precision === "datetime" ? "datetime" : "date";
+    const formValues = occurredAtFormValues(tx.occurred_at, precision, tx.occurred_timezone);
+    setEditDate(formValues.date);
+    setEditTime(formValues.time ?? currentLocalTime());
+    setEditTimeKnown(precision === "datetime");
     setEditDescription(tx.description ?? "");
 
     setEditReceiptFiles([]);
@@ -690,6 +760,8 @@ export default function TransactionsPage() {
     setEditCategoryId("");
     setEditAmount("0");
     setEditDescription("");
+    setEditTime("");
+    setEditTimeKnown(false);
 
     setEditReceiptFiles([]);
     setEditReceiptWarn("");
@@ -718,10 +790,18 @@ export default function TransactionsPage() {
         return;
       }
 
+      const precision: OccurredAtPrecision = editTimeKnown ? "datetime" : "date";
+      const occurredAt = buildOccurredAt({ date: editDate, time: editTime, precision });
+      if (!occurredAt) {
+        setErrorMsg(editTimeKnown ? "Select a valid transaction date and time." : "Select a valid transaction date.");
+        setSavingEdit(false);
+        return;
+      }
+
       const { error } = await supabaseBrowserClient.rpc("update_wallet_transfer", {
         p_transaction_id: editingTransaction.id,
         p_amount_minor: parsedAmount.minor,
-        p_occurred_at: new Date(`${editDate}T00:00:00.000Z`).toISOString(),
+        p_occurred_at: occurredAt,
         p_description: editDescription.trim() || null,
       });
 
@@ -730,6 +810,17 @@ export default function TransactionsPage() {
         setErrorMsg("We could not update both sides of this balance movement. No partial change was saved.");
         setSavingEdit(false);
         return;
+      }
+
+      const { error: metadataError } = await supabaseBrowserClient
+        .from("transactions")
+        .update({
+          occurred_at_precision: precision,
+          occurred_timezone: editTimeKnown ? browserTimeZone() : null,
+        })
+        .eq("transfer_id", editingTransaction.transfer_id);
+      if (metadataError) {
+        console.warn("Paired movement updated, but its time metadata could not be certified", metadataError);
       }
 
       setSavingEdit(false);
@@ -776,7 +867,13 @@ export default function TransactionsPage() {
       return;
     }
     const amount_minor = parsedAmount.minor;
-    const occurred_at = new Date(editDate + "T00:00:00Z").toISOString();
+    const precision: OccurredAtPrecision = editTimeKnown ? "datetime" : "date";
+    const occurred_at = buildOccurredAt({ date: editDate, time: editTime, precision });
+    if (!occurred_at) {
+      setErrorMsg(editTimeKnown ? "Select a valid transaction date and time." : "Select a valid transaction date.");
+      setSavingEdit(false);
+      return;
+    }
 
     const { data, error } = await supabaseBrowserClient
       .from("transactions")
@@ -787,6 +884,8 @@ export default function TransactionsPage() {
         amount_minor,
         currency_code: selectedWallet.currency_code,
         occurred_at,
+        occurred_at_precision: precision,
+        occurred_timezone: editTimeKnown ? browserTimeZone() : null,
         description: editDescription || null,
       })
       .eq("id", editingTxId)
@@ -804,7 +903,7 @@ export default function TransactionsPage() {
 
     setTransactions((prev) => {
       const combined = prev.map((tx) => (tx.id === editingTxId ? updated : tx));
-      combined.sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
+      combined.sort(compareLedgerTransactions);
       return combined;
     });
     setMonthTransactions((prev) => {
@@ -878,7 +977,7 @@ export default function TransactionsPage() {
       const existingIds = new Set(prev.map((t) => t.id));
       if (existingIds.has(pendingDelete.tx.id)) return prev;
       const combined = [pendingDelete.tx, ...prev];
-      combined.sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
+      combined.sort(compareLedgerTransactions);
       return combined;
     });
     if (isCurrentMonthTransaction(pendingDelete.tx)) {
@@ -901,7 +1000,11 @@ export default function TransactionsPage() {
   );
 
   const dateFilteredTransactions = transactions.filter((tx) => {
-    const dateStr = tx.occurred_at.slice(0, 10);
+    const dateStr = occurredAtDateKey(
+      tx.occurred_at,
+      tx.occurred_at_precision === "datetime" ? "datetime" : "date",
+      tx.occurred_timezone
+    );
     if (fromDate && dateStr < fromDate) return false;
     if (toDate && dateStr > toDate) return false;
     return true;
@@ -914,7 +1017,11 @@ export default function TransactionsPage() {
       : dateFilteredTransactions.filter((tx) => {
           const wallet = walletMap[tx.wallet_id];
           const category = tx.category_id ? categoryMap[tx.category_id] : null;
-          const dateStr = tx.occurred_at.slice(0, 10);
+          const dateStr = occurredAtDateKey(
+            tx.occurred_at,
+            tx.occurred_at_precision === "datetime" ? "datetime" : "date",
+            tx.occurred_timezone
+          );
           const descriptionText = tx.description ?? "";
           const amountText = formatMinorToAmount(tx.amount_minor);
 
@@ -952,7 +1059,7 @@ export default function TransactionsPage() {
   return (
     <div className="gl-page-migrated">
       {/* Tight, app-like header (less link-bar) */}
-        <main className="gl-page-shell max-w-5xl">
+        <div className="gl-page-shell max-w-5xl">
         <PageHeader
           eyebrow="Activity Ledger"
           title="Financial Activity"
@@ -1112,6 +1219,28 @@ export default function TransactionsPage() {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                    Time
+                  </label>
+                  <input
+                    type="time"
+                    className="gl-input"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    disabled={!timeKnown}
+                    required={timeKnown}
+                  />
+                  <label className="mt-2 flex cursor-pointer items-center gap-2 text-[11px] text-gray-400">
+                    <input
+                      type="checkbox"
+                      checked={!timeKnown}
+                      onChange={(event) => setTimeKnown(!event.target.checked)}
+                    />
+                    Time unknown — keep this as a date-only record
+                  </label>
+                </div>
+
                 <div className="md:col-span-3">
                   <label className="block text-[11px] uppercase tracking-wide text-gray-400 mb-1">
                     Description
@@ -1194,6 +1323,25 @@ export default function TransactionsPage() {
               <div>
                 <label className="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">Date</label>
                 <input type="date" className="gl-input" value={transferDate} onChange={(event) => setTransferDate(event.target.value)} />
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">Time</label>
+                <input
+                  type="time"
+                  className="gl-input"
+                  value={transferTime}
+                  onChange={(event) => setTransferTime(event.target.value)}
+                  disabled={!transferTimeKnown}
+                  required={transferTimeKnown}
+                />
+                <label className="mt-2 flex cursor-pointer items-center gap-2 text-[11px] text-gray-400">
+                  <input
+                    type="checkbox"
+                    checked={!transferTimeKnown}
+                    onChange={(event) => setTransferTimeKnown(!event.target.checked)}
+                  />
+                  Time unknown
+                </label>
               </div>
               <div>
                 <label className="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">Description</label>
@@ -1436,6 +1584,30 @@ export default function TransactionsPage() {
                             </div>
                           )}
 
+                          <div className="grid gap-2 md:grid-cols-[220px_1fr] md:items-end">
+                            <div>
+                              <label className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
+                                Time
+                              </label>
+                              <input
+                                type="time"
+                                className="gl-input text-xs py-1.5"
+                                value={editTime}
+                                onChange={(event) => setEditTime(event.target.value)}
+                                disabled={!editTimeKnown}
+                                required={editTimeKnown}
+                              />
+                            </div>
+                            <label className="flex cursor-pointer items-center gap-2 pb-2 text-[11px] text-gray-400">
+                              <input
+                                type="checkbox"
+                                checked={!editTimeKnown}
+                                onChange={(event) => setEditTimeKnown(!event.target.checked)}
+                              />
+                              Time unknown — display only the calendar date
+                            </label>
+                          </div>
+
                           <div className="grid gap-2 md:grid-cols-3">
                             <div>
                               <label className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
@@ -1581,7 +1753,7 @@ export default function TransactionsPage() {
             </div>
           </div>
         )}
-      </main>
+        </div>
     </div>
   );
 }

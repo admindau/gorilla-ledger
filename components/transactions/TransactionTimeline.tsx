@@ -1,9 +1,12 @@
 import type { ReactNode } from "react";
 import { TransactionTimelineGroup } from "@/components/transactions/TransactionTimelineGroup";
+import { occurredAtDateKey, type OccurredAtPrecision } from "@/lib/time/ledgerTime";
 
 type TimelineTransaction = {
   id: string;
   occurred_at: string;
+  occurred_at_precision?: OccurredAtPrecision | null;
+  occurred_timezone?: string | null;
 };
 
 type TransactionTimelineProps<T extends TimelineTransaction> = {
@@ -47,7 +50,11 @@ export function TransactionTimeline<T extends TimelineTransaction>({
 }: TransactionTimelineProps<T>) {
   const groups = transactions.reduce<Array<{ key: string; items: T[] }>>(
     (acc, transaction) => {
-      const key = dateKeyFromIso(transaction.occurred_at);
+      const key = occurredAtDateKey(
+        transaction.occurred_at,
+        transaction.occurred_at_precision === "datetime" ? "datetime" : "date",
+        transaction.occurred_timezone
+      ) || dateKeyFromIso(transaction.occurred_at);
       const existing = acc.find((group) => group.key === key);
 
       if (existing) {

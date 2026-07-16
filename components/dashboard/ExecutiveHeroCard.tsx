@@ -7,35 +7,30 @@ type ExecutiveHeroCardProps = {
   healthCurrency: string;
   riskLevel: string;
   message: string;
-  balanceSummary: string;
-  netFlowSummary: string;
-  forecastSummary: string;
-  alertsCount: number;
-  criticalAlertsCount: number;
   forecastConfidence: string;
 };
 
 function riskClasses(riskLevel: string) {
   if (riskLevel === "Critical") {
     return {
-      border: "border-white/70",
-      pill: "border-white/70 text-white",
-      glow: "shadow-[0_0_40px_rgba(255,255,255,0.10)]",
+      border: "border-red-400/50",
+      pill: "border-red-400/40 bg-red-400/10 text-red-200",
+      glow: "shadow-[0_0_36px_rgba(248,113,113,0.10)]",
     };
   }
 
   if (riskLevel === "Warning") {
     return {
-      border: "border-gray-500",
-      pill: "border-gray-500 text-gray-100",
-      glow: "shadow-[0_0_32px_rgba(255,255,255,0.07)]",
+      border: "border-amber-400/40",
+      pill: "border-amber-400/30 bg-amber-400/10 text-amber-200",
+      glow: "shadow-[0_0_28px_rgba(251,191,36,0.08)]",
     };
   }
 
   if (riskLevel === "Watch") {
     return {
-      border: "border-gray-700",
-      pill: "border-gray-700 text-gray-200",
+      border: "border-amber-300/25",
+      pill: "border-amber-300/20 bg-amber-300/[0.07] text-amber-100",
       glow: "shadow-[0_0_24px_rgba(255,255,255,0.05)]",
     };
   }
@@ -59,11 +54,6 @@ export default function ExecutiveHeroCard({
   healthCurrency,
   riskLevel,
   message,
-  balanceSummary,
-  netFlowSummary,
-  forecastSummary,
-  alertsCount,
-  criticalAlertsCount,
   forecastConfidence,
 }: ExecutiveHeroCardProps) {
   const safeScore = clampScore(healthScore);
@@ -135,45 +125,6 @@ export default function ExecutiveHeroCard({
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:mt-6 sm:gap-3 xl:grid-cols-4">
-        <div className="rounded-2xl border border-gray-800 bg-black/35 p-3 sm:p-4">
-          <div className="text-[10px] uppercase tracking-wide text-gray-500">
-            Total Balance
-          </div>
-          <div className="mt-2 break-words text-xs font-semibold leading-5 text-white sm:text-sm">
-            {balanceSummary}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-gray-800 bg-black/35 p-3 sm:p-4">
-          <div className="text-[10px] uppercase tracking-wide text-gray-500">
-            Net Cash Flow
-          </div>
-          <div className="mt-2 break-words text-xs font-semibold leading-5 text-white sm:text-sm">
-            {netFlowSummary}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-gray-800 bg-black/35 p-3 sm:p-4">
-          <div className="text-[10px] uppercase tracking-wide text-gray-500">
-            Month-End Forecast
-          </div>
-          <div className="mt-2 break-words text-xs font-semibold leading-5 text-white sm:text-sm">
-            {forecastSummary}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-gray-800 bg-black/35 p-3 sm:p-4">
-          <div className="text-[10px] uppercase tracking-wide text-gray-500">
-            Alerts
-          </div>
-          <div className="mt-2 text-xs font-semibold text-white sm:text-sm">
-            {criticalAlertsCount > 0
-              ? `${criticalAlertsCount} critical`
-              : `${alertsCount} active`}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

@@ -23,6 +23,12 @@ type Wallet = {
   created_at: string;
 };
 
+type WalletBalance = {
+  wallet_id: string;
+  current_balance_minor: number;
+  last_activity_at: string | null;
+};
+
 const WALLET_TYPES = [
   { value: "cash", label: "Cash" },
   { value: "mobile", label: "Mobile Money" },
@@ -74,12 +80,13 @@ function formatWalletDate(value: string): string {
   });
 }
 
-function getCurrencyTotals(wallets: Wallet[]) {
+function getCurrencyTotals(wallets: Wallet[], balances: Record<string, WalletBalance>) {
   const totals = new Map<string, number>();
 
   for (const wallet of wallets) {
     const currency = wallet.currency_code || "—";
-    totals.set(currency, (totals.get(currency) ?? 0) + wallet.starting_balance_minor);
+    const currentBalance = balances[wallet.id]?.current_balance_minor ?? wallet.starting_balance_minor;
+    totals.set(currency, (totals.get(currency) ?? 0) + currentBalance);
   }
 
   return Array.from(totals.entries()).sort((a, b) => a[0].localeCompare(b[0]));
@@ -88,6 +95,7 @@ function getCurrencyTotals(wallets: Wallet[]) {
 export default function WalletsPage() {
   const [loading, setLoading] = useState(true);
   const [wallets, setWallets] = useState<Wallet[]>([]);
+  const [walletBalances, setWalletBalances] = useState<Record<string, WalletBalance>>({});
   const [errorMsg, setErrorMsg] = useState("");
   const [showCreatePanel, setShowCreatePanel] = useState(false);
 
@@ -110,13 +118,18 @@ export default function WalletsPage() {
     return Object.fromEntries(wallets.map((w) => [w.id, w] as const));
   }, [wallets]);
 
-  const currencyTotals = useMemo(() => getCurrencyTotals(wallets), [wallets]);
+  const currencyTotals = useMemo(
+    () => getCurrencyTotals(wallets, walletBalances),
+    [walletBalances, wallets]
+  );
 
   const largestWallet = useMemo(() => {
     return [...wallets].sort(
-      (a, b) => Math.abs(b.starting_balance_minor) - Math.abs(a.starting_balance_minor)
+      (a, b) =>
+        Math.abs(walletBalances[b.id]?.current_balance_minor ?? b.starting_balance_minor) -
+        Math.abs(walletBalances[a.id]?.current_balance_minor ?? a.starting_balance_minor)
     )[0];
-  }, [wallets]);
+  }, [walletBalances, wallets]);
 
   const walletTypeCount = useMemo(() => {
     return new Set(wallets.map((wallet) => wallet.type)).size;
@@ -127,12 +140,13 @@ export default function WalletsPage() {
       setLoading(true);
       setErrorMsg("");
 
-      const [userResult, walletResult] = await Promise.all([
+      const [userResult, walletResult, balanceResult] = await Promise.all([
         supabaseBrowserClient.auth.getUser(),
         supabaseBrowserClient
           .from("wallets")
           .select("*")
           .order("created_at", { ascending: true }),
+        supabaseBrowserClient.rpc("get_wallet_balances"),
       ]);
 
       const {
@@ -156,6 +170,12 @@ export default function WalletsPage() {
       }
 
       setWallets(data as Wallet[]);
+      if (balanceResult.error) {
+        console.warn("Unable to load transaction-adjusted wallet balances", balanceResult.error);
+      } else {
+        const rows = (balanceResult.data ?? []) as WalletBalance[];
+        setWalletBalances(Object.fromEntries(rows.map((row) => [row.wallet_id, row])));
+      }
       setLoading(false);
 
       // Profile maintenance supports onboarding but must not delay wallet data.
@@ -421,7 +441,7 @@ export default function WalletsPage() {
               </div>
 
               <p className="text-sm uppercase tracking-[0.28em] text-white/35">
-                Opening balances
+                Current balances
               </p>
 
               <div className="mt-4 space-y-2">
@@ -454,7 +474,7 @@ export default function WalletsPage() {
               </div>
 
               <p className="mt-4 max-w-2xl text-sm leading-6 text-white/55">
-                This command center is based on wallet starting positions. Transaction-adjusted balances remain visible on the dashboard.
+                Current positions reconcile each opening balance with every income, expense, transfer, and currency exchange recorded for that wallet.
               </p>
 
               <div className="mt-5 flex flex-wrap gap-2">
@@ -535,7 +555,7 @@ export default function WalletsPage() {
       <PageSection>
         <div className="grid gap-4 md:grid-cols-3">
           <Card variant="inner" className="p-5">
-            <p className="text-xs uppercase tracking-[0.24em] text-white/35">Largest Opening Position</p>
+            <p className="text-xs uppercase tracking-[0.24em] text-white/35">Largest Current Position</p>
             {loading ? (
               <div className="mt-3 space-y-3">
                 <Skeleton className="h-8 w-36" rounded="lg" />
@@ -548,7 +568,7 @@ export default function WalletsPage() {
                 </p>
                 <p className="mt-2 text-sm text-white/55">
                   {largestWallet
-                    ? `${formatMinorToAmount(largestWallet.starting_balance_minor)} ${largestWallet.currency_code}`
+                    ? `${formatMinorToAmount(walletBalances[largestWallet.id]?.current_balance_minor ?? largestWallet.starting_balance_minor)} ${largestWallet.currency_code}`
                     : "Create a wallet to establish your first position."}
                 </p>
               </>
@@ -664,7 +684,7 @@ export default function WalletsPage() {
       <PageSection
         eyebrow="Asset Portfolio"
         title="Wallets"
-        description="A premium view of your financial assets and opening ledger positions."
+        description="Current wallet positions reconciled from opening balances and complete ledger activity."
       >
         {loading ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -694,6 +714,8 @@ export default function WalletsPage() {
               const isEditing = editingId === wallet.id;
               const isBusy = rowBusyId === wallet.id;
               const meta = WALLET_TYPE_META[wallet.type];
+              const balance = walletBalances[wallet.id];
+              const currentBalance = balance?.current_balance_minor ?? wallet.starting_balance_minor;
 
               return (
                 <Card key={wallet.id} variant="premium" interactive className="p-5 sm:p-6">
@@ -715,11 +737,11 @@ export default function WalletsPage() {
 
                       <div className="my-8">
                         <p className="text-xs uppercase tracking-[0.24em] text-white/35">
-                          Opening Position
+                          Current Balance
                         </p>
                         <div className="mt-3 flex flex-wrap items-end gap-x-2 gap-y-1">
                           <span className="text-4xl font-semibold tracking-[-0.05em] text-white">
-                            {formatMinorToAmount(wallet.starting_balance_minor)}
+                            {formatMinorToAmount(currentBalance)}
                           </span>
                           <span className="pb-1 text-sm font-semibold uppercase tracking-[0.16em] text-white/65">
                             {wallet.currency_code}
@@ -734,8 +756,14 @@ export default function WalletsPage() {
                             <span className="text-white/75">{formatWalletDate(wallet.created_at)}</span>
                           </div>
                           <div className="mt-2 flex items-center justify-between gap-3 text-sm">
-                            <span className="text-white/45">Currency</span>
-                            <span className="font-medium text-white/75">{wallet.currency_code}</span>
+                            <span className="text-white/45">Opening balance</span>
+                            <span className="font-medium text-white/75">{formatMinorToAmount(wallet.starting_balance_minor)} {wallet.currency_code}</span>
+                          </div>
+                          <div className="mt-2 flex items-center justify-between gap-3 text-sm">
+                            <span className="text-white/45">Last activity</span>
+                            <span className="font-medium text-white/75">
+                              {balance?.last_activity_at ? formatWalletDate(balance.last_activity_at) : "No activity"}
+                            </span>
                           </div>
                         </div>
 

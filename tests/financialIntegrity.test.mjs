@@ -13,6 +13,11 @@ import {
   parsePositiveMoneyToMinor,
 } from "../lib/finance/money.ts";
 import { isMissingLedgerMetadata } from "../lib/supabase/schemaCompatibility.ts";
+import {
+  buildOccurredAt,
+  compareLedgerTransactions,
+  occurredAtDateKey,
+} from "../lib/time/ledgerTime.ts";
 
 test("FX categories are balance movements, not operating income or expense", () => {
   for (const name of ["FX", "Foreign Exchange", "Currency conversion"]) {
@@ -74,4 +79,23 @@ test("schema compatibility only falls back for known ledger metadata drift", () 
     isMissingLedgerMetadata({ code: "42501", message: "permission denied for table transactions" }),
     false
   );
+});
+
+test("date-only transactions preserve their intended calendar date", () => {
+  assert.equal(
+    buildOccurredAt({ date: "2026-07-16", precision: "date" }),
+    "2026-07-16T12:00:00.000Z"
+  );
+  assert.equal(
+    occurredAtDateKey("2026-07-15T22:30:00.000Z", "datetime", "Africa/Juba"),
+    "2026-07-16"
+  );
+});
+
+test("transaction ordering has a deterministic id tie-breaker", () => {
+  const records = [
+    { id: "a", occurred_at: "2026-07-16T10:00:00.000Z" },
+    { id: "b", occurred_at: "2026-07-16T10:00:00.000Z" },
+  ];
+  assert.deepEqual(records.sort(compareLedgerTransactions).map((record) => record.id), ["b", "a"]);
 });
