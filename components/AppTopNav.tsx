@@ -72,11 +72,31 @@ export default function AppTopNav() {
 
   useEffect(() => {
     let cancelled = false;
+    let idleCallbackId: number | null = null;
+    let timeoutId: number | null = null;
+    const idleApi = window as unknown as {
+      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
 
-    async function loadNavState() {
+    async function loadIdentity() {
       try {
-        const { data: userData } = await supabaseBrowserClient.auth.getUser();
-        const user = userData?.user;
+        const { data } = await supabaseBrowserClient.auth.getSession();
+        if (cancelled) return;
+        setEmail(data.session?.user.email ?? "");
+
+        const raw = localStorage.getItem(LAST_SECURITY_CHECK_AT_KEY);
+        const parsed = raw ? Number(raw) : null;
+        setLastCheckAt(parsed && Number.isFinite(parsed) ? parsed : null);
+      } catch {
+        // Page content remains usable when optional navigation metadata fails.
+      }
+    }
+
+    async function loadSecurityState() {
+      try {
+        const { data: sessionData } = await supabaseBrowserClient.auth.getSession();
+        const user = sessionData.session?.user;
         const [factors, profileResult] = await Promise.all([
           supabaseBrowserClient.auth.mfa.listFactors().catch(() => null),
           user
@@ -90,7 +110,6 @@ export default function AppTopNav() {
 
         if (cancelled) return;
 
-        setEmail(user?.email ?? "");
         const verifiedTotp = factors?.data?.totp?.filter((factor) => factor.status === "verified") ?? [];
         setMfaEnabled(verifiedTotp.length > 0);
 
@@ -119,12 +138,39 @@ export default function AppTopNav() {
       }
     }
 
-    loadNavState();
-    const onFocus = () => loadNavState();
+    function scheduleSecurityState() {
+      if (idleCallbackId !== null && idleApi.cancelIdleCallback) {
+        idleApi.cancelIdleCallback(idleCallbackId);
+      }
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+
+      if (idleApi.requestIdleCallback) {
+        idleCallbackId = idleApi.requestIdleCallback(() => {
+          idleCallbackId = null;
+          void loadSecurityState();
+        }, { timeout: 2500 });
+      } else {
+        timeoutId = window.setTimeout(() => {
+          timeoutId = null;
+          void loadSecurityState();
+        }, 1200);
+      }
+    }
+
+    void loadIdentity();
+    scheduleSecurityState();
+    const onFocus = () => {
+      void loadIdentity();
+      scheduleSecurityState();
+    };
     window.addEventListener("focus", onFocus);
 
     return () => {
       cancelled = true;
+      if (idleCallbackId !== null && idleApi.cancelIdleCallback) {
+        idleApi.cancelIdleCallback(idleCallbackId);
+      }
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
       window.removeEventListener("focus", onFocus);
     };
   }, []);
@@ -144,7 +190,7 @@ export default function AppTopNav() {
       {isNavigating ? <div className="gl-navigation-progress" aria-label="Loading page" role="progressbar" /> : null}
       <div className="gl-app-topnav-inner">
         <div className="min-w-0">
-          <Link href="/dashboard" className="gl-app-brand" aria-label="Go to dashboard">
+          <Link href="/dashboard" prefetch={false} className="gl-app-brand" aria-label="Go to dashboard">
             Gorilla Ledger™
           </Link>
           <div className="gl-app-current-section" aria-live="polite">{activeLabel}</div>
@@ -157,6 +203,7 @@ export default function AppTopNav() {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={false}
                 className={["gl-app-nav-link", active ? "gl-app-nav-link-active" : ""].filter(Boolean).join(" ")}
                 aria-current={active ? "page" : undefined}
                 onClick={() => {
@@ -171,8 +218,8 @@ export default function AppTopNav() {
         </nav>
 
         <div className="gl-app-nav-meta">
-          <div className="hidden lg:flex min-w-0 flex-col items-end leading-tight">
-            {email ? <span className="max-w-[220px] truncate text-xs text-gray-300">{email}</span> : null}
+          <div className="hidden w-[220px] min-w-0 flex-col items-end leading-tight lg:flex">
+            <span className="block w-full truncate text-right text-xs text-gray-300">{email || "\u00a0"}</span>
             <span className="text-[10px] uppercase tracking-[0.16em] text-gray-500" aria-live="polite">
               MFA {mfaEnabled ? "enabled" : mfaEnabled === false ? "off" : "checking"} · {formatLastSecurityCheck(lastCheckAt)}
             </span>
@@ -197,6 +244,7 @@ export default function AppTopNav() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               className={["gl-mobile-nav-link", active ? "gl-mobile-nav-link-active" : ""].filter(Boolean).join(" ")}
               aria-current={active ? "page" : undefined}
               onClick={() => {
@@ -222,6 +270,7 @@ export default function AppTopNav() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  prefetch={false}
                   className={active ? "is-active" : ""}
                   aria-current={active ? "page" : undefined}
                   onClick={() => {

@@ -978,21 +978,16 @@ export default function DashboardPage() {
         <section className="mb-7 sm:mb-8">
           {loadingData ? (
             <div className="gl-hero-card gl-dashboard-hero-slot rounded-[1.9rem] p-5 sm:p-7">
-              <div className="grid h-full gap-6 lg:grid-cols-[1.35fr_0.65fr] lg:items-end">
+              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-end">
                 <div>
                   <Skeleton className="h-5 w-44" rounded="full" />
                   <Skeleton className="mt-6 h-10 w-64 max-w-full sm:h-12" rounded="xl" />
                   <Skeleton className="mt-4 h-4 w-full max-w-2xl" />
                   <Skeleton className="mt-2 h-4 w-4/5 max-w-xl" />
                 </div>
-                <div className="grid gap-3 min-[520px]:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                <div className="grid gap-3 min-[520px]:grid-cols-2">
                   <Skeleton className="h-24" rounded="2xl" />
                   <Skeleton className="h-24" rounded="2xl" />
-                </div>
-                <div className="grid gap-3 min-[420px]:grid-cols-2 lg:col-span-2 xl:grid-cols-4">
-                  {Array.from({ length: 4 }).map((_, index) => (
-                    <Skeleton key={index} className="h-20" rounded="2xl" />
-                  ))}
                 </div>
               </div>
             </div>

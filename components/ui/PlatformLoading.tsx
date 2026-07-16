@@ -23,6 +23,15 @@ function HeaderSkeleton({
   );
 }
 
+function DashboardHeaderSkeleton() {
+  return (
+    <div className="gl-dashboard-page-header">
+      <HeaderSkeleton titleWidth="w-44" descriptionWidth="w-[28rem]" />
+      <Skeleton className="h-11 w-full sm:w-60" rounded="full" />
+    </div>
+  );
+}
+
 function KpiGridSkeleton({ count = 4 }: { count?: number }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -96,19 +105,17 @@ function TimelineSkeleton() {
 function DashboardSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="gl-premium-card p-6">
-        <div className="grid gap-6 lg:grid-cols-[1.35fr_0.65fr]">
-          <div>
-            <Skeleton className="h-3 w-36" rounded="full" />
-            <Skeleton className="mt-5 h-10 w-80 max-w-full" rounded="lg" />
-            <Skeleton className="mt-4 h-4 w-full max-w-xl" rounded="lg" />
-            <div className="mt-8 grid gap-3 sm:grid-cols-3">
-              <Skeleton className="h-20" rounded="2xl" />
-              <Skeleton className="h-20" rounded="2xl" />
-              <Skeleton className="h-20" rounded="2xl" />
-            </div>
+      <div className="gl-hero-card rounded-[1.9rem] p-5 sm:p-7">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-end">
+          <div className="min-w-0">
+            <Skeleton className="h-5 w-36" rounded="full" />
+            <Skeleton className="mt-4 h-10 w-52 max-w-full" rounded="lg" />
+            <Skeleton className="mt-3 h-4 w-full max-w-xl" rounded="lg" />
           </div>
-          <Skeleton className="min-h-56" rounded="2xl" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Skeleton className="h-24" rounded="2xl" />
+            <Skeleton className="h-24" rounded="2xl" />
+          </div>
         </div>
       </div>
       <KpiGridSkeleton count={4} />
@@ -145,7 +152,11 @@ export function PlatformPageSkeleton({
   return (
     <PageShell>
       <div className="space-y-8">
-        <HeaderSkeleton titleWidth={titleWidth} descriptionWidth={descriptionWidth} />
+        {variant === "dashboard" ? (
+          <DashboardHeaderSkeleton />
+        ) : (
+          <HeaderSkeleton titleWidth={titleWidth} descriptionWidth={descriptionWidth} />
+        )}
 
         {variant === "dashboard" ? (
           <DashboardSkeleton />
@@ -173,7 +184,19 @@ export function DashboardLoadingSkeleton() {
 }
 
 export function WalletsLoadingSkeleton() {
-  return <PlatformPageSkeleton titleWidth="w-56" descriptionWidth="w-96" sections={4} />;
+  return (
+    <PageShell>
+      <div className="space-y-6">
+        <HeaderSkeleton titleWidth="w-44" descriptionWidth="w-80" />
+        <Skeleton className="h-[23rem] sm:h-[21rem]" rounded="2xl" />
+        <div className="grid gap-4 md:grid-cols-3">
+          <Skeleton className="h-32" rounded="2xl" />
+          <Skeleton className="h-32" rounded="2xl" />
+          <Skeleton className="h-32" rounded="2xl" />
+        </div>
+      </div>
+    </PageShell>
+  );
 }
 
 export function TransactionsLoadingSkeleton() {

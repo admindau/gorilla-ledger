@@ -140,8 +140,8 @@ export default function WalletsPage() {
       setLoading(true);
       setErrorMsg("");
 
-      const [userResult, walletResult, balanceResult] = await Promise.all([
-        supabaseBrowserClient.auth.getUser(),
+      const [sessionResult, walletResult, balanceResult] = await Promise.all([
+        supabaseBrowserClient.auth.getSession(),
         supabaseBrowserClient
           .from("wallets")
           .select("*")
@@ -150,11 +150,12 @@ export default function WalletsPage() {
       ]);
 
       const {
-        data: { user },
-        error: userError,
-      } = userResult;
+        data: { session },
+        error: sessionError,
+      } = sessionResult;
+      const user = session?.user ?? null;
 
-      if (userError || !user) {
+      if (sessionError || !user) {
         setErrorMsg("You must be logged in to view wallets.");
         setLoading(false);
         return;
