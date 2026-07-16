@@ -12,7 +12,7 @@ export default function HomePage() {
         {/* Logo */}
         <Image
           src="/logos/savvy-gorilla-logo.png"
-          alt="Savvy Gorilla Technologies"
+          alt="Savvy Rilla Technologies"
           width={250}
           height={250}
           className="object-contain"
@@ -26,7 +26,7 @@ export default function HomePage() {
         {/* Description */}
         <p className="text-gray-400 text-center max-w-xl">
           A clean, focused ledger to track your finances across wallets, currencies,
-          and time. Built by Savvy Gorilla Technologies — for clarity, not confusion.
+          and time. Built by Savvy Rilla Technologies — for clarity, not confusion.
         </p>
 
           {/* Buttons */}

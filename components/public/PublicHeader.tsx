@@ -22,8 +22,8 @@ export function PublicHeader() {
           ))}
         </nav>
 
-        <Link href="/auth/login" className="gl-btn gl-btn-secondary gl-btn-sm">
-          Login
+        <Link href="/dashboard" className="gl-btn gl-btn-secondary gl-btn-sm">
+          Open app
         </Link>
       </div>
     </header>

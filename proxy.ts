@@ -2,6 +2,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { applyPrivateNoStore } from "@/lib/http/privateCache";
+import {
+  DEFAULT_APP_DESTINATION,
+  shouldRedirectAuthenticatedHome,
+} from "@/lib/auth/navigation";
 
 const PROTECTED_PREFIXES = [
   "/dashboard",
@@ -17,6 +21,14 @@ const PROTECTED_PREFIXES = [
 
 function isProtectedPath(pathname: string) {
   return PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
+}
+
+function redirectPreservingCookies(url: URL, sourceResponse: NextResponse) {
+  const redirectResponse = NextResponse.redirect(url);
+  sourceResponse.cookies.getAll().forEach((cookie) => {
+    redirectResponse.cookies.set(cookie);
+  });
+  return redirectResponse;
 }
 
 export async function proxy(req: NextRequest) {
@@ -46,6 +58,15 @@ export async function proxy(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  if (shouldRedirectAuthenticatedHome(req.nextUrl.pathname, Boolean(user))) {
+    const dashboardUrl = req.nextUrl.clone();
+    dashboardUrl.pathname = DEFAULT_APP_DESTINATION;
+    dashboardUrl.search = "";
+    const redirectResponse = redirectPreservingCookies(dashboardUrl, res);
+    applyPrivateNoStore(redirectResponse.headers);
+    return redirectResponse;
+  }
+
   if (isProtectedPath(req.nextUrl.pathname)) {
     applyPrivateNoStore(res.headers);
 
@@ -53,7 +74,7 @@ export async function proxy(req: NextRequest) {
       const loginUrl = req.nextUrl.clone();
       loginUrl.pathname = "/auth/login";
       loginUrl.searchParams.set("next", req.nextUrl.pathname + req.nextUrl.search);
-      const redirectResponse = NextResponse.redirect(loginUrl);
+      const redirectResponse = redirectPreservingCookies(loginUrl, res);
       applyPrivateNoStore(redirectResponse.headers);
       return redirectResponse;
     }
