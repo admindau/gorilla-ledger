@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 
@@ -12,7 +12,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", shortLabel: "Home" },
   { href: "/wallets", label: "Wallets", shortLabel: "Wallets" },
   { href: "/categories", label: "Categories", shortLabel: "Categories" },
-  { href: "/transactions", label: "Transactions", shortLabel: "Tx" },
+  { href: "/transactions", label: "Transactions", shortLabel: "Activity" },
   { href: "/budgets", label: "Budgets", shortLabel: "Budgets" },
   { href: "/recurring", label: "Recurring", shortLabel: "Recurring" },
   { href: "/exports", label: "Exports", shortLabel: "Export" },
@@ -61,6 +61,9 @@ export default function AppTopNav() {
   const [mfaEnabled, setMfaEnabled] = useState<boolean | null>(null);
   const [lastCheckAt, setLastCheckAt] = useState<number | null>(null);
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const mobileMoreRef = useRef<HTMLDivElement>(null);
+  const mobileMoreButtonRef = useRef<HTMLButtonElement>(null);
 
   const activeLabel = useMemo(() => {
     return navItems.find((item) => pathname === item.href || pathname?.startsWith(`${item.href}/`))?.label ?? "Gorilla Ledger";
@@ -69,6 +72,39 @@ export default function AppTopNav() {
   const mobilePrimaryItems = navItems.filter((item) => mobilePrimaryHrefs.includes(item.href as (typeof mobilePrimaryHrefs)[number]));
   const mobileMoreItems = navItems.filter((item) => !mobilePrimaryHrefs.includes(item.href as (typeof mobilePrimaryHrefs)[number]));
   const moreIsActive = mobileMoreItems.some((item) => pathname === item.href || pathname?.startsWith(`${item.href}/`));
+
+  useEffect(() => {
+    function handleHistoryNavigation() {
+      setNavigatingTo(null);
+      setMobileMoreOpen(false);
+    }
+
+    window.addEventListener("popstate", handleHistoryNavigation);
+    return () => window.removeEventListener("popstate", handleHistoryNavigation);
+  }, []);
+
+  useEffect(() => {
+    if (!mobileMoreOpen) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!mobileMoreRef.current?.contains(event.target as Node)) {
+        setMobileMoreOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      setMobileMoreOpen(false);
+      mobileMoreButtonRef.current?.focus();
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [mobileMoreOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -186,9 +222,10 @@ export default function AppTopNav() {
   }
 
   return (
-    <header className="gl-app-topnav" aria-busy={isNavigating}>
-      {isNavigating ? <div className="gl-navigation-progress" aria-label="Loading page" role="progressbar" /> : null}
-      <div className="gl-app-topnav-inner">
+    <>
+      <header className="gl-app-topnav" aria-busy={isNavigating}>
+        {isNavigating ? <div className="gl-navigation-progress" aria-label="Loading page" role="progressbar" /> : null}
+        <div className="gl-app-topnav-inner">
         <div className="min-w-0">
           <Link href="/dashboard" prefetch={false} className="gl-app-brand" aria-label="Go to dashboard">
             Gorilla Ledger™
@@ -235,7 +272,18 @@ export default function AppTopNav() {
             {signingOut ? "Logging out…" : "Logout"}
           </Button>
         </div>
-      </div>
+        </div>
+      </header>
+
+      {mobileMoreOpen ? (
+        <button
+          type="button"
+          className="gl-mobile-more-backdrop"
+          aria-label="Close additional navigation"
+          tabIndex={-1}
+          onClick={() => setMobileMoreOpen(false)}
+        />
+      ) : null}
 
       <nav className="gl-mobile-nav" aria-label="Mobile navigation">
         {mobilePrimaryItems.map((item) => {
@@ -248,6 +296,7 @@ export default function AppTopNav() {
               className={["gl-mobile-nav-link", active ? "gl-mobile-nav-link-active" : ""].filter(Boolean).join(" ")}
               aria-current={active ? "page" : undefined}
               onClick={() => {
+                setMobileMoreOpen(false);
                 if (!active) setNavigatingTo(item.href);
               }}
             >
@@ -257,34 +306,46 @@ export default function AppTopNav() {
           );
         })}
 
-        <details className="gl-mobile-more">
-          <summary className={["gl-mobile-nav-link", moreIsActive ? "gl-mobile-nav-link-active" : ""].filter(Boolean).join(" ")}>
+        <div className="gl-mobile-more" ref={mobileMoreRef}>
+          <button
+            ref={mobileMoreButtonRef}
+            type="button"
+            className={["gl-mobile-nav-link", "gl-mobile-more-trigger", moreIsActive ? "gl-mobile-nav-link-active" : ""].filter(Boolean).join(" ")}
+            aria-expanded={mobileMoreOpen}
+            aria-haspopup="true"
+            aria-controls="gl-mobile-more-menu"
+            onClick={() => setMobileMoreOpen((open) => !open)}
+          >
             <svg viewBox="0 0 20 20" aria-hidden="true" fill="currentColor"><circle cx="4" cy="10" r="1.4" /><circle cx="10" cy="10" r="1.4" /><circle cx="16" cy="10" r="1.4" /></svg>
             <span>More</span>
-          </summary>
-          <div className="gl-mobile-more-menu">
-            <p>More</p>
-            {mobileMoreItems.map((item) => {
-              const active = pathname === item.href || pathname?.startsWith(`${item.href}/`);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  prefetch={false}
-                  className={active ? "is-active" : ""}
-                  aria-current={active ? "page" : undefined}
-                  onClick={() => {
-                    if (!active) setNavigatingTo(item.href);
-                  }}
-                >
-                  <NavIcon href={item.href} />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </details>
+          </button>
+          {mobileMoreOpen ? (
+            <div id="gl-mobile-more-menu" className="gl-mobile-more-menu" aria-label="Additional navigation">
+              <p>More tools</p>
+              {mobileMoreItems.map((item) => {
+                const active = pathname === item.href || pathname?.startsWith(`${item.href}/`);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    prefetch={false}
+                    className={active ? "is-active" : ""}
+                    aria-current={active ? "page" : undefined}
+                    onClick={() => {
+                      setMobileMoreOpen(false);
+                      if (!active) setNavigatingTo(item.href);
+                    }}
+                  >
+                    <NavIcon href={item.href} />
+                    <span>{item.label}</span>
+                    {active ? <span className="gl-mobile-more-current">Current</span> : null}
+                  </Link>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
       </nav>
-    </header>
+    </>
   );
 }
