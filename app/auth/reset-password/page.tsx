@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { PublicAuthShell } from "@/components/public/PublicAuthShell";
 
 export default function ResetPasswordRequestPage() {
   const router = useRouter();
@@ -51,7 +52,8 @@ export default function ResetPasswordRequestPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+    <PublicAuthShell>
+    <div className="flex w-full items-center justify-center px-4 text-white">
       <div className="gl-card w-full max-w-md p-6">
         <h1 className="text-2xl font-semibold mb-1 text-center">
           Reset your password
@@ -106,5 +108,6 @@ export default function ResetPasswordRequestPage() {
         </div>
       </div>
     </div>
+    </PublicAuthShell>
   );
 }

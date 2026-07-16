@@ -1,9 +1,13 @@
 import Image from "next/image";
+import { PublicFooter } from "@/components/public/PublicFooter";
+import { PublicHeader } from "@/components/public/PublicHeader";
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-4">
-      <div className="flex flex-col items-center space-y-6">
+    <div className="gl-public-shell">
+      <PublicHeader />
+      <main id="main-content" className="gl-home-hero">
+        <div className="flex flex-col items-center space-y-6">
         
         {/* Logo */}
         <Image
@@ -25,8 +29,8 @@ export default function HomePage() {
           and time. Built by Savvy Gorilla Technologies — for clarity, not confusion.
         </p>
 
-        {/* Buttons */}
-        <div className="flex items-center justify-center gap-4 mt-4">
+          {/* Buttons */}
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
           <a
             href="/auth/register"
             className="gl-btn gl-btn-primary gl-btn-md"
@@ -40,8 +44,10 @@ export default function HomePage() {
           >
             Login
           </a>
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+      <PublicFooter />
+    </div>
   );
 }

@@ -14,6 +14,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { SecurityCommandCenter } from "@/components/security/SecurityCommandCenter";
 import { SecurityMfaPanel } from "@/components/security/SecurityMfaPanel";
 import { SecurityRecommendations } from "@/components/security/SecurityRecommendations";
+import { CompanyLegalLinks } from "@/components/public/CompanyLegalLinks";
 
 /* =============================================================================
    Constants & Helpers
@@ -469,6 +470,10 @@ export default function SecuritySettingsPage() {
         {booting && (
           <p className="mt-4 text-xs text-gray-400">Loading security settings…</p>
         )}
+
+        <div className="mt-6">
+          <CompanyLegalLinks />
+        </div>
 
       </div>
     </div>

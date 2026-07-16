@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { PublicAuthShell } from "@/components/public/PublicAuthShell";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -61,7 +62,8 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black text-white">
+    <PublicAuthShell>
+    <div className="flex w-full items-center justify-center px-4 text-white">
       <div className="gl-card w-full max-w-md p-6">
         <h1 className="text-2xl mb-4 font-semibold">Create an Account</h1>
 
@@ -94,6 +96,10 @@ export default function RegisterPage() {
           >
             {loading ? "Creating account..." : "Register"}
           </button>
+
+          <p className="text-xs leading-5 text-gray-500">
+            By creating an account, you agree to the <a href="/terms" className="text-gray-300 underline underline-offset-4">Terms</a> and acknowledge the <a href="/privacy" className="text-gray-300 underline underline-offset-4">Privacy Notice</a>.
+          </p>
         </form>
 
         <p className="mt-4 text-sm text-gray-400">
@@ -104,5 +110,6 @@ export default function RegisterPage() {
         </p>
       </div>
     </div>
+    </PublicAuthShell>
   );
 }

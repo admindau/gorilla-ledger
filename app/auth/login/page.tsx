@@ -1,4 +1,5 @@
 import { LoginForm } from "@/components/auth/LoginForm";
+import { PublicAuthShell } from "@/components/public/PublicAuthShell";
 
 type LoginPageProps = {
   searchParams?: Promise<{
@@ -21,8 +22,10 @@ export default async function LoginPage({
       : "/dashboard";
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-black px-4 text-white">
-      <LoginForm next={next} />
-    </div>
+    <PublicAuthShell>
+      <div className="flex w-full items-center justify-center px-4 text-white">
+        <LoginForm next={next} />
+      </div>
+    </PublicAuthShell>
   );
 }

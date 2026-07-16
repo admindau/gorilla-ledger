@@ -21,6 +21,13 @@ const navItems = [
 
 const mobilePrimaryHrefs = ["/dashboard", "/transactions", "/wallets", "/budgets"] as const;
 
+const companyLinks = [
+  { href: "/about", label: "About" },
+  { href: "/contact", label: "Contact" },
+  { href: "/privacy", label: "Privacy" },
+  { href: "/terms", label: "Terms" },
+] as const;
+
 function NavIcon({ href }: { href: (typeof navItems)[number]["href"] }) {
   const paths: Record<(typeof navItems)[number]["href"], React.ReactNode> = {
     "/dashboard": <><path d="M3 10.5 10 4l7 6.5" /><path d="M5.5 9.5V17h9V9.5" /></>,
@@ -342,6 +349,18 @@ export default function AppTopNav() {
                   </Link>
                 );
               })}
+              <p>Company &amp; legal</p>
+              {companyLinks.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  prefetch={false}
+                  onClick={() => setMobileMoreOpen(false)}
+                >
+                  <span>{item.label}</span>
+                  <span className="gl-mobile-more-current" aria-hidden="true">→</span>
+                </Link>
+              ))}
             </div>
           ) : null}
         </div>
