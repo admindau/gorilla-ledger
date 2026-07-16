@@ -36,15 +36,16 @@ export default function BfcacheAuthGuard() {
       }
     }
 
-    // Initial check
-    check();
-
-    // bfcache restore event
-    const onPageShow = () => check();
+    // The server proxy validates every normal protected-route request. Recheck
+    // only when a document is restored from the back-forward cache, where the
+    // browser can revive a page without contacting the server.
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) void check();
+    };
 
     // tab restored / focus regained
     const onVis = () => {
-      if (document.visibilityState === "visible") check();
+      if (document.visibilityState === "visible") void check();
     };
 
     window.addEventListener("pageshow", onPageShow);

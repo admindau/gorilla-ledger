@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import dynamic from "next/dynamic";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -21,13 +20,9 @@ import ForecastMonthEndBalance from "@/components/dashboard/ForecastMonthEndBala
 import ExecutiveHeroCard from "@/components/dashboard/ExecutiveHeroCard";
 import { ActivationGuide } from "@/components/activation/ActivationGuide";
 import { MonthlyReview } from "@/components/retention/MonthlyReview";
+import DashboardAnalyticsAccordionItem from "@/components/dashboard/DashboardAnalyticsAccordionItem";
 
 import Skeleton from "@/components/ui/Skeleton";
-
-const DashboardAnalyticsAccordionItem = dynamic(
-  () => import("@/components/dashboard/DashboardAnalyticsAccordionItem"),
-  { ssr: false }
-);
 
 const ChartModuleLoading = () => (
   <div
@@ -310,9 +305,7 @@ async function fetchAllActiveRecurringRules(
 }
 
 export default function DashboardPage() {
-  const router = useRouter();
-
-  const [checkingSession, setCheckingSession] = useState(true);
+  const [, startDashboardTransition] = useTransition();
   const [loadingData, setLoadingData] = useState(true);
 
   const [wallets, setWallets] = useState<Wallet[]>([]);
@@ -333,22 +326,26 @@ export default function DashboardPage() {
   const [yearFilter, setYearFilter] = useState<string>("all");
 
   function goToPreviousMonth() {
-    setSelectedMonth((prev) => {
-      if (prev === 0) {
-        setSelectedYear((y) => y - 1);
-        return 11;
-      }
-      return prev - 1;
+    startDashboardTransition(() => {
+      setSelectedMonth((prev) => {
+        if (prev === 0) {
+          setSelectedYear((y) => y - 1);
+          return 11;
+        }
+        return prev - 1;
+      });
     });
   }
 
   function goToNextMonth() {
-    setSelectedMonth((prev) => {
-      if (prev === 11) {
-        setSelectedYear((y) => y + 1);
-        return 0;
-      }
-      return prev + 1;
+    startDashboardTransition(() => {
+      setSelectedMonth((prev) => {
+        if (prev === 11) {
+          setSelectedYear((y) => y + 1);
+          return 0;
+        }
+        return prev + 1;
+      });
     });
   }
 
@@ -361,28 +358,11 @@ export default function DashboardPage() {
 
     async function init() {
       if (canCommit()) {
-        setCheckingSession(true);
         setErrorMsg("");
+        setLoadingData(true);
       }
 
       try {
-        // Authentication does not currently expose an AbortSignal, so every
-        // post-await state transition is protected by canCommit().
-        const {
-          data: { session },
-        } = await supabaseBrowserClient.auth.getSession();
-
-        if (!canCommit()) return;
-
-        if (!session) {
-          router.replace("/auth/login");
-          return;
-        }
-
-        if (!canCommit()) return;
-        setCheckingSession(false);
-        setLoadingData(true);
-
         const [walletRes, categoryRes, txRes, budgetRes, recurringRes] =
           await Promise.all([
             supabaseBrowserClient
@@ -454,7 +434,6 @@ export default function DashboardPage() {
         );
       } finally {
         if (canCommit()) {
-          setCheckingSession(false);
           setLoadingData(false);
         }
       }
@@ -466,7 +445,7 @@ export default function DashboardPage() {
       isMounted = false;
       controller.abort();
     };
-  }, [router]);
+  }, []);
 
   // ----- Derived data -----
 
@@ -937,28 +916,6 @@ export default function DashboardPage() {
   const SK_CHART = "h-[300px] sm:h-[320px]";
   const SK_CHART_TALL = "h-[320px] sm:h-[360px]";
 
-
-  if (checkingSession) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <div className="w-full max-w-md px-6">
-          <div className="border border-gray-800 bg-black/40 rounded-2xl p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]">
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-sm font-semibold">Gorilla Ledger™</div>
-              <Skeleton className="h-6 w-24" rounded="full" />
-            </div>
-            <Skeleton className="h-4 w-2/3 mb-2" />
-            <Skeleton className="h-4 w-1/2 mb-6" />
-            <Skeleton className="h-10 w-full rounded-xl" />
-            <div className="mt-4 text-xs text-gray-400">
-              Checking your session…
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="gl-page-migrated gl-dashboard-shell">
       {/* Tight top header */}
@@ -989,17 +946,29 @@ export default function DashboardPage() {
           </p>
         )}
 
-        {loadingData ? (
-          <Skeleton className="mb-7 h-64 w-full sm:mb-8" rounded="2xl" />
-        ) : (
-          <ActivationGuide model={activationModel} />
-        )}
+        {!loadingData ? <ActivationGuide model={activationModel} /> : null}
 
         {/* Executive command center */}
         <section className="mb-7 sm:mb-8">
           {loadingData ? (
-            <div className={CARD}>
-              <Skeleton className="h-64 w-full" rounded="2xl" />
+            <div className="gl-hero-card gl-dashboard-hero-slot rounded-[1.9rem] p-5 sm:p-7">
+              <div className="grid h-full gap-6 lg:grid-cols-[1.35fr_0.65fr] lg:items-end">
+                <div>
+                  <Skeleton className="h-5 w-44" rounded="full" />
+                  <Skeleton className="mt-6 h-10 w-64 max-w-full sm:h-12" rounded="xl" />
+                  <Skeleton className="mt-4 h-4 w-full max-w-2xl" />
+                  <Skeleton className="mt-2 h-4 w-4/5 max-w-xl" />
+                </div>
+                <div className="grid gap-3 min-[520px]:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                  <Skeleton className="h-24" rounded="2xl" />
+                  <Skeleton className="h-24" rounded="2xl" />
+                </div>
+                <div className="grid gap-3 min-[420px]:grid-cols-2 lg:col-span-2 xl:grid-cols-4">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <Skeleton key={index} className="h-20" rounded="2xl" />
+                  ))}
+                </div>
+              </div>
             </div>
           ) : (
             <ExecutiveHeroCard
@@ -1277,7 +1246,10 @@ export default function DashboardPage() {
                   id="dashboard-wallet-filter"
                   aria-label="Filter dashboard analytics by wallet"
                   value={walletFilter}
-                  onChange={(e) => setWalletFilter(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    startDashboardTransition(() => setWalletFilter(value));
+                  }}
                   className="gl-dashboard-filter-select"
                 >
                   <option value="all">All wallets</option>
@@ -1294,7 +1266,10 @@ export default function DashboardPage() {
                   id="dashboard-category-filter"
                   aria-label="Filter dashboard analytics by category"
                   value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    startDashboardTransition(() => setCategoryFilter(value));
+                  }}
                   className="gl-dashboard-filter-select"
                 >
                   <option value="all">All categories</option>
@@ -1311,7 +1286,10 @@ export default function DashboardPage() {
                   id="dashboard-year-filter"
                   aria-label="Filter dashboard analytics by year"
                   value={yearFilter}
-                  onChange={(e) => setYearFilter(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    startDashboardTransition(() => setYearFilter(value));
+                  }}
                   className="gl-dashboard-filter-select"
                 >
                   <option value="all">All years</option>

@@ -71,7 +71,7 @@ export default function ExecutiveHeroCard({
 
   return (
     <div
-      className={`gl-hero-card rounded-[1.9rem] p-5 sm:p-7 ${classes.glow}`}
+      className={`gl-hero-card gl-dashboard-hero-slot rounded-[1.9rem] p-5 sm:p-7 ${classes.glow}`}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/40" />
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">

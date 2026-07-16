@@ -199,7 +199,13 @@ export default function TopCategoriesBarChart({
             No expense data for this year with the current filters.
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+            minWidth={1}
+            minHeight={1}
+            initialDimension={{ width: 800, height: 320 }}
+          >
             <BarChart
               data={dataForChart}
               margin={chartMargins.compactBar}

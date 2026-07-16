@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useId, useState } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 
 type DashboardAnalyticsAccordionItemProps = {
   title: string;
@@ -9,12 +9,6 @@ type DashboardAnalyticsAccordionItemProps = {
   defaultOpenOnMobile?: boolean;
   children: ReactNode;
 };
-
-function matchesMobileViewport() {
-  return typeof window !== "undefined"
-    ? window.matchMedia("(max-width: 767px)").matches
-    : false;
-}
 
 export default function DashboardAnalyticsAccordionItem({
   title,
@@ -25,34 +19,51 @@ export default function DashboardAnalyticsAccordionItem({
 }: DashboardAnalyticsAccordionItemProps) {
   const contentId = useId();
   const headingId = useId();
-  const [isMobile, setIsMobile] = useState(matchesMobileViewport);
-  const [isOpen, setIsOpen] = useState(() =>
-    matchesMobileViewport() ? defaultOpenOnMobile : true
-  );
+  const sectionRef = useRef<HTMLElement | null>(null);
+  // The server and browser now start from the same state. CSS keeps every
+  // section visible on desktop, while this state controls only the mobile
+  // accordion. This prevents hydration from collapsing a server-rendered
+  // desktop layout after matchMedia runs.
+  const [isOpen, setIsOpen] = useState(defaultOpenOnMobile);
+  const [shouldRender, setShouldRender] = useState(defaultOpenOnMobile);
 
   useEffect(() => {
-    const query = window.matchMedia("(max-width: 767px)");
+    if (shouldRender) return;
 
-    const update = () => {
-      const mobile = query.matches;
-      setIsMobile(mobile);
-      setIsOpen(mobile ? defaultOpenOnMobile : true);
-    };
+    const node = sectionRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") {
+      setShouldRender(true);
+      return;
+    }
 
-    update();
-    query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
-  }, [defaultOpenOnMobile]);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        setShouldRender(true);
+        observer.disconnect();
+      },
+      { rootMargin: "800px 0px" }
+    );
 
-  const expanded = !isMobile || isOpen;
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [shouldRender]);
+
+  function toggleMobileSection() {
+    setIsOpen((value) => {
+      const next = !value;
+      if (next) setShouldRender(true);
+      return next;
+    });
+  }
 
   return (
-    <section className="gl-dashboard-section">
+    <section ref={sectionRef} className="gl-dashboard-section">
       <button
         type="button"
-        onClick={() => setIsOpen((value) => !value)}
+        onClick={toggleMobileSection}
         className="gl-dashboard-accordion-trigger md:hidden"
-        aria-expanded={expanded}
+        aria-expanded={isOpen}
         aria-controls={contentId}
       >
         <span className="min-w-0">
@@ -73,7 +84,7 @@ export default function DashboardAnalyticsAccordionItem({
         </span>
 
         <span
-          className={`gl-dashboard-accordion-icon ${expanded ? "is-open" : ""}`}
+          className={`gl-dashboard-accordion-icon ${isOpen ? "is-open" : ""}`}
           aria-hidden="true"
         >
           <svg
@@ -90,16 +101,24 @@ export default function DashboardAnalyticsAccordionItem({
         </span>
       </button>
 
-      {expanded ? (
-        <div
-          id={contentId}
-          className="gl-fade-in"
-          role="region"
-          aria-labelledby={headingId}
-        >
-          {children}
-        </div>
-      ) : null}
+      <div
+        id={contentId}
+        className={`gl-dashboard-accordion-content gl-fade-in ${isOpen ? "is-open" : ""}`}
+        role="region"
+        aria-labelledby={headingId}
+      >
+        {shouldRender ? (
+          children
+        ) : (
+          <div
+            className="gl-dashboard-deferred-placeholder"
+            role="status"
+            aria-label={`Preparing ${title}`}
+          >
+            <span>Preparing analytics…</span>
+          </div>
+        )}
+      </div>
     </section>
   );
 }

@@ -174,7 +174,13 @@ export default function CumulativeNetBalanceChart({
             className="gl-card gl-chart-surface h-80 min-h-80 w-full p-4"
             ariaLabel={accessibleSummary}
           >
-          <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+            minWidth={1}
+            minHeight={1}
+            initialDimension={{ width: 800, height: 320 }}
+          >
             <LineChart data={chartData} margin={chartMargins.line}>
               <CartesianGrid
                 vertical={false}

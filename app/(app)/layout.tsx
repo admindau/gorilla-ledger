@@ -1,5 +1,4 @@
 import AppTopNav from "@/components/AppTopNav";
-import SessionGuard from "@/components/SessionGuard";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -9,12 +8,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </a>
 
       <div className="gl-app-content">
-        <SessionGuard>
-          <AppTopNav />
-          <main id="main-content" className="gl-app-page-region" tabIndex={-1}>
-            {children}
-          </main>
-        </SessionGuard>
+        <AppTopNav />
+        <main id="main-content" className="gl-app-page-region" tabIndex={-1}>
+          {children}
+        </main>
       </div>
     </div>
   );

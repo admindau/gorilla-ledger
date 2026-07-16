@@ -1221,6 +1221,10 @@ body {
   scroll-margin-top: 9rem;
 }
 
+.gl-dashboard-hero-slot {
+  min-height: 34rem;
+}
+
 .gl-dashboard-accordion-trigger {
   margin-bottom: 0.75rem;
   display: flex;
@@ -1254,6 +1258,22 @@ body {
 .gl-dashboard-accordion-icon.is-open {
   transform: rotate(180deg);
   border-color: rgba(255,255,255,0.22);
+}
+
+.gl-dashboard-accordion-content:not(.is-open) {
+  display: none;
+}
+
+.gl-dashboard-deferred-placeholder {
+  display: flex;
+  min-height: 22rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 1.35rem;
+  background: rgba(255,255,255,0.018);
+  color: rgb(107 114 128);
+  font-size: 0.75rem;
 }
 
 .gl-dashboard-link-button {
@@ -1332,6 +1352,10 @@ body {
 }
 
 @media (min-width: 640px) {
+  .gl-dashboard-hero-slot {
+    min-height: 30rem;
+  }
+
   .gl-dashboard-page-header {
     flex-direction: row;
     align-items: center;
@@ -1366,12 +1390,23 @@ body {
     display: none;
   }
 
+  .gl-dashboard-accordion-content,
+  .gl-dashboard-accordion-content:not(.is-open) {
+    display: block;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 22rem;
+  }
+
   .gl-dashboard-filter-dock {
     top: 4.75rem;
   }
 }
 
 @media (min-width: 1024px) {
+  .gl-dashboard-hero-slot {
+    min-height: 25rem;
+  }
+
   .gl-dashboard-filter-controls {
     margin-top: 0;
     display: flex;

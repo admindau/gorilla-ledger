@@ -206,7 +206,13 @@ export default function SpendingByCategoryChart({
             No expense data for this month with the current filters.
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+            minWidth={1}
+            minHeight={1}
+            initialDimension={{ width: 800, height: 320 }}
+          >
             <PieChart margin={chartMargins.pie}>
               {centerLabel}
               <Pie
