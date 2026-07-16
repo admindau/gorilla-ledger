@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
+import { sanitizeAppDestination } from "@/lib/auth/navigation";
 
 type MfaCtx = {
   factorId: string;
@@ -36,7 +37,7 @@ export default function MfaClient() {
   const router = useRouter();
   const sp = useSearchParams();
 
-  const next = useMemo(() => sp.get("next") ?? "/dashboard", [sp]);
+  const next = useMemo(() => sanitizeAppDestination(sp.get("next")), [sp]);
   const mode = useMemo(
     () => (sp.get("mode") === "stepup" ? "stepup" : "login"),
     [sp]
@@ -193,7 +194,7 @@ export default function MfaClient() {
     sessionStorage.removeItem(STORAGE_KEY);
 
     if (mode === "stepup") {
-      router.replace(next);
+      router.replace("/about");
       return;
     }
 
@@ -252,7 +253,7 @@ export default function MfaClient() {
             onClick={handleCancel}
             className="text-white underline"
           >
-            {mode === "stepup" ? "Cancel" : "Back to login"}
+            {mode === "stepup" ? "Return to public site" : "Back to login"}
           </button>
         </div>
       </div>

@@ -39,8 +39,9 @@ export function LoginForm({ next }: { next: string }) {
         await supabaseBrowserClient.auth.mfa.listFactors();
 
       if (factorsErr) {
-        // If factor listing fails, proceed normally (avoid lockouts due to transient MFA API errors).
-        router.push(nextUrl);
+        setErrorMsg(
+          "We could not verify your account's MFA requirements. Please try again."
+        );
         return;
       }
 

@@ -3,7 +3,11 @@ import test from "node:test";
 
 import {
   DEFAULT_APP_DESTINATION,
+  isProtectedAppPath,
+  requiresMfaStepUp,
+  sanitizeAppDestination,
   shouldRedirectAuthenticatedHome,
+  shouldRedirectAuthenticatedLogin,
 } from "../lib/auth/navigation.ts";
 
 test("authenticated visitors are routed from the public home to the app", () => {
@@ -18,5 +22,39 @@ test("anonymous visitors can still view the public home", () => {
 test("authenticated visitors can still view company and legal pages", () => {
   for (const pathname of ["/about", "/contact", "/privacy", "/terms", "/security"]) {
     assert.equal(shouldRedirectAuthenticatedHome(pathname, true), false);
+  }
+});
+
+test("authenticated visitors do not see the login form again", () => {
+  assert.equal(shouldRedirectAuthenticatedLogin("/auth/login", true), true);
+  assert.equal(shouldRedirectAuthenticatedLogin("/auth/login", false), false);
+});
+
+test("return destinations remain inside the application", () => {
+  assert.equal(sanitizeAppDestination("/transactions?month=2026-07"), "/transactions?month=2026-07");
+  assert.equal(sanitizeAppDestination("https://example.com"), "/dashboard");
+  assert.equal(sanitizeAppDestination("//example.com/path"), "/dashboard");
+  assert.equal(sanitizeAppDestination("/auth/login"), "/dashboard");
+  assert.equal(sanitizeAppDestination("/"), "/dashboard");
+});
+
+test("accounts expecting aal2 must complete MFA before app access", () => {
+  assert.equal(requiresMfaStepUp("aal1", "aal2"), true);
+  assert.equal(requiresMfaStepUp("aal2", "aal2"), false);
+  assert.equal(requiresMfaStepUp("aal1", "aal1"), false);
+});
+
+test("private app routes fail closed while public and auth routes remain public", () => {
+  for (const pathname of [
+    "/dashboard",
+    "/transactions/123",
+    "/settings/security",
+    "/mfa",
+  ]) {
+    assert.equal(isProtectedAppPath(pathname), true);
+  }
+
+  for (const pathname of ["/", "/about", "/privacy", "/auth/login", "/auth/mfa"]) {
+    assert.equal(isProtectedAppPath(pathname), false);
   }
 });

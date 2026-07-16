@@ -4,24 +4,12 @@ import { createServerClient } from "@supabase/ssr";
 import { applyPrivateNoStore } from "@/lib/http/privateCache";
 import {
   DEFAULT_APP_DESTINATION,
+  isProtectedAppPath,
+  requiresMfaStepUp,
+  sanitizeAppDestination,
   shouldRedirectAuthenticatedHome,
+  shouldRedirectAuthenticatedLogin,
 } from "@/lib/auth/navigation";
-
-const PROTECTED_PREFIXES = [
-  "/dashboard",
-  "/wallets",
-  "/transactions",
-  "/categories",
-  "/budgets",
-  "/recurring",
-  "/exports",
-  "/settings",
-  "/mfa",
-];
-
-function isProtectedPath(pathname: string) {
-  return PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
-}
 
 function redirectPreservingCookies(url: URL, sourceResponse: NextResponse) {
   const redirectResponse = NextResponse.redirect(url);
@@ -31,13 +19,42 @@ function redirectPreservingCookies(url: URL, sourceResponse: NextResponse) {
   return redirectResponse;
 }
 
+function serviceUnavailable() {
+  const response = new NextResponse(
+    "Gorilla Ledger could not verify account security. Please try again shortly.",
+    {
+      status: 503,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    }
+  );
+  applyPrivateNoStore(response.headers);
+  return response;
+}
+
+function authUnavailableRedirect(
+  req: NextRequest,
+  sourceResponse: NextResponse,
+  next: string
+) {
+  const unavailableUrl = req.nextUrl.clone();
+  unavailableUrl.pathname = "/auth/unavailable";
+  unavailableUrl.search = "";
+  unavailableUrl.searchParams.set("next", next);
+  const response = redirectPreservingCookies(unavailableUrl, sourceResponse);
+  applyPrivateNoStore(response.headers);
+  return response;
+}
+
 export async function proxy(req: NextRequest) {
   const res = NextResponse.next();
+  const pathname = req.nextUrl.pathname;
+  const protectedPath = isProtectedAppPath(pathname);
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !anonKey) {
+    if (protectedPath) return serviceUnavailable();
     return res;
   }
 
@@ -58,22 +75,51 @@ export async function proxy(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (shouldRedirectAuthenticatedHome(req.nextUrl.pathname, Boolean(user))) {
+  const authenticatedHome = shouldRedirectAuthenticatedHome(pathname, Boolean(user));
+  const authenticatedLogin = shouldRedirectAuthenticatedLogin(pathname, Boolean(user));
+  const requestedDestination = authenticatedLogin
+    ? sanitizeAppDestination(req.nextUrl.searchParams.get("next"))
+    : authenticatedHome
+      ? DEFAULT_APP_DESTINATION
+      : sanitizeAppDestination(`${pathname}${req.nextUrl.search}`);
+
+  if (user && (protectedPath || authenticatedHome || authenticatedLogin)) {
+    const { data: assurance, error: assuranceError } =
+      await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+    if (assuranceError || !assurance) {
+      return authUnavailableRedirect(req, res, requestedDestination);
+    }
+
+    if (requiresMfaStepUp(assurance.currentLevel, assurance.nextLevel)) {
+      const mfaUrl = req.nextUrl.clone();
+      mfaUrl.pathname = "/auth/mfa";
+      mfaUrl.search = "";
+      mfaUrl.searchParams.set("mode", "stepup");
+      mfaUrl.searchParams.set("next", requestedDestination);
+      const redirectResponse = redirectPreservingCookies(mfaUrl, res);
+      applyPrivateNoStore(redirectResponse.headers);
+      return redirectResponse;
+    }
+  }
+
+  if (authenticatedHome || authenticatedLogin) {
     const dashboardUrl = req.nextUrl.clone();
-    dashboardUrl.pathname = DEFAULT_APP_DESTINATION;
-    dashboardUrl.search = "";
+    const destination = new URL(requestedDestination, req.nextUrl.origin);
+    dashboardUrl.pathname = destination.pathname;
+    dashboardUrl.search = destination.search;
     const redirectResponse = redirectPreservingCookies(dashboardUrl, res);
     applyPrivateNoStore(redirectResponse.headers);
     return redirectResponse;
   }
 
-  if (isProtectedPath(req.nextUrl.pathname)) {
+  if (protectedPath) {
     applyPrivateNoStore(res.headers);
 
     if (!user) {
       const loginUrl = req.nextUrl.clone();
       loginUrl.pathname = "/auth/login";
-      loginUrl.searchParams.set("next", req.nextUrl.pathname + req.nextUrl.search);
+      loginUrl.searchParams.set("next", requestedDestination);
       const redirectResponse = redirectPreservingCookies(loginUrl, res);
       applyPrivateNoStore(redirectResponse.headers);
       return redirectResponse;

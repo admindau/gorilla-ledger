@@ -1,5 +1,6 @@
 import { LoginForm } from "@/components/auth/LoginForm";
 import { PublicAuthShell } from "@/components/public/PublicAuthShell";
+import { sanitizeAppDestination } from "@/lib/auth/navigation";
 
 type LoginPageProps = {
   searchParams?: Promise<{
@@ -16,10 +17,9 @@ export default async function LoginPage({
 
   const nextParam = resolvedSearchParams?.next;
 
-  const next =
-    typeof nextParam === "string" && nextParam.length > 0
-      ? nextParam
-      : "/dashboard";
+  const next = sanitizeAppDestination(
+    typeof nextParam === "string" ? nextParam : undefined
+  );
 
   return (
     <PublicAuthShell>
