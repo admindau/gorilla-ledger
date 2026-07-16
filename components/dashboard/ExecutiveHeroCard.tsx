@@ -1,4 +1,3 @@
-import TrustIndicator from "@/components/ui/TrustIndicator";
 
 type ExecutiveHeroCardProps = {
   monthLabel: string;
@@ -75,19 +74,6 @@ export default function ExecutiveHeroCard({
             </span>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <TrustIndicator
-              status="success"
-              label="Live ledger data"
-              detail="Supabase-backed"
-            />
-            <TrustIndicator
-              status="info"
-              label="Synced recently"
-              detail="Refreshed on page load"
-            />
-          </div>
-
           <h2 className="mt-4 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">
             {monthLabel}
           </h2>
@@ -113,13 +99,13 @@ export default function ExecutiveHeroCard({
 
           <div className="gl-inner-card rounded-2xl p-4">
             <div className="text-[10px] uppercase tracking-wide text-gray-500">
-              Forecast Confidence
+              Forecast confidence
             </div>
             <div className="mt-2 text-2xl font-semibold text-white">
               {forecastConfidence}
             </div>
             <div className="mt-1 text-[11px] text-gray-400">
-              Based on recurring rules and activity depth.
+              Based on your recent activity.
             </div>
           </div>
         </div>

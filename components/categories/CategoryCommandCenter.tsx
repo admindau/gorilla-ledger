@@ -30,10 +30,10 @@ export function CategoryCommandCenter({
 
   return (
     <section className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-      <MetricCard label="Total categories" value={totalCategories} helper="Active taxonomy" />
-      <MetricCard label="Income" value={incomeCategories} helper="Income classification" />
-      <MetricCard label="Expenses" value={expenseCategories} helper="Expense classification" />
-      <MetricCard label="Recently added" value={recentlyAddedLabel} helper="Latest category" />
+      <MetricCard label="Categories" value={totalCategories} helper="Total" />
+      <MetricCard label="Income" value={incomeCategories} helper="Categories" />
+      <MetricCard label="Expenses" value={expenseCategories} helper="Categories" />
+      <MetricCard label="Newest" value={recentlyAddedLabel} helper="Recently added" />
     </section>
   );
 }

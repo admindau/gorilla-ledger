@@ -1061,9 +1061,8 @@ export default function TransactionsPage() {
       {/* Tight, app-like header (less link-bar) */}
         <div className="gl-page-shell max-w-5xl">
         <PageHeader
-          eyebrow="Activity ledger"
           title="Transactions"
-          description="Record and review income, expenses, transfers, and supporting receipts."
+          description="Add and review income, expenses, transfers, and receipts."
         />
 
         <TransactionCommandCenter
@@ -1081,7 +1080,7 @@ export default function TransactionsPage() {
           <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between gap-4">
             <div>
               <div className="text-[11px] uppercase tracking-wider text-gray-400">
-                Operational
+                Income or expense
               </div>
               <h2 className="text-sm font-semibold mt-1 leading-tight">
                 Add Transaction
@@ -1100,7 +1099,7 @@ export default function TransactionsPage() {
           <div className="p-4">
             {wallets.length === 0 || activeCategories.length === 0 ? (
               <PrerequisiteGuide
-                title="Prepare the ledger before adding activity"
+                title="Before adding a transaction"
                 items={[
                   { label: "Wallet", complete: wallets.length > 0, href: "/wallets", actionLabel: "Add wallet" },
                   { label: "Category", complete: activeCategories.length > 0, href: "/categories", actionLabel: "Add category" },
@@ -1285,8 +1284,8 @@ export default function TransactionsPage() {
         <section className="gl-card">
           <div className="flex items-center justify-between gap-4 border-b border-gray-800 px-4 py-3">
             <div>
-              <div className="text-[11px] uppercase tracking-wider text-gray-400">Balance movement</div>
-              <h2 className="mt-1 text-sm font-semibold">Transfer or exchange currency</h2>
+              <div className="text-[11px] uppercase tracking-wider text-gray-400">Between wallets</div>
+              <h2 className="mt-1 text-sm font-semibold">Transfer or exchange</h2>
               <p className="mt-1 text-xs text-gray-500">Creates both ledger entries together. Balances change; income, expenses and budgets do not.</p>
             </div>
             <button

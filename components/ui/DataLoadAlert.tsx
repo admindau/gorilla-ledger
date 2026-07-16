@@ -5,8 +5,8 @@ type DataLoadAlertProps = {
 };
 
 export function DataLoadAlert({
-  title = "Verified data is temporarily unavailable",
-  message = "We could not verify the latest ledger data. No unverified totals are being shown.",
+  title = "We couldn’t load your data",
+  message = "Totals are hidden until the data loads successfully.",
   onRetry,
 }: DataLoadAlertProps) {
   return (

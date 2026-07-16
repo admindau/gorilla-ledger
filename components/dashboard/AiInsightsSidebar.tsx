@@ -108,7 +108,7 @@ export default function AiInsightsSidebar({ model }: AiInsightsSidebarProps) {
           <span className="gl-section-eyebrow">Decision support</span>
           <h2 id="ai-coach-title" className="mt-3 text-base font-semibold tracking-tight text-white">AI Coach</h2>
           <p className="mt-1 text-[11px] leading-5 text-gray-400">
-            Prioritized actions generated from the certified intelligence model.
+            Suggested next steps based on this month’s activity.
           </p>
         </div>
         <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.16em] text-gray-400">

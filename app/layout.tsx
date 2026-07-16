@@ -6,7 +6,7 @@ import BfcacheAuthGuard from "@/components/auth/BfcacheAuthGuard";
 
 export const metadata: Metadata = {
   title: "Gorilla Ledger™",
-  description: "A focused money command center by Savvy Gorilla Technologies.",
+  description: "Track wallets, transactions, budgets, and recurring payments.",
 };
 
 export default function RootLayout({

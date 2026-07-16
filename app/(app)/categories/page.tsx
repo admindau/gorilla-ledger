@@ -367,9 +367,8 @@ export default function CategoriesPage() {
 
       <PageShell size="xl" className="gl-page-stack">
         <PageHeader
-          eyebrow="Organization"
           title="Categories"
-          description="Organize income and expenses for accurate reporting, budgets, and transaction entry."
+          description="Organize income and expenses for transactions and budgets."
           action={
             <button type="button" onClick={openCreateModal} className="gl-btn gl-btn-primary gl-btn-sm">
               Add Category
@@ -425,8 +424,7 @@ export default function CategoriesPage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.24em] text-gray-500">Income taxonomy</p>
-                <h2 className="mt-1 text-lg font-semibold text-white">Income Categories</h2>
+                <h2 className="text-lg font-semibold text-white">Income categories</h2>
               </div>
               <span className="rounded-full border border-gray-800 bg-black/40 px-3 py-1 text-xs text-gray-300">{incomeCategories.length}</span>
             </div>
@@ -439,7 +437,7 @@ export default function CategoriesPage() {
               <EmptyState
                 compact
                 title="No income categories yet"
-                description="Create your first income category to unlock richer reporting and forecasting."
+                description="Create an income category for transactions and reports."
                 action={
                   <div className="flex flex-wrap justify-center gap-2 text-xs text-gray-400">
                     <span className="rounded-full border border-white/10 px-3 py-1">Salary</span>
@@ -457,8 +455,7 @@ export default function CategoriesPage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.24em] text-gray-500">Expense taxonomy</p>
-                <h2 className="mt-1 text-lg font-semibold text-white">Expense Categories</h2>
+                <h2 className="text-lg font-semibold text-white">Expense categories</h2>
               </div>
               <span className="rounded-full border border-gray-800 bg-black/40 px-3 py-1 text-xs text-gray-300">{expenseCategories.length}</span>
             </div>
@@ -471,7 +468,7 @@ export default function CategoriesPage() {
               <EmptyState
                 compact
                 title="No expense categories yet"
-                description="Create your first expense category to improve spending intelligence."
+                description="Create an expense category for transactions and budgets."
                 action={
                   <div className="flex flex-wrap justify-center gap-2 text-xs text-gray-400">
                     <span className="rounded-full border border-white/10 px-3 py-1">Housing</span>

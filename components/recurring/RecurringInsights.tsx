@@ -147,11 +147,10 @@ export function RecurringInsights({
           Insights
         </p>
         <h2 className="mt-1 text-sm font-semibold text-white">
-          Automation Intelligence
+          Recurring summary
         </h2>
         <p className="mt-1 text-xs text-gray-500">
-          Currency-safe signals about the value, reliability, and coverage of
-          your recurring automation layer.
+          Value, reliability, and wallet coverage for your recurring transactions.
         </p>
       </div>
 

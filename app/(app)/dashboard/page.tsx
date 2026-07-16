@@ -939,8 +939,8 @@ export default function DashboardPage() {
             </div>
           </div>
           <DataLoadAlert
-            title="Your command center is temporarily unavailable"
-            message="We could not verify the latest ledger records, so no balances, totals, or setup recommendations are being shown. Your saved data has not been changed."
+            title="We couldn’t load your overview"
+            message="Balances and totals are hidden until the data loads successfully. Your saved data has not changed."
             onRetry={() => setDataVersion((version) => version + 1)}
           />
         </div>
@@ -1018,11 +1018,8 @@ export default function DashboardPage() {
           <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-3">
             <div>
               <h2 className="text-lg font-semibold tracking-tight">
-                Activity Snapshot – {monthLabel}
+                Activity – {monthLabel}
               </h2>
-              <p className="text-[11px] text-gray-400">
-                Fast operational view of wallets, transactions, budgets, and recent movement.
-              </p>
             </div>
           </div>
 
@@ -1072,28 +1069,17 @@ export default function DashboardPage() {
           <MonthlyReview model={monthlyReviewModel} />
         ) : null}
 
-        {/* Gorilla Intelligence */}
+        {/* Financial outlook */}
         <section className="mb-10 gl-intelligence-suite rounded-[1.5rem] p-3.5 sm:mb-12 sm:rounded-[1.75rem] sm:p-6">
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <span className="gl-section-eyebrow">Premium intelligence layer</span>
+              <span className="gl-section-eyebrow">Planning</span>
               <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-                Gorilla Intelligence™ – {monthLabel}
+                Financial outlook – {monthLabel}
               </h2>
               <p className="mt-1 max-w-2xl text-sm text-gray-400">
-                The brain of Gorilla Ledger: health scoring, alerts, executive guidance, AI coaching, and projected month-end position.
+                Forecasts, alerts, and suggested actions for this month.
               </p>
-            </div>
-            <div className="flex flex-wrap gap-2 text-[11px] text-gray-300">
-              <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1 uppercase tracking-[0.16em]">
-                {executiveRiskLevel}
-              </span>
-              <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1 uppercase tracking-[0.16em]">
-                {forecastConfidence}
-              </span>
-              <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1 uppercase tracking-[0.16em]">
-                {smartAlerts.length} alerts
-              </span>
             </div>
           </div>
 
@@ -1321,11 +1307,10 @@ export default function DashboardPage() {
         </section>
 
         {/* Composition */}
-        <DashboardAnalyticsAccordionItem title="Spending Composition" kicker="Category intelligence" description="Ranked category views for the selected filters.">
+        <DashboardAnalyticsAccordionItem title="Spending breakdown" kicker="Spending" description="Categories ranked for the selected filters.">
           <div className="mb-4 flex flex-col gap-2">
-            <span className="gl-section-eyebrow">Category intelligence</span>
             <h2 className="text-xl font-semibold tracking-tight">Spending composition</h2>
-            <p className="text-[12px] text-gray-400">Ranked category views for the selected filters.</p>
+            <p className="text-[12px] text-gray-400">Categories ranked for the selected filters.</p>
           </div>
           <div className="grid min-w-0 gap-4 lg:grid-cols-2 lg:gap-5">
             <div className={CHART_CARD}>
@@ -1366,15 +1351,14 @@ export default function DashboardPage() {
         </DashboardAnalyticsAccordionItem>
 
         {/* Budget control */}
-        <DashboardAnalyticsAccordionItem title="Budget Control" kicker="Budget intelligence" description="Budget health and budget-vs-actual performance.">
+        <DashboardAnalyticsAccordionItem title="Budget progress" kicker="Budgets" description="Planned amounts compared with spending.">
           <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-2">
             <div>
               <h2 className="text-lg font-semibold tracking-tight">
-                Budget Control – {monthLabel}
+                Budget progress – {monthLabel}
               </h2>
               <p className="text-[11px] text-gray-400">
-                Your budget health and budget-vs-actual performance for the
-                selected month.
+                Planned amounts compared with spending for the selected month.
               </p>
             </div>
           </div>

@@ -449,7 +449,6 @@ export default function BudgetsPage() {
     <div className="gl-page-migrated">
       <div className="gl-page-shell max-w-5xl">
         <PageHeader
-          eyebrow="Planning"
           title="Budgets"
           description="Set monthly targets and monitor spending against each plan."
           action={
@@ -502,7 +501,7 @@ export default function BudgetsPage() {
             </div>
 
             <div className="text-sm text-gray-400">
-              Viewing budget health for <span className="font-semibold text-white">{monthLabel}</span>
+              <span className="font-semibold text-white">{monthLabel}</span>
             </div>
           </div>
         </section>
@@ -518,8 +517,7 @@ export default function BudgetsPage() {
         <section className="gl-card p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.22em] text-gray-500">Budget setup</p>
-              <h2 className="mt-1 text-lg font-semibold">New budget</h2>
+              <h2 className="text-lg font-semibold">New budget</h2>
               <p className="mt-1 text-sm text-gray-400">
                 Add a monthly target for a wallet and expense category.
               </p>
@@ -536,7 +534,7 @@ export default function BudgetsPage() {
             <div className="mt-5 border-t border-white/10 pt-5">
               {wallets.length === 0 || !categories.some((category) => category.type === "expense") ? (
                 <PrerequisiteGuide
-                  title="Prepare the ledger before creating a budget"
+                  title="Before creating a budget"
                   items={[
                     { label: "Wallet", complete: wallets.length > 0, href: "/wallets", actionLabel: "Add wallet" },
                     { label: "Expense category", complete: categories.some((category) => category.type === "expense"), href: "/categories", actionLabel: "Add expense category" },
@@ -602,8 +600,7 @@ export default function BudgetsPage() {
         <section>
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.22em] text-gray-500">Budget Health</p>
-              <h2 className="mt-1 text-lg font-semibold">Budgets for {monthLabel}</h2>
+              <h2 className="text-lg font-semibold">Budgets for {monthLabel}</h2>
             </div>
             <p className="text-sm text-gray-500">
               {budgetSummaries.length} active budget{budgetSummaries.length === 1 ? "" : "s"}
@@ -616,7 +613,7 @@ export default function BudgetsPage() {
             <p className="text-sm text-gray-500">Budget records are unavailable.</p>
           ) : budgetsForPeriod.length === 0 ? (
             <EmptyState
-              eyebrow="Budget Command Center"
+              eyebrow="No budgets yet"
               title="No budgets yet"
               description="Create your first budget and start tracking spending goals for this month."
               action={

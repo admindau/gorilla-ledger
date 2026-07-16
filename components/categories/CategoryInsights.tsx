@@ -21,7 +21,7 @@ export function CategoryInsights({
     <Card variant="premium" className="p-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.24em] text-gray-500">Category intelligence</p>
+          <p className="text-[11px] uppercase tracking-[0.24em] text-gray-500">Summary</p>
           <h2 className="mt-2 text-lg font-semibold text-white">Classification health</h2>
           <p className="mt-1 max-w-2xl text-sm text-gray-400">
             Categories keep transactions readable, searchable, and ready for sharper spending insights.

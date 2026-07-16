@@ -370,9 +370,8 @@ export default function RecurringPage() {
 {/* ========================= Page Content ========================= */}
       <div className="gl-page-shell max-w-5xl">
           <PageHeader
-            eyebrow="Automation"
             title="Recurring transactions"
-            description={`Manage scheduled income and expenses, upcoming runs, and history for ${monthName} ${year}.`}
+            description={`Scheduled income and expenses for ${monthName} ${year}.`}
           />
 
           <RecurringCommandCenter
@@ -398,19 +397,19 @@ export default function RecurringPage() {
           >
             <div>
               <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500">
-                New automation
+                New rule
               </p>
-              <h2 className="mt-1 text-sm font-semibold">Add a Recurring Rule</h2>
+              <h2 className="mt-1 text-sm font-semibold">Add recurring transaction</h2>
               <p className="mt-1 text-xs text-gray-500">
                 Create scheduled transactions for predictable income, bills, subscriptions, and renewals.
               </p>
             </div>
 
             <PrerequisiteGuide
-              title="Prepare the ledger before adding automation"
+              title="Before adding a recurring transaction"
               items={[
                 { label: "Wallet", complete: wallets.length > 0, href: "/wallets", actionLabel: "Add wallet" },
-                { label: "Operational category", complete: operationalCategories.length > 0, href: "/categories", actionLabel: "Add category" },
+                { label: "Category", complete: operationalCategories.length > 0, href: "/categories", actionLabel: "Add category" },
               ]}
             />
 
@@ -533,11 +532,11 @@ export default function RecurringPage() {
             <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500">
-                  Automation rules
+                  Rules
                 </p>
-                <h2 className="mt-1 text-sm font-semibold">Recurring Rule Portfolio</h2>
+                <h2 className="mt-1 text-sm font-semibold">Recurring transactions</h2>
                 <p className="mt-1 text-xs text-gray-500">
-                  Review, pause, activate, or delete the rules powering your automated transactions.
+                  Review, pause, or delete scheduled transactions.
                 </p>
               </div>
               <div className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] text-gray-400">

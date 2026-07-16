@@ -11,7 +11,6 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageSection } from "@/components/ui/PageSection";
 import { PageShell } from "@/components/ui/PageShell";
 import Skeleton from "@/components/ui/Skeleton";
-import TrustIndicator from "@/components/ui/TrustIndicator";
 import { parseMoneyToMinor } from "@/lib/finance/money";
 
 type Wallet = {
@@ -122,18 +121,6 @@ export default function WalletsPage() {
     () => getCurrencyTotals(wallets, walletBalances),
     [walletBalances, wallets]
   );
-
-  const largestWallet = useMemo(() => {
-    return [...wallets].sort(
-      (a, b) =>
-        Math.abs(walletBalances[b.id]?.current_balance_minor ?? b.starting_balance_minor) -
-        Math.abs(walletBalances[a.id]?.current_balance_minor ?? a.starting_balance_minor)
-    )[0];
-  }, [walletBalances, wallets]);
-
-  const walletTypeCount = useMemo(() => {
-    return new Set(wallets.map((wallet) => wallet.type)).size;
-  }, [wallets]);
 
   useEffect(() => {
     async function loadWallets() {
@@ -398,7 +385,6 @@ export default function WalletsPage() {
   return (
     <PageShell className="gl-page-stack" size="xl">
       <PageHeader
-        eyebrow="Accounts & cash"
         title="Wallets"
         description="Track balances across cash, bank, mobile money, and other accounts."
         action={
@@ -408,7 +394,7 @@ export default function WalletsPage() {
             onClick={() => setShowCreatePanel((value) => !value)}
             disabled={loading}
           >
-            {showCreatePanel ? "Close Panel" : "+ Add Wallet"}
+            {showCreatePanel ? "Close" : "+ Add wallet"}
           </Button>
         }
       />
@@ -423,26 +409,8 @@ export default function WalletsPage() {
         >
           <div className="grid gap-6 lg:grid-cols-[1.25fr_1fr] lg:items-end">
             <div>
-              <div
-                className="mb-5 flex flex-wrap items-center gap-2"
-                aria-live="polite"
-              >
-                <Badge>Asset Position</Badge>
-                <Badge
-                  variant={
-                    loading ? "neutral" : wallets.length > 0 ? "success" : "warning"
-                  }
-                >
-                  {loading
-                    ? "Syncing"
-                    : wallets.length > 0
-                      ? "Live"
-                      : "Setup Needed"}
-                </Badge>
-              </div>
-
               <p className="text-sm uppercase tracking-[0.28em] text-white/35">
-                Current balances
+                Balances
               </p>
 
               <div className="mt-4 space-y-2">
@@ -475,22 +443,8 @@ export default function WalletsPage() {
               </div>
 
               <p className="mt-4 max-w-2xl text-sm leading-6 text-white/55">
-                Current positions reconcile each opening balance with every income, expense, transfer, and currency exchange recorded for that wallet.
+                Includes each wallet’s opening balance and recorded activity.
               </p>
-
-              <div className="mt-5 flex flex-wrap gap-2">
-                {loading ? (
-                  <>
-                    <Skeleton className="h-8 w-40" rounded="full" />
-                    <Skeleton className="h-8 w-36" rounded="full" />
-                  </>
-                ) : (
-                  <>
-                    <TrustIndicator status="success" label="Live Ledger Data" />
-                    <TrustIndicator status="success" label="Snapshot Updated" detail="Today" />
-                  </>
-                )}
-              </div>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
@@ -504,13 +458,13 @@ export default function WalletsPage() {
                 ) : (
                   <>
                     <p className="mt-2 text-3xl font-semibold text-white">{wallets.length}</p>
-                    <p className="mt-1 text-xs text-white/45">financial assets tracked</p>
+                    <p className="mt-1 text-xs text-white/45">accounts tracked</p>
                   </>
                 )}
               </div>
 
               <div className="gl-inner-card p-4">
-                <p className="text-xs uppercase tracking-[0.22em] text-white/35">Currency Exposure</p>
+                <p className="text-xs uppercase tracking-[0.22em] text-white/35">Currencies</p>
                 {loading ? (
                   <div className="mt-2 space-y-2">
                     <Skeleton className="h-9 w-14" rounded="lg" />
@@ -528,94 +482,9 @@ export default function WalletsPage() {
                 )}
               </div>
 
-              <div className="gl-inner-card p-4 sm:col-span-2 lg:col-span-1">
-                <p className="text-xs uppercase tracking-[0.22em] text-white/35">Ledger status</p>
-                {loading ? (
-                  <div className="mt-2 space-y-2">
-                    <Skeleton className="h-9 w-32" rounded="lg" />
-                    <Skeleton className="h-3 w-40" rounded="full" />
-                  </div>
-                ) : (
-                  <>
-                    <p className="mt-2 text-3xl font-semibold text-white">
-                      {wallets.length > 0 ? "Active" : "Setup"}
-                    </p>
-                    <p className="mt-1 text-xs text-white/45">
-                      {wallets.length > 0
-                        ? "Balances updating from ledger activity"
-                        : "Create your first wallet"}
-                    </p>
-                  </>
-                )}
-              </div>
             </div>
           </div>
         </Card>
-      </PageSection>
-
-      <PageSection>
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card variant="inner" className="p-5">
-            <p className="text-xs uppercase tracking-[0.24em] text-white/35">Largest Current Position</p>
-            {loading ? (
-              <div className="mt-3 space-y-3">
-                <Skeleton className="h-8 w-36" rounded="lg" />
-                <Skeleton className="h-4 w-24" rounded="full" />
-              </div>
-            ) : (
-              <>
-                <p className="mt-3 truncate text-2xl font-semibold tracking-[-0.03em] text-white">
-                  {largestWallet ? largestWallet.name : "—"}
-                </p>
-                <p className="mt-2 text-sm text-white/55">
-                  {largestWallet
-                    ? `${formatMinorToAmount(walletBalances[largestWallet.id]?.current_balance_minor ?? largestWallet.starting_balance_minor)} ${largestWallet.currency_code}`
-                    : "Create a wallet to establish your first position."}
-                </p>
-              </>
-            )}
-          </Card>
-
-          <Card variant="inner" className="p-5">
-            <p className="text-xs uppercase tracking-[0.24em] text-white/35">Asset Types</p>
-            {loading ? (
-              <div className="mt-3 space-y-3">
-                <Skeleton className="h-8 w-14" rounded="lg" />
-                <Skeleton className="h-4 w-32" rounded="full" />
-              </div>
-            ) : (
-              <>
-                <p className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-white">
-                  {walletTypeCount}
-                </p>
-                <p className="mt-2 text-sm text-white/55">
-                  {walletTypeCount === 1 ? "single wallet class active" : "wallet classes active"}
-                </p>
-              </>
-            )}
-          </Card>
-
-          <Card variant="inner" className="p-5">
-            <p className="text-xs uppercase tracking-[0.24em] text-white/35">Ledger Readiness</p>
-            {loading ? (
-              <div className="mt-3 space-y-3">
-                <Skeleton className="h-8 w-24" rounded="lg" />
-                <Skeleton className="h-4 w-full max-w-64" rounded="full" />
-              </div>
-            ) : (
-              <>
-                <p className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-white">
-                  {wallets.length > 0 ? "Ready" : "Pending"}
-                </p>
-                <p className="mt-2 text-sm text-white/55">
-                  {wallets.length > 0
-                    ? "Transactions, budgets, and recurring flows can reference your wallets."
-                    : "Add your first wallet to unlock the ledger workflow."}
-                </p>
-              </>
-            )}
-          </Card>
-        </div>
       </PageSection>
 
       {showCreatePanel ? (
@@ -623,8 +492,8 @@ export default function WalletsPage() {
           <Card variant="premium" className="p-5 sm:p-6">
             <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <Badge>Add Asset</Badge>
-                <h2 className="mt-3 text-xl font-semibold text-white">Create a Wallet</h2>
+                <Badge>New wallet</Badge>
+                <h2 className="mt-3 text-xl font-semibold text-white">Add a wallet</h2>
                 <p className="mt-1 text-sm text-white/50">
                   Add a cash, bank, mobile money, or custom wallet to your ledger.
                 </p>
@@ -683,9 +552,8 @@ export default function WalletsPage() {
       ) : null}
 
       <PageSection
-        eyebrow="Asset Portfolio"
-        title="Wallets"
-        description="Current wallet positions reconciled from opening balances and complete ledger activity."
+        title="Your wallets"
+        description="Current balances by account."
       >
         {loading ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -700,7 +568,7 @@ export default function WalletsPage() {
           </div>
         ) : wallets.length === 0 ? (
           <EmptyState
-            eyebrow="No Assets Yet"
+            eyebrow="No wallets yet"
             title="Create your first wallet"
             description="Start with your main cash, bank, or mobile money wallet. Once created, transactions and budgets can reference it across Gorilla Ledger."
             action={

@@ -98,14 +98,10 @@ export function CategoryCard({
         </span>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+      <div className="mt-4 text-xs">
         <div className="rounded-2xl border border-gray-800 bg-black/30 p-3">
           <p className="text-gray-500">Status</p>
           <p className="mt-1 font-medium text-gray-200">{category.is_active ? "Active" : "Inactive"}</p>
-        </div>
-        <div className="rounded-2xl border border-gray-800 bg-black/30 p-3">
-          <p className="text-gray-500">Ledger role</p>
-          <p className="mt-1 font-medium text-gray-200">{isIncome ? "Money in" : "Money out"}</p>
         </div>
       </div>
 

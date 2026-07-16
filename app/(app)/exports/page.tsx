@@ -6,7 +6,6 @@ import { PageShell } from "@/components/ui/PageShell";
 import { Card } from "@/components/ui/Card";
 import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
 import Skeleton from "@/components/ui/Skeleton";
-import TrustIndicator from "@/components/ui/TrustIndicator";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { isMissingLedgerMetadata } from "@/lib/supabase/schemaCompatibility";
 import {
@@ -135,9 +134,8 @@ export default function ExportCenterPage() {
       <div className="gl-page-migrated">
         <PageShell className="max-w-5xl">
           <PageHeader
-            eyebrow="Data Portability"
             title="Export your data"
-            description="Take a complete, currency-explicit copy of your Gorilla Ledger records for analysis, reporting, or safekeeping."
+            description="Download a copy of your records as CSV files."
           />
           <DataLoadAlert
             title="Exports are temporarily unavailable"
@@ -153,47 +151,33 @@ export default function ExportCenterPage() {
     <div className="gl-page-migrated">
       <PageShell className="max-w-5xl">
         <PageHeader
-          eyebrow="Data Portability"
           title="Export your data"
-          description="Take a complete, currency-explicit copy of your Gorilla Ledger records for analysis, reporting, or safekeeping."
+          description="Download a copy of your records as CSV files."
         />
 
         <Card variant="premium" className="p-5 sm:p-6" aria-busy={loading}>
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.22em] text-gray-500">Export trust layer</p>
-              <h2 className="mt-2 text-xl font-semibold text-white">Private, local downloads</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-400">
-                Files are generated in your browser from authenticated, RLS-protected records. Exporting does not send your ledger to another service.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <TrustIndicator status="success" label="Authenticated Data" />
-              <TrustIndicator status="success" label="Currency Explicit" />
-              <TrustIndicator status="info" label="CSV Format" />
-            </div>
+          <div>
+            <h2 className="text-xl font-semibold text-white">Private downloads</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-400">
+              Files are created in your browser and are not sent elsewhere.
+            </p>
           </div>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <div className="gl-inner-card p-4">
               <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">Datasets</p>
               {loading ? <Skeleton className="mt-3 h-8 w-16" /> : <p className="mt-2 text-2xl font-semibold">{datasets.length}</p>}
             </div>
             <div className="gl-inner-card p-4">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">Exportable Records</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">Records</p>
               {loading ? <Skeleton className="mt-3 h-8 w-24" /> : <p className="mt-2 text-2xl font-semibold tabular-nums">{totalRows.toLocaleString()}</p>}
-            </div>
-            <div className="gl-inner-card p-4">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">Processing</p>
-              <p className="mt-2 text-2xl font-semibold">Local</p>
             </div>
           </div>
         </Card>
 
         <section className="mt-8" aria-labelledby="export-datasets-title">
           <div className="mb-4">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-gray-500">Available datasets</p>
-            <h2 id="export-datasets-title" className="mt-2 text-xl font-semibold">Choose what to export</h2>
+            <h2 id="export-datasets-title" className="text-xl font-semibold">Available exports</h2>
           </div>
 
           {loading ? (

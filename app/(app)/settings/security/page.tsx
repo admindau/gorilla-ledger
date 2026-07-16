@@ -414,9 +414,8 @@ export default function SecuritySettingsPage() {
     <div className="gl-page-migrated">
       <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <PageHeader
-          eyebrow="Account Protection"
           title="Security & access"
-          description="Manage multi-factor authentication, recovery readiness, and account security."
+          description="Manage multi-factor authentication and backup access."
         />
 
         {errorMsg && (
@@ -471,9 +470,6 @@ export default function SecuritySettingsPage() {
           <p className="mt-4 text-xs text-gray-400">Loading security settings…</p>
         )}
 
-        <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs text-gray-400">
-          Security changes are handled through encrypted Supabase Auth MFA factors.
-        </div>
       </div>
     </div>
   );

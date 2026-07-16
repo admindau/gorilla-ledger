@@ -93,7 +93,7 @@ export function LoginForm({ next }: { next: string }) {
         Login to Gorilla Ledger™
       </h1>
       <p className="text-gray-400 text-xs mb-6 text-center">
-        Enter your email and password to access your money command center.
+        Enter your email and password to continue.
       </p>
 
       {errorMsg && (

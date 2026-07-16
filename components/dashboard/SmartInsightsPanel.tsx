@@ -96,7 +96,7 @@ export default function SmartInsightsPanel({ model }: SmartInsightsPanelProps) {
     <section aria-labelledby="smart-insights-title" className="flex h-full min-h-[22rem] flex-col">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-gray-500">Pattern intelligence</span>
+          <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-gray-500">Patterns</span>
           <h3 id="smart-insights-title" className="mt-2 text-base font-semibold tracking-tight text-white">Smart Insights</h3>
           <p className="mt-1 text-[11px] leading-5 text-gray-400">
             Model-driven signals with currencies kept fully separate.
@@ -124,7 +124,7 @@ export default function SmartInsightsPanel({ model }: SmartInsightsPanelProps) {
           <div>
             <p className="text-sm font-medium text-gray-300">No smart signals yet</p>
             <p className="mt-1 text-[11px] leading-5 text-gray-500">
-              Add transactions to activate multi-currency intelligence.
+              Add transactions to see spending and income patterns.
             </p>
           </div>
         </div>

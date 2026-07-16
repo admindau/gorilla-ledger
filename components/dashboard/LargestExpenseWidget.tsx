@@ -34,7 +34,6 @@ export default function LargestExpenseWidget({
           <h3 className="text-sm font-semibold tracking-tight">Largest Expense</h3>
           <p className="mt-1 text-[11px] text-gray-400">Biggest single expense per currency in {monthLabel}.</p>
         </div>
-        <span className="rounded-full border border-gray-800 px-2 py-1 text-[10px] uppercase tracking-wide text-gray-400">Currency-safe</span>
       </div>
 
       {items.length === 0 ? (

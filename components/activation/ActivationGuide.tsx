@@ -15,9 +15,9 @@ export function ActivationGuide({ model }: ActivationGuideProps) {
       <section className="gl-premium-card mb-7 p-5 sm:mb-8" aria-labelledby="activation-title">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.22em] text-emerald-300/80">Ledger activated</p>
+            <p className="text-[11px] uppercase tracking-[0.22em] text-emerald-300/80">Setup complete</p>
             <h2 id="activation-title" className="mt-2 text-lg font-semibold tracking-tight text-white">
-              Next enhancement: {nextStep.label}
+              Next: {nextStep.label}
             </h2>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-400">{nextStep.description}</p>
           </div>
@@ -38,10 +38,10 @@ export function ActivationGuide({ model }: ActivationGuideProps) {
             Getting started
           </p>
           <h2 id="activation-title" className="mt-2 text-xl font-semibold tracking-tight text-white sm:text-2xl">
-            Activate your financial command center
+            Finish setting up your account
           </h2>
           <p className="mt-2 text-sm leading-6 text-gray-400">
-            Complete the guided setup to turn empty screens into useful balances, activity, and financial signals.
+            Complete these steps to start tracking your money.
           </p>
         </div>
 
@@ -55,13 +55,13 @@ export function ActivationGuide({ model }: ActivationGuideProps) {
 
       <div className="mt-5">
         <div className="flex items-center justify-between gap-4 text-xs text-gray-400">
-          <span>{model.completedCount} of {model.totalCount} milestones complete</span>
+          <span>{model.completedCount} of {model.totalCount} steps complete</span>
           <span className="tabular-nums">{model.progressPercent}%</span>
         </div>
         <div
           className="mt-2 h-2 overflow-hidden rounded-full bg-white/10"
           role="progressbar"
-          aria-label="Ledger activation progress"
+          aria-label="Setup progress"
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={model.progressPercent}
@@ -101,7 +101,7 @@ export function ActivationGuide({ model }: ActivationGuideProps) {
                   {step.complete ? "✓" : model.steps.indexOf(step) + 1}
                 </span>
                 <span className="text-[10px] uppercase tracking-[0.16em] text-gray-500">
-                  {step.core ? "Core" : "Enhance"}
+                  {step.core ? "Required" : "Optional"}
                 </span>
               </div>
               <h3 className="mt-3 text-sm font-semibold leading-5 text-white">{step.label}</h3>

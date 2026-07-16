@@ -1,4 +1,3 @@
-import TrustIndicator from "@/components/ui/TrustIndicator";
 import { MetricGridState, type DataState } from "@/components/ui/MetricGridState";
 import { browserTimeZone, calendarMonthKey } from "@/lib/time/ledgerTime";
 
@@ -37,25 +36,11 @@ function isUpcoming(value: string | null) {
   return date.getTime() >= new Date().setHours(0, 0, 0, 0);
 }
 
-function formatTrustDateTime(value: string | null | undefined) {
-  if (!value) return "Awaiting first run";
+function formatRunDate(value: string | null | undefined) {
+  if (!value) return "None scheduled";
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Awaiting first run";
-
-  return date.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function formatTrustDate(value: string | null | undefined) {
-  if (!value) return "No scheduled run";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "No scheduled run";
+  if (Number.isNaN(date.getTime())) return "None scheduled";
 
   return date.toLocaleDateString("en-US", {
     month: "short",
@@ -106,74 +91,33 @@ export function RecurringCommandCenter({
     (log) => log.status === "success" && isThisMonth(log.run_at)
   ).length;
   const health = getAutomationHealth(runLogs);
-  const latestRun = runLogs[0] ?? null;
   const nextRun = getNextRun(rules);
-
-  const healthStatus =
-    health.score >= 75 ? "success" : health.score >= 55 ? "warning" : "warning";
-  const latestRunStatus =
-    !latestRun ? "info" : latestRun.status === "success" ? "success" : "warning";
 
   const cards = [
     {
       label: "Active Rules",
       value: activeRules.length.toLocaleString(),
-      detail: `${rules.length.toLocaleString()} total rules`,
+      detail: `${rules.length.toLocaleString()} total`,
     },
     {
-      label: "Upcoming Runs",
-      value: upcomingRuns.length.toLocaleString(),
-      detail: "Scheduled from today onward",
+      label: "Next run",
+      value: formatRunDate(nextRun),
+      detail: `${upcomingRuns.length.toLocaleString()} upcoming`,
     },
     {
-      label: "Executed This Month",
+      label: "Runs this month",
       value: executedThisMonth.toLocaleString(),
-      detail: "Successful materializations",
+      detail: "Completed successfully",
     },
     {
-      label: "Automation Health",
+      label: "Recent success",
       value: `${health.score}%`,
       detail: health.label,
     },
   ];
 
   return (
-    <section className="space-y-4">
-      <div className="gl-premium-card p-4">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.2em] text-gray-500">
-              Automation trust layer
-            </p>
-            <h2 className="mt-2 text-sm font-semibold text-white">
-              Recurring engine confidence
-            </h2>
-            <p className="mt-1 max-w-2xl text-xs leading-relaxed text-gray-500">
-              Trust signals are calculated from active recurring rules, recent cron logs,
-              and the next scheduled materialization.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <TrustIndicator
-              status={healthStatus}
-              label={health.score >= 75 ? "Automation Healthy" : "Review Automation"}
-              detail={health.label}
-            />
-            <TrustIndicator
-              status={latestRunStatus}
-              label={!latestRun ? "Awaiting First Run" : "Last Run"}
-              detail={latestRun ? formatTrustDateTime(latestRun.run_at) : undefined}
-            />
-            <TrustIndicator
-              status={nextRun ? "success" : "info"}
-              label={nextRun ? "Next Run Scheduled" : "No Run Scheduled"}
-              detail={formatTrustDate(nextRun)}
-            />
-          </div>
-        </div>
-      </div>
-
+    <section>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
           <div key={card.label} className="gl-premium-card p-4">

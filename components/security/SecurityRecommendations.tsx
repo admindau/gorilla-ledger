@@ -72,12 +72,9 @@ export function SecurityRecommendations({
   return (
     <Card variant="premium" className="p-5">
       <p className="text-[11px] uppercase tracking-[0.2em] text-gray-500">
-        Security Recommendations
+        Checklist
       </p>
       <h2 className="mt-2 text-lg font-semibold text-white">Protection checklist</h2>
-      <p className="mt-2 text-sm text-gray-400">
-        Keep your account ready for recovery and protected against unauthorized access.
-      </p>
 
       <div className="mt-5 space-y-3">
         <RecommendationItem
@@ -85,8 +82,8 @@ export function SecurityRecommendations({
           title={mfaEnabled ? "MFA is enabled" : "Enable multi-factor authentication"}
           description={
             mfaEnabled
-              ? "Sign-ins are protected by a verified authenticator factor."
-              : "Add an authenticator app to protect access to financial records."
+              ? "An authenticator app protects your sign-ins."
+              : "Add an authenticator app to protect your sign-ins."
           }
           action={
             !mfaEnabled ? (
@@ -107,7 +104,7 @@ export function SecurityRecommendations({
           title={backupConfigured ? "Backup factor configured" : "Add a backup authenticator"}
           description={
             backupConfigured
-              ? "A secondary authenticator is available for recovery readiness."
+              ? "A second authenticator is available if you lose access."
               : "Use a different device or app so account access is not tied to one authenticator."
           }
           action={
@@ -126,7 +123,7 @@ export function SecurityRecommendations({
 
         <RecommendationItem
           status={reviewIsFresh ? "complete" : "warning"}
-          title={reviewIsFresh ? "Security recently reviewed" : "Review security settings"}
+          title={reviewIsFresh ? "Security checked" : "Review security settings"}
           description={
             reviewIsFresh
               ? `Last reviewed ${lastCheckLabel}.`

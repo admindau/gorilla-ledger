@@ -79,7 +79,7 @@ export function TransactionCommandCenter({
     {
       label: "Activity",
       value: String(operationalTransactions.length),
-      caption: `${scopeLabel} · excludes transfers and FX`,
+      caption: `${scopeLabel} · transfers excluded`,
     },
     {
       label: "Income",
@@ -94,7 +94,7 @@ export function TransactionCommandCenter({
       tone: "negative",
     },
     {
-      label: "Net Flow",
+      label: "Net",
       value: <MoneyLines flows={flows} field="netMinor" />,
       caption: flows.length > 1 ? "Separated by currency" : "Income minus expenses",
     },
