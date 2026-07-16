@@ -12,6 +12,7 @@ import { RecurringTimeline } from "@/components/recurring/RecurringTimeline";
 import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
 import { PrerequisiteGuide } from "@/components/activation/PrerequisiteGuide";
 import { isValidLedgerDate, parsePositiveMoneyToMinor } from "@/lib/finance/money";
+import { isInternalTransferCategory } from "@/lib/transactions/classification";
 
 type Wallet = {
   id: string;
@@ -86,6 +87,10 @@ export default function RecurringPage() {
   const activeCategories = useMemo(
     () => categories.filter((category) => category.is_active),
     [categories]
+  );
+  const operationalCategories = useMemo(
+    () => activeCategories.filter((category) => !isInternalTransferCategory(category)),
+    [activeCategories]
   );
 
   // Load wallets, categories, existing rules, and user email
@@ -191,6 +196,10 @@ export default function RecurringPage() {
     const selectedCategory = categories.find((c) => c.id === categoryId);
     if (!selectedWallet || !selectedCategory?.is_active) {
       showToast("Select a valid wallet and category.", "error");
+      return;
+    }
+    if (isInternalTransferCategory(selectedCategory)) {
+      showToast("Transfers and FX must be recorded with the paired balance-movement workflow.", "error");
       return;
     }
 
@@ -401,7 +410,7 @@ export default function RecurringPage() {
               title="Prepare the ledger before adding automation"
               items={[
                 { label: "Wallet", complete: wallets.length > 0, href: "/wallets", actionLabel: "Add wallet" },
-                { label: "Category", complete: activeCategories.length > 0, href: "/categories", actionLabel: "Add category" },
+                { label: "Operational category", complete: operationalCategories.length > 0, href: "/categories", actionLabel: "Add category" },
               ]}
             />
 
@@ -436,12 +445,18 @@ export default function RecurringPage() {
                   required
                 >
                   <option value="">Select category</option>
-                  {activeCategories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} ({c.type})
+                  {activeCategories.map((c) => {
+                    const internalMovement = isInternalTransferCategory(c);
+                    return (
+                      <option key={c.id} value={c.id} disabled={internalMovement}>
+                        {c.name} ({c.type}){internalMovement ? " — Use Transfer / FX" : ""}
                       </option>
-                    ))}
+                    );
+                  })}
                 </select>
+                <p className="mt-1 text-[11px] leading-4 text-gray-500">
+                  Internal transfer and FX categories remain visible but cannot create one-sided recurring entries.
+                </p>
               </div>
 
               <div>

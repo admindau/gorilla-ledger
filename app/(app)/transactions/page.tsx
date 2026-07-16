@@ -15,6 +15,7 @@ import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
 import { PrerequisiteGuide } from "@/components/activation/PrerequisiteGuide";
 import { isValidLedgerDate, parsePositiveMoneyToMinor } from "@/lib/finance/money";
 import { isMissingLedgerMetadata } from "@/lib/supabase/schemaCompatibility";
+import { isInternalTransferCategory } from "@/lib/transactions/classification";
 
 type Wallet = {
   id: string;
@@ -353,7 +354,14 @@ export default function TransactionsPage() {
       if (walletData && walletData.length > 0 && !sourceWalletId) setSourceWalletId(walletData[0].id);
       if (walletData && walletData.length > 1 && !destinationWalletId) setDestinationWalletId(walletData[1].id);
       const loadedCategories = (categoryData as Category[] | null) ?? [];
-      const initialCategory = loadedCategories.find((category) => category.is_active && category.type === "expense") ?? loadedCategories.find((category) => category.is_active);
+      const initialCategory = loadedCategories.find(
+        (category) =>
+          category.is_active &&
+          category.type === "expense" &&
+          !isInternalTransferCategory(category)
+      ) ?? loadedCategories.find(
+        (category) => category.is_active && !isInternalTransferCategory(category)
+      );
       if (initialCategory && !categoryId) {
         setCategoryId(initialCategory.id);
         setType(initialCategory.type);
@@ -502,6 +510,11 @@ export default function TransactionsPage() {
     const selectedCategory = categories.find((category) => category.id === categoryId);
     if (!selectedCategory?.is_active || selectedCategory.type !== type) {
       setErrorMsg(`Please select an ${type} category for this ${type} transaction.`);
+      setSaving(false);
+      return;
+    }
+    if (isInternalTransferCategory(selectedCategory)) {
+      setErrorMsg("Use Transfer / FX to record both sides of this balance movement together.");
       setSaving(false);
       return;
     }
@@ -688,6 +701,43 @@ export default function TransactionsPage() {
     setSavingEdit(true);
     setErrorMsg("");
 
+    const editingTransaction =
+      transactions.find((transaction) => transaction.id === editingTxId) ??
+      monthTransactions.find((transaction) => transaction.id === editingTxId);
+
+    if (editingTransaction?.transfer_id) {
+      const parsedAmount = parsePositiveMoneyToMinor(editAmount);
+      if (!parsedAmount.ok) {
+        setErrorMsg(parsedAmount.error);
+        setSavingEdit(false);
+        return;
+      }
+      if (!isValidLedgerDate(editDate)) {
+        setErrorMsg("Select a valid transaction date.");
+        setSavingEdit(false);
+        return;
+      }
+
+      const { error } = await supabaseBrowserClient.rpc("update_wallet_transfer", {
+        p_transaction_id: editingTransaction.id,
+        p_amount_minor: parsedAmount.minor,
+        p_occurred_at: new Date(`${editDate}T00:00:00.000Z`).toISOString(),
+        p_description: editDescription.trim() || null,
+      });
+
+      if (error) {
+        console.error("Unable to update paired wallet movement:", error);
+        setErrorMsg("We could not update both sides of this balance movement. No partial change was saved.");
+        setSavingEdit(false);
+        return;
+      }
+
+      setSavingEdit(false);
+      handleCancelInlineEdit();
+      setLoadVersion((value) => value + 1);
+      return;
+    }
+
     if (!editWalletId) {
       setErrorMsg("Please select a wallet for this transaction.");
       setSavingEdit(false);
@@ -777,12 +827,34 @@ export default function TransactionsPage() {
     }
   }
 
-  function handleDeleteTransaction(tx: Transaction) {
+  async function handleDeleteTransaction(tx: Transaction) {
     setErrorMsg("");
 
     if (pendingDelete) {
       clearTimeout(pendingDelete.timeoutId);
       setPendingDelete(null);
+    }
+
+    if (tx.transfer_id) {
+      const confirmed = window.confirm(
+        "Delete both sides of this transfer or currency exchange? This keeps wallet balances consistent."
+      );
+      if (!confirmed) return;
+
+      const { error } = await supabaseBrowserClient.rpc("delete_wallet_transfer", {
+        p_transfer_id: tx.transfer_id,
+      });
+      if (error) {
+        console.error("Unable to delete paired wallet movement:", error);
+        setErrorMsg("We could not delete the complete balance movement. No ledger entries were removed.");
+        return;
+      }
+
+      setTransactions((prev) => prev.filter((item) => item.transfer_id !== tx.transfer_id));
+      setMonthTransactions((prev) => prev.filter((item) => item.transfer_id !== tx.transfer_id));
+      if (editingTxId === tx.id) handleCancelInlineEdit();
+      setLoadVersion((value) => value + 1);
+      return;
     }
 
     setTransactions((prev) => prev.filter((t) => t.id !== tx.id));
@@ -824,6 +896,9 @@ export default function TransactionsPage() {
     categories.map((c) => [c.id, c] as const)
   );
   const activeCategories = categories.filter((category) => category.is_active);
+  const operationalCategories = activeCategories.filter(
+    (category) => !isInternalTransferCategory(category)
+  );
 
   const dateFilteredTransactions = transactions.filter((tx) => {
     const dateStr = tx.occurred_at.slice(0, 10);
@@ -968,24 +1043,30 @@ export default function TransactionsPage() {
                     <optgroup label="Expense categories">
                       {activeCategories
                         .filter((category) => category.type === "expense")
-                        .map((category) => (
-                          <option key={category.id} value={category.id}>
-                            {category.name}
+                        .map((category) => {
+                          const internalMovement = isInternalTransferCategory(category);
+                          return (
+                          <option key={category.id} value={category.id} disabled={internalMovement}>
+                            {category.name}{internalMovement ? " — Use Transfer / FX" : ""}
                           </option>
-                        ))}
+                          );
+                        })}
                     </optgroup>
                     <optgroup label="Income categories">
                       {activeCategories
                         .filter((category) => category.type === "income")
-                        .map((category) => (
-                          <option key={category.id} value={category.id}>
-                            {category.name}
+                        .map((category) => {
+                          const internalMovement = isInternalTransferCategory(category);
+                          return (
+                          <option key={category.id} value={category.id} disabled={internalMovement}>
+                            {category.name}{internalMovement ? " — Use Transfer / FX" : ""}
                           </option>
-                        ))}
+                          );
+                        })}
                     </optgroup>
                   </select>
                   <p className="mt-1 text-[11px] leading-4 text-gray-500">
-                    All {activeCategories.length} active categories are shown. Historical inactive categories remain available when reviewing records.
+                    All {activeCategories.length} active categories are visible. Transfer and FX categories use the paired balance-movement workflow below.
                   </p>
                 </div>
 
@@ -999,7 +1080,7 @@ export default function TransactionsPage() {
                     onChange={(e) => {
                       const nextType = e.target.value as TransactionType;
                       setType(nextType);
-                      setCategoryId(activeCategories.find((category) => category.type === nextType)?.id ?? "");
+                      setCategoryId(operationalCategories.find((category) => category.type === nextType)?.id ?? "");
                     }}
                   >
                     <option value="expense">Expense</option>
@@ -1245,10 +1326,28 @@ export default function TransactionsPage() {
                           className="px-4 py-3 space-y-2 bg-black/60"
                         >
                           <div className="text-[11px] uppercase tracking-wider text-gray-400">
-                            Editing transaction
+                            {tx.transfer_id ? "Editing paired balance movement" : "Editing transaction"}
                           </div>
 
-                          <div className="grid gap-2 md:grid-cols-4">
+                          {tx.transfer_id ? (
+                            <div className="grid gap-2 md:grid-cols-[1fr_220px]">
+                              <p className="rounded-lg border border-blue-400/20 bg-blue-400/10 px-3 py-2 text-xs leading-5 text-blue-100">
+                                Wallet, currency, direction, and classification stay locked so both ledger legs remain consistent. Date and description update both sides.
+                              </p>
+                              <div>
+                                <label className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
+                                  Date
+                                </label>
+                                <input
+                                  type="date"
+                                  className="gl-input text-xs py-1.5"
+                                  value={editDate}
+                                  onChange={(e) => setEditDate(e.target.value)}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="grid gap-2 md:grid-cols-4">
                             <div>
                               <label className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
                                 Wallet
@@ -1283,7 +1382,7 @@ export default function TransactionsPage() {
                                 }}
                               >
                                 <optgroup label="Expense categories">
-                                  {categories
+                                  {operationalCategories
                                     .filter((category) => category.type === "expense")
                                     .map((category) => (
                                       <option key={category.id} value={category.id}>
@@ -1292,7 +1391,7 @@ export default function TransactionsPage() {
                                     ))}
                                 </optgroup>
                                 <optgroup label="Income categories">
-                                  {categories
+                                  {operationalCategories
                                     .filter((category) => category.type === "income")
                                     .map((category) => (
                                       <option key={category.id} value={category.id}>
@@ -1314,7 +1413,7 @@ export default function TransactionsPage() {
                                   const nextType = e.target.value as TransactionType;
                                   setEditType(nextType);
                                   setEditCategoryId(
-                                    categories.find((category) => category.type === nextType)?.id ?? ""
+                                    operationalCategories.find((category) => category.type === nextType)?.id ?? ""
                                   );
                                 }}
                               >
@@ -1334,7 +1433,8 @@ export default function TransactionsPage() {
                                 onChange={(e) => setEditDate(e.target.value)}
                               />
                             </div>
-                          </div>
+                            </div>
+                          )}
 
                           <div className="grid gap-2 md:grid-cols-3">
                             <div>

@@ -103,9 +103,9 @@ export function BudgetCommandCenter({
       caption: monthLabel,
     },
     {
-      label: "At Risk",
+      label: "Needs Attention",
       value: String(atRisk + overBudget),
-      caption: `${healthy} healthy`,
+      caption: `${overBudget} over • ${atRisk} watch • ${healthy} healthy`,
       tone: atRisk + overBudget > 0 ? "warning" : "positive",
     },
     {

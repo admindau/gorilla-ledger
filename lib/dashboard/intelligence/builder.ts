@@ -414,9 +414,9 @@ export function buildDashboardInsightModel({
       currencyCode: "GLOBAL",
       severity: "info",
       title: "Recurring activity ahead",
-      message: `${forecastReconciliation.activeRuleCount} active recurring ${
-        forecastReconciliation.activeRuleCount === 1 ? "rule is" : "rules are"
-      } included in the month-end forecast.`,
+      message: `${forecastReconciliation.activeRuleCount} recurring ${
+        forecastReconciliation.activeRuleCount === 1 ? "rule contributes" : "rules contribute"
+      } to the selected month-end forecast.`,
       metricKey: "forecast.activeRuleCount",
       actionTarget: "recurring",
       actionLabel: "Review recurring rules",

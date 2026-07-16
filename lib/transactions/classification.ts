@@ -70,6 +70,19 @@ export function isOperationalTransaction(
   return !isInternalTransfer(transaction, category);
 }
 
+export function isInternalTransferCategory(
+  category?: ClassifiableCategory | null
+): boolean {
+  if (category?.is_internal_transfer === true) return true;
+
+  const categorySystemKey = normalizeKey(category?.system_key);
+  const categorySlug = normalizeKey(category?.slug);
+  if (INTERNAL_TRANSFER_KEYS.has(categorySystemKey)) return true;
+  if (INTERNAL_TRANSFER_KEYS.has(categorySlug)) return true;
+
+  return INTERNAL_TRANSFER_NAMES.has(normalizeName(category?.name));
+}
+
 function normalizeKey(value?: string | null): string {
   return (value ?? "")
     .trim()
@@ -91,18 +104,11 @@ export function isInternalTransfer(
   category?: ClassifiableCategory | null
 ): boolean {
   if (transaction?.is_internal_transfer === true) return true;
-  if (category?.is_internal_transfer === true) return true;
   if (Boolean(transaction?.transfer_id)) return true;
 
   const transactionType = normalizeKey(transaction?.type);
   const transactionKind = normalizeKey(transaction?.transaction_kind);
-  const categorySystemKey = normalizeKey(category?.system_key);
-  const categorySlug = normalizeKey(category?.slug);
-
   if (INTERNAL_TRANSFER_KEYS.has(transactionType)) return true;
   if (INTERNAL_TRANSFER_KEYS.has(transactionKind)) return true;
-  if (INTERNAL_TRANSFER_KEYS.has(categorySystemKey)) return true;
-  if (INTERNAL_TRANSFER_KEYS.has(categorySlug)) return true;
-
-  return INTERNAL_TRANSFER_NAMES.has(normalizeName(category?.name));
+  return isInternalTransferCategory(category);
 }

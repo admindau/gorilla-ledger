@@ -28,6 +28,8 @@ type Transaction = {
   occurred_at: string;
   description: string | null;
   created_at: string;
+  transaction_kind?: string | null;
+  transfer_id?: string | null;
 };
 
 type TransactionActivityCardProps = {
@@ -96,6 +98,11 @@ export function TransactionActivityCard({
           )}
 
           <div className="mt-3 flex flex-wrap gap-2 text-xs text-gray-500">
+            {tx.transfer_id ? (
+              <span className="rounded-full border border-blue-400/20 bg-blue-400/10 px-2.5 py-1 text-blue-200">
+                {tx.transaction_kind === "fx" ? "Paired FX" : "Paired transfer"}
+              </span>
+            ) : null}
             <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1">
               {dateLabel}
             </span>

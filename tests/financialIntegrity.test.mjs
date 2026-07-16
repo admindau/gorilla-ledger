@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   isInternalTransfer,
+  isInternalTransferCategory,
   isOperationalTransaction,
 } from "../lib/transactions/classification.ts";
 import {
@@ -29,6 +30,19 @@ test("explicit ledger semantics survive category renames", () => {
     isInternalTransfer({ transfer_id: "pair-id" }, { name: "Anything" }),
     true
   );
+});
+
+test("internal categories stay identifiable before a transaction exists", () => {
+  for (const category of [
+    { name: "Transfer In" },
+    { name: "Transfer Out" },
+    { name: "FX" },
+    { slug: "currency-exchange" },
+    { system_key: "wallet_transfer" },
+  ]) {
+    assert.equal(isInternalTransferCategory(category), true);
+  }
+  assert.equal(isInternalTransferCategory({ name: "Salary" }), false);
 });
 
 test("strict money parsing accepts grouping and rejects silent truncation", () => {

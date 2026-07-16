@@ -535,7 +535,7 @@ export default function WalletsPage() {
       <PageSection>
         <div className="grid gap-4 md:grid-cols-3">
           <Card variant="inner" className="p-5">
-            <p className="text-xs uppercase tracking-[0.24em] text-white/35">Largest Wallet</p>
+            <p className="text-xs uppercase tracking-[0.24em] text-white/35">Largest Opening Position</p>
             {loading ? (
               <div className="mt-3 space-y-3">
                 <Skeleton className="h-8 w-36" rounded="lg" />
