@@ -850,14 +850,37 @@ export default function TransactionsPage() {
                   <select
                     className="gl-input"
                     value={categoryId}
-                    onChange={(e) => setCategoryId(e.target.value)}
+                    onChange={(e) => {
+                      const nextCategoryId = e.target.value;
+                      const nextCategory = categories.find(
+                        (category) => category.id === nextCategoryId
+                      );
+                      setCategoryId(nextCategoryId);
+                      if (nextCategory) setType(nextCategory.type);
+                    }}
                   >
-                    {categories.filter((category) => category.type === type).map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} ({c.type})
-                      </option>
-                    ))}
+                    <optgroup label="Expense categories">
+                      {categories
+                        .filter((category) => category.type === "expense")
+                        .map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {category.name}
+                          </option>
+                        ))}
+                    </optgroup>
+                    <optgroup label="Income categories">
+                      {categories
+                        .filter((category) => category.type === "income")
+                        .map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {category.name}
+                          </option>
+                        ))}
+                    </optgroup>
                   </select>
+                  <p className="mt-1 text-[11px] leading-4 text-gray-500">
+                    All {categories.length} active categories are shown. Selecting one sets the transaction type.
+                  </p>
                 </div>
 
                 <div>
@@ -1089,13 +1112,33 @@ export default function TransactionsPage() {
                               <select
                                 className="gl-input text-xs py-1.5"
                                 value={editCategoryId}
-                                onChange={(e) => setEditCategoryId(e.target.value)}
+                                onChange={(e) => {
+                                  const nextCategoryId = e.target.value;
+                                  const nextCategory = categories.find(
+                                    (category) => category.id === nextCategoryId
+                                  );
+                                  setEditCategoryId(nextCategoryId);
+                                  if (nextCategory) setEditType(nextCategory.type);
+                                }}
                               >
-                                {categories.map((c) => (
-                                  <option key={c.id} value={c.id}>
-                                    {c.name} ({c.type})
-                                  </option>
-                                ))}
+                                <optgroup label="Expense categories">
+                                  {categories
+                                    .filter((category) => category.type === "expense")
+                                    .map((category) => (
+                                      <option key={category.id} value={category.id}>
+                                        {category.name}
+                                      </option>
+                                    ))}
+                                </optgroup>
+                                <optgroup label="Income categories">
+                                  {categories
+                                    .filter((category) => category.type === "income")
+                                    .map((category) => (
+                                      <option key={category.id} value={category.id}>
+                                        {category.name}
+                                      </option>
+                                    ))}
+                                </optgroup>
                               </select>
                             </div>
 
@@ -1106,9 +1149,13 @@ export default function TransactionsPage() {
                               <select
                                 className="gl-input text-xs py-1.5"
                                 value={editType}
-                                onChange={(e) =>
-                                  setEditType(e.target.value as TransactionType)
-                                }
+                                onChange={(e) => {
+                                  const nextType = e.target.value as TransactionType;
+                                  setEditType(nextType);
+                                  setEditCategoryId(
+                                    categories.find((category) => category.type === nextType)?.id ?? ""
+                                  );
+                                }}
                               >
                                 <option value="expense">Expense</option>
                                 <option value="income">Income</option>
