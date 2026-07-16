@@ -1,35 +1,34 @@
 import type { Metadata } from "next";
 import { TrustPage, TrustSection } from "@/components/public/TrustPage";
+import { COMPANY_NAME, SUPPORT_EMAIL } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "Contact | Gorilla Ledger™",
+  title: "Contact",
   description: "Contact Gorilla Ledger support or report a security concern.",
 };
-
-const CONTACT_EMAIL = "hello@savvyrilla.tech";
 
 export default function ContactPage() {
   return (
     <TrustPage
       eyebrow="Contact"
       title="How can we help?"
-      description="Contact Savvy Rilla Technologies for product support, privacy questions, or responsible security reports."
+      description={`Contact ${COMPANY_NAME} for product support, privacy questions, or responsible security reports.`}
     >
       <section className="gl-contact-grid" aria-label="Contact options">
-        <a href={`mailto:${CONTACT_EMAIL}?subject=Gorilla%20Ledger%20support`}>
+        <a href={`mailto:${SUPPORT_EMAIL}?subject=Gorilla%20Ledger%20support`}>
           <span>Product support</span>
           <p>Questions about your account, transactions, exports, or app behavior.</p>
-          <strong>{CONTACT_EMAIL}</strong>
+          <strong>{SUPPORT_EMAIL}</strong>
         </a>
-        <a href={`mailto:${CONTACT_EMAIL}?subject=Gorilla%20Ledger%20privacy`}>
+        <a href={`mailto:${SUPPORT_EMAIL}?subject=Gorilla%20Ledger%20privacy`}>
           <span>Privacy</span>
           <p>Questions or requests concerning your personal information.</p>
-          <strong>{CONTACT_EMAIL}</strong>
+          <strong>{SUPPORT_EMAIL}</strong>
         </a>
-        <a href={`mailto:${CONTACT_EMAIL}?subject=Gorilla%20Ledger%20security%20report`}>
+        <a href={`mailto:${SUPPORT_EMAIL}?subject=Gorilla%20Ledger%20security%20report`}>
           <span>Security</span>
           <p>Report a suspected vulnerability or account-security concern privately.</p>
-          <strong>{CONTACT_EMAIL}</strong>
+          <strong>{SUPPORT_EMAIL}</strong>
         </a>
       </section>
 
@@ -44,7 +43,7 @@ export default function ContactPage() {
 
       <TrustSection title="Response expectations">
         <p>
-          Messages are reviewed by Savvy Rilla Technologies. Response time depends on the nature and urgency of the request; security and account-access concerns receive priority.
+          Messages are reviewed by {COMPANY_NAME}. Response time depends on the nature and urgency of the request; security and account-access concerns receive priority.
         </p>
       </TrustSection>
     </TrustPage>

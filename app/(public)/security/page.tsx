@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { TrustPage, TrustSection } from "@/components/public/TrustPage";
+import { SUPPORT_EMAIL } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "Security | Gorilla Ledger™",
+  title: "Security",
   description: "How Gorilla Ledger protects accounts and financial records.",
 };
 
@@ -40,7 +41,7 @@ export default function SecurityPage() {
 
       <TrustSection title="Responsible disclosure">
         <p>
-          If you believe you have found a vulnerability, email <a href="mailto:hello@savvyrilla.tech?subject=Gorilla%20Ledger%20security%20report">hello@savvyrilla.tech</a>. Please do not access another person&apos;s information, disrupt the service, or publicly disclose an unresolved issue.
+          If you believe you have found a vulnerability, email <a href={`mailto:${SUPPORT_EMAIL}?subject=Gorilla%20Ledger%20security%20report`}>{SUPPORT_EMAIL}</a>. Please do not access another person&apos;s information, disrupt the service, or publicly disclose an unresolved issue.
         </p>
         <p><Link href="/contact">See all contact options</Link>.</p>
       </TrustSection>

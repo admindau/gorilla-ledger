@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { PublicFooter } from "@/components/public/PublicFooter";
 import { PublicHeader } from "@/components/public/PublicHeader";
+import { COMPANY_NAME, PRODUCT_NAME } from "@/lib/brand";
 
 export default function HomePage() {
   return (
@@ -12,7 +13,7 @@ export default function HomePage() {
         {/* Logo */}
         <Image
           src="/logos/savvy-gorilla-logo.png"
-          alt="Savvy Rilla Technologies"
+          alt={COMPANY_NAME}
           width={250}
           height={250}
           className="object-contain"
@@ -20,13 +21,13 @@ export default function HomePage() {
 
         {/* Title */}
         <h1 className="text-4xl font-semibold text-center">
-          Gorilla Ledger™
+          {PRODUCT_NAME}
         </h1>
 
         {/* Description */}
         <p className="text-gray-400 text-center max-w-xl">
           A clean, focused ledger to track your finances across wallets, currencies,
-          and time. Built by Savvy Rilla Technologies — for clarity, not confusion.
+          and time. Built by {COMPANY_NAME} — for clarity, not confusion.
         </p>
 
           {/* Buttons */}

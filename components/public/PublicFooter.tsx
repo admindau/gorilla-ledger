@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { COMPANY_NAME, PRODUCT_NAME } from "@/lib/brand";
 
 const footerGroups = [
   {
@@ -23,8 +24,8 @@ export function PublicFooter({ compact = false }: { compact?: boolean }) {
     <footer className={["gl-public-footer", compact ? "gl-public-footer-compact" : ""].filter(Boolean).join(" ")}>
       <div className="gl-public-footer-inner">
         <div>
-          <Link href="/" className="gl-public-footer-brand">Gorilla Ledger™</Link>
-          <p>A product of Savvy Rilla Technologies.</p>
+          <Link href="/" className="gl-public-footer-brand">{PRODUCT_NAME}</Link>
+          <p>A product of {COMPANY_NAME}.</p>
         </div>
 
         <div className="gl-public-footer-links">
@@ -40,7 +41,7 @@ export function PublicFooter({ compact = false }: { compact?: boolean }) {
           ))}
         </div>
 
-        <p className="gl-public-footer-copy">© {new Date().getFullYear()} Savvy Rilla Technologies.</p>
+        <p className="gl-public-footer-copy">© {new Date().getFullYear()} {COMPANY_NAME}.</p>
       </div>
     </footer>
   );

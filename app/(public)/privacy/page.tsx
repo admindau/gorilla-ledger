@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { TrustPage, TrustSection } from "@/components/public/TrustPage";
+import { COMPANY_NAME, SUPPORT_EMAIL } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "Privacy | Gorilla Ledger™",
+  title: "Privacy",
   description: "How Gorilla Ledger handles account and financial information.",
 };
 
@@ -17,7 +18,7 @@ export default function PrivacyPage() {
     >
       <TrustSection title="Who is responsible">
         <p>
-          Gorilla Ledger is a product of Savvy Rilla Technologies. Privacy questions and requests can be sent to <a href="mailto:hello@savvyrilla.tech">hello@savvyrilla.tech</a>.
+          Gorilla Ledger is a product of {COMPANY_NAME}. Privacy questions and requests can be sent to <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
         </p>
       </TrustSection>
 
@@ -44,7 +45,7 @@ export default function PrivacyPage() {
 
       <TrustSection title="Service providers">
         <p>
-          Gorilla Ledger uses Supabase for authentication, database, and file-storage services, and Vercel for application hosting and performance monitoring. These providers process information to deliver their services to Savvy Rilla Technologies and may operate infrastructure in multiple countries.
+          Gorilla Ledger uses Supabase for authentication, database, and file-storage services, and Vercel for application hosting and performance monitoring. These providers process information to deliver their services to {COMPANY_NAME} and may operate infrastructure in multiple countries.
         </p>
       </TrustSection>
 

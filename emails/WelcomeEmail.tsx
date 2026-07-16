@@ -1,13 +1,15 @@
+import { COMPANY_NAME, PRODUCT_NAME } from "@/lib/brand";
+
 export default function WelcomeEmail() {
   return (
-    <div style={{ fontFamily: 'Arial', padding: '20px' }}>
-      <h2>Welcome to Gorilla Ledger 🦍🔥</h2>
-      <p>Your financial jungle just got smarter.</p>
-      <p>Track wallets, budgets, transactions and much more.</p>
+    <div style={{ fontFamily: "Arial, sans-serif", padding: "20px" }}>
+      <h2>Welcome to {PRODUCT_NAME}</h2>
+      <p>Your account is ready.</p>
+      <p>Start with a wallet, then add transactions, budgets, and recurring activity.</p>
 
-      <p style={{ marginTop: '20px' }}>
-        Respect,<br />
-        <strong>Savvy Gorilla Technologies</strong>
+      <p style={{ marginTop: "20px" }}>
+        Regards,<br />
+        <strong>{COMPANY_NAME}</strong>
       </p>
     </div>
   );

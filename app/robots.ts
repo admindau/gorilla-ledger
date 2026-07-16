@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { PRODUCT_URL } from "@/lib/brand";
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -7,6 +8,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: ["/", "/about", "/contact", "/privacy", "/terms", "/security"],
       disallow: ["/dashboard", "/wallets", "/categories", "/transactions", "/budgets", "/recurring", "/exports", "/settings", "/mfa", "/auth"],
     },
-    sitemap: "https://gl.savvyrilla.tech/sitemap.xml",
+    sitemap: `${PRODUCT_URL}/sitemap.xml`,
   };
 }

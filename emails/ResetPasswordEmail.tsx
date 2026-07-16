@@ -1,4 +1,5 @@
 import React from "react";
+import { PRODUCT_NAME, PRODUCT_SIGNATURE } from "@/lib/brand";
 
 export default function ResetPasswordEmail({ resetLink }: { resetLink: string }) {
   return (
@@ -24,7 +25,7 @@ export default function ResetPasswordEmail({ resetLink }: { resetLink: string })
           <tr>
             <td>
               <h2 style={{ marginBottom: "12px", fontSize: "20px" }}>
-                Reset your Gorilla Ledger™ password
+                Reset your {PRODUCT_NAME} password
               </h2>
 
               <p style={{ fontSize: "14px", marginBottom: "16px" }}>
@@ -55,7 +56,7 @@ export default function ResetPasswordEmail({ resetLink }: { resetLink: string })
               </p>
 
               <p style={{ fontSize: "11px", color: "#999", marginTop: "24px" }}>
-                Gorilla Ledger™ • savvyrilla.tech
+                {PRODUCT_SIGNATURE}
               </p>
             </td>
           </tr>

@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { TrustPage, TrustSection } from "@/components/public/TrustPage";
+import { COMPANY_NAME, SUPPORT_EMAIL } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "Terms | Gorilla Ledger™",
+  title: "Terms",
   description: "Terms for using Gorilla Ledger.",
 };
 
@@ -16,7 +17,7 @@ export default function TermsPage() {
     >
       <TrustSection title="The service">
         <p>
-          Gorilla Ledger is a personal financial-record application provided by Savvy Rilla Technologies. It helps users record transactions, organize wallets and categories, create budgets, schedule recurring activity, and review financial summaries.
+          Gorilla Ledger is a personal financial-record application provided by {COMPANY_NAME}. It helps users record transactions, organize wallets and categories, create budgets, schedule recurring activity, and review financial summaries.
         </p>
       </TrustSection>
 
@@ -59,7 +60,7 @@ export default function TermsPage() {
 
       <TrustSection title="Intellectual property">
         <p>
-          Gorilla Ledger, its design, software, branding, and documentation belong to Savvy Rilla Technologies or its licensors. These terms do not transfer ownership of the service to you. Your ledger content remains yours.
+          Gorilla Ledger, its design, software, branding, and documentation belong to {COMPANY_NAME} or its licensors. These terms do not transfer ownership of the service to you. Your ledger content remains yours.
         </p>
       </TrustSection>
 
@@ -71,7 +72,7 @@ export default function TermsPage() {
 
       <TrustSection title="Contact">
         <p>
-          Questions about these terms may be sent to <a href="mailto:hello@savvyrilla.tech">hello@savvyrilla.tech</a>.
+          Questions about these terms may be sent to <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
         </p>
       </TrustSection>
     </TrustPage>

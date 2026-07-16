@@ -1,6 +1,7 @@
 "use server";
 
 import { sendEmail } from "@/lib/email";
+import { PRODUCT_NAME, PRODUCT_SIGNATURE } from "@/lib/brand";
 
 export async function sendWelcome(userEmail: string) {
   const html = `
@@ -10,7 +11,7 @@ export async function sendWelcome(userEmail: string) {
           <tr>
             <td align="center" style="padding-bottom:16px;">
               <div style="display:inline-block; padding:8px 14px; border-radius:999px; border:1px solid #333333; background:#000000; color:#ffffff; font-size:11px; letter-spacing:0.08em; text-transform:uppercase;">
-                Gorilla Ledger™
+                ${PRODUCT_NAME}
               </div>
             </td>
           </tr>
@@ -18,17 +19,17 @@ export async function sendWelcome(userEmail: string) {
           <tr>
             <td style="background:#ffffff; border-radius:16px; padding:24px; border:1px solid #222222;">
               <h2 style="margin:0 0 12px; font-size:22px; color:#000000;">
-                Welcome to Gorilla Ledger™
+                Welcome to ${PRODUCT_NAME}
               </h2>
 
               <p style="margin:0 0 12px; font-size:14px; line-height:1.6; color:#111111;">
-                Your financial jungle just got smarter. You can now track wallets, incomes,
-                expenses and budgets in one focused, distraction-free space.
+                Your account is ready. You can now track wallets, income, expenses,
+                budgets, and recurring activity in one focused space.
               </p>
 
               <p style="margin:0 0 18px; font-size:14px; line-height:1.6; color:#111111;">
-                Start by adding your first wallet and logging a few transactions – Gorilla Ledger
-                will do the rest.
+                Start by adding your first wallet, then record a few transactions to build
+                a clear view of your finances.
               </p>
 
               <p style="margin:0 0 24px; font-size:12px; line-height:1.6; color:#555555;">
@@ -38,7 +39,7 @@ export async function sendWelcome(userEmail: string) {
               <hr style="border:none; border-top:1px solid #eeeeee; margin:0 0 12px;" />
 
               <p style="margin:0; font-size:11px; color:#888888;">
-                Gorilla Ledger™ • Built by Savvy Rilla / Savvy Gorilla Technologies™ • savvyrilla.tech
+                ${PRODUCT_SIGNATURE}
               </p>
             </td>
           </tr>
@@ -49,7 +50,7 @@ export async function sendWelcome(userEmail: string) {
 
   await sendEmail({
     to: userEmail,
-    subject: "Welcome to Gorilla Ledger 🦍🔥",
+    subject: `Welcome to ${PRODUCT_NAME}`,
     html,
   });
 }

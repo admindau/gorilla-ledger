@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/email";
+import { PRODUCT_NAME, PRODUCT_SIGNATURE } from "@/lib/brand";
 
 export async function POST(request: Request) {
   try {
@@ -84,7 +85,7 @@ export async function POST(request: Request) {
             <tr>
               <td align="center" style="padding-bottom:16px;">
                 <div style="display:inline-block; padding:8px 14px; border-radius:999px; border:1px solid #333333; background:#000000; color:#ffffff; font-size:11px; letter-spacing:0.08em; text-transform:uppercase;">
-                  Gorilla Ledger™
+                  ${PRODUCT_NAME}
                 </div>
               </td>
             </tr>
@@ -92,11 +93,11 @@ export async function POST(request: Request) {
             <tr>
               <td style="background:#ffffff; border-radius:16px; padding:24px; border:1px solid #222222;">
                 <h2 style="margin:0 0 12px; font-size:22px; color:#000000;">
-                  Reset your Gorilla Ledger™ password
+                  Reset your ${PRODUCT_NAME} password
                 </h2>
 
                 <p style="margin:0 0 12px; font-size:14px; line-height:1.6; color:#111111;">
-                  You requested to reset the password for your Gorilla Ledger™ account.
+                  You requested to reset the password for your ${PRODUCT_NAME} account.
                   Click the button below to choose a new password.
                 </p>
 
@@ -122,7 +123,7 @@ export async function POST(request: Request) {
                 <hr style="border:none; border-top:1px solid #eeeeee; margin:0 0 12px;" />
 
                 <p style="margin:0; font-size:11px; color:#888888;">
-                  Gorilla Ledger™ • Built by Savvy Rilla / Savvy Gorilla Technologies • savvyrilla.tech
+                  ${PRODUCT_SIGNATURE}
                 </p>
               </td>
             </tr>
@@ -133,7 +134,7 @@ export async function POST(request: Request) {
 
     const result = await sendEmail({
       to: email,
-      subject: "Reset Your Gorilla Ledger™ Password",
+      subject: `Reset your ${PRODUCT_NAME} password`,
       html,
     });
 

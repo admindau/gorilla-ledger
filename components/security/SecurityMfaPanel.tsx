@@ -106,8 +106,8 @@ export function SecurityMfaPanel({
 
       {!backupConfigured ? (
         <div className="mt-5 rounded-2xl border border-yellow-500/30 bg-yellow-950/20 px-4 py-3 text-sm text-yellow-100">
-          Savvy Gorilla™ does not provide recovery codes. For account recovery,
-          enroll a backup authenticator factor on a different device or app.
+          Gorilla Ledger does not currently issue recovery codes. For account
+          recovery, enroll a backup authenticator on a different device or app.
         </div>
       ) : null}
 

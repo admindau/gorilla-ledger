@@ -72,4 +72,4 @@ Financial Intelligence Expansion
 
 ## Long-Term Vision
 
-Gorilla Ledger™ evolves from a financial tracker into a comprehensive personal and business financial operating system within the Savvy Gorilla ecosystem.
+Gorilla Ledger™ evolves from a financial tracker into a comprehensive personal and business financial operating system within the Savvy Rilla Technologies ecosystem.

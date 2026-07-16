@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { TrustPage, TrustSection } from "@/components/public/TrustPage";
+import { COMPANY_NAME, COMPANY_SITE_URL } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "About | Gorilla Ledger™",
-  description: "Learn why Savvy Rilla Technologies built Gorilla Ledger.",
+  title: "About",
+  description: `Learn why ${COMPANY_NAME} built Gorilla Ledger.`,
 };
 
 export default function AboutPage() {
@@ -29,12 +30,12 @@ export default function AboutPage() {
         </ul>
       </TrustSection>
 
-      <TrustSection title="Built by Savvy Rilla Technologies">
+      <TrustSection title={`Built by ${COMPANY_NAME}`}>
         <p>
-          Gorilla Ledger is developed by Savvy Rilla Technologies, a technology company building practical digital products and infrastructure from Juba.
+          Gorilla Ledger is developed by {COMPANY_NAME}, a technology company building practical digital products and infrastructure from Juba.
         </p>
         <p>
-          Visit <a href="https://savvyrilla.tech" rel="noreferrer">savvyrilla.tech</a> or <Link href="/contact">contact us</Link> to learn more.
+          Visit <a href={COMPANY_SITE_URL} rel="noreferrer">savvyrilla.tech</a> or <Link href="/contact">contact us</Link> to learn more.
         </p>
       </TrustSection>
     </TrustPage>
