@@ -11,6 +11,7 @@ import {
   parseMoneyToMinor,
   parsePositiveMoneyToMinor,
 } from "../lib/finance/money.ts";
+import { isMissingLedgerMetadata } from "../lib/supabase/schemaCompatibility.ts";
 
 test("FX categories are balance movements, not operating income or expense", () => {
   for (const name of ["FX", "Foreign Exchange", "Currency conversion"]) {
@@ -48,4 +49,15 @@ test("ledger dates use their stored calendar date independent of local timezone"
     year: 2026,
     month0: 6,
   });
+});
+
+test("schema compatibility only falls back for known ledger metadata drift", () => {
+  assert.equal(
+    isMissingLedgerMetadata({ code: "42703", message: "column transactions.transaction_kind does not exist" }),
+    true
+  );
+  assert.equal(
+    isMissingLedgerMetadata({ code: "42501", message: "permission denied for table transactions" }),
+    false
+  );
 });

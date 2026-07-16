@@ -23,6 +23,8 @@ import { MonthlyReview } from "@/components/retention/MonthlyReview";
 import DashboardAnalyticsAccordionItem from "@/components/dashboard/DashboardAnalyticsAccordionItem";
 
 import Skeleton from "@/components/ui/Skeleton";
+import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
+import { isMissingLedgerMetadata } from "@/lib/supabase/schemaCompatibility";
 
 const ChartModuleLoading = () => (
   <div
@@ -194,7 +196,7 @@ async function fetchAllTransactions(
 
     const from = page * DASHBOARD_PAGE_SIZE;
     const to = from + DASHBOARD_PAGE_SIZE - 1;
-    const result = await supabaseBrowserClient
+    const enhancedResult = await supabaseBrowserClient
       .from("transactions")
       .select(
         "id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at, transaction_kind, transfer_id"
@@ -204,11 +206,25 @@ async function fetchAllTransactions(
       .range(from, to)
       .abortSignal(signal);
 
-    if (result.error) {
-      return { data: [], error: new Error(result.error.message) };
+    let pageData = enhancedResult.data as Transaction[] | null;
+    let pageError = enhancedResult.error;
+    if (isMissingLedgerMetadata(enhancedResult.error)) {
+      const legacyResult = await supabaseBrowserClient
+        .from("transactions")
+        .select("id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at")
+        .order("occurred_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to)
+        .abortSignal(signal);
+      pageData = legacyResult.data as Transaction[] | null;
+      pageError = legacyResult.error;
     }
 
-    const pageRows = (result.data ?? []) as Transaction[];
+    if (pageError) {
+      return { data: [], error: new Error(pageError.message) };
+    }
+
+    const pageRows = pageData ?? [];
     rows.push(...pageRows);
 
     if (pageRows.length < DASHBOARD_PAGE_SIZE) {
@@ -403,25 +419,25 @@ export default function DashboardPage() {
         if (walletRes.error) {
           if (isAbortError(walletRes.error)) return;
           console.error(walletRes.error);
-          setErrorMsg(walletRes.error.message);
+          setErrorMsg("unavailable");
           return;
         }
         if (categoryRes.error) {
           if (isAbortError(categoryRes.error)) return;
           console.error(categoryRes.error);
-          setErrorMsg(categoryRes.error.message);
+          setErrorMsg("unavailable");
           return;
         }
         if (txRes.error) {
           if (isAbortError(txRes.error)) return;
           console.error(txRes.error);
-          setErrorMsg(txRes.error.message);
+          setErrorMsg("unavailable");
           return;
         }
         if (budgetRes.error) {
           if (isAbortError(budgetRes.error)) return;
           console.error(budgetRes.error);
-          setErrorMsg(budgetRes.error.message);
+          setErrorMsg("unavailable");
           return;
         }
 
@@ -443,11 +459,7 @@ export default function DashboardPage() {
       } catch (error: unknown) {
         if (!canCommit() || isAbortError(error)) return;
         console.error("Dashboard initialization failed:", error);
-        setErrorMsg(
-          error instanceof Error
-            ? error.message
-            : "The dashboard could not be loaded."
-        );
+        setErrorMsg("unavailable");
       } finally {
         if (canCommit()) {
           setLoadingData(false);
@@ -921,6 +933,28 @@ export default function DashboardPage() {
   const SK_CHART = "h-[300px] sm:h-[320px]";
   const SK_CHART_TALL = "h-[320px] sm:h-[360px]";
 
+  if (errorMsg && !loadingData) {
+    return (
+      <div className="gl-page-migrated gl-dashboard-shell">
+        <div className="gl-page-shell gl-dashboard-main max-w-7xl" aria-labelledby="dashboard-title">
+          <div className="gl-dashboard-page-header">
+            <div>
+              <h1 id="dashboard-title" className="text-2xl font-semibold tracking-[-0.035em] sm:text-3xl">Command Center</h1>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-400">
+                Premium financial intelligence across wallets, budgets, recurring flows, and activity.
+              </p>
+            </div>
+          </div>
+          <DataLoadAlert
+            title="Your command center is temporarily unavailable"
+            message="We could not verify the latest ledger records, so no balances, totals, or setup recommendations are being shown. Your saved data has not been changed."
+            onRetry={() => setDataVersion((version) => version + 1)}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="gl-page-migrated gl-dashboard-shell">
       {/* Tight top header */}
@@ -944,12 +978,6 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
-
-        {errorMsg && (
-          <p className="mb-6 text-red-400 text-sm" role="alert">
-            {errorMsg}
-          </p>
-        )}
 
         {!loadingData ? <ActivationGuide model={activationModel} /> : null}
 

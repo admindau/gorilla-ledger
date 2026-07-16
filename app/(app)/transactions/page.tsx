@@ -14,6 +14,7 @@ import { TransactionTimeline } from "@/components/transactions/TransactionTimeli
 import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
 import { PrerequisiteGuide } from "@/components/activation/PrerequisiteGuide";
 import { isValidLedgerDate, parsePositiveMoneyToMinor } from "@/lib/finance/money";
+import { isMissingLedgerMetadata } from "@/lib/supabase/schemaCompatibility";
 
 type Wallet = {
   id: string;
@@ -70,7 +71,7 @@ async function loadCurrentMonthTransactions(): Promise<{
   const rows: Transaction[] = [];
 
   for (let from = 0; ; from += SUMMARY_PAGE_SIZE) {
-    const { data, error } = await supabaseBrowserClient
+    const enhancedResult = await supabaseBrowserClient
       .from("transactions")
       .select("id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at, description, created_at, transaction_kind, transfer_id")
       .gte("occurred_at", start)
@@ -78,8 +79,22 @@ async function loadCurrentMonthTransactions(): Promise<{
       .order("occurred_at", { ascending: false })
       .range(from, from + SUMMARY_PAGE_SIZE - 1);
 
-    if (error) return { data: [], error: error.message };
-    const page = (data ?? []) as Transaction[];
+    let pageData = enhancedResult.data as Transaction[] | null;
+    let pageError = enhancedResult.error;
+    if (isMissingLedgerMetadata(enhancedResult.error)) {
+      const legacyResult = await supabaseBrowserClient
+        .from("transactions")
+        .select("id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at, description, created_at")
+        .gte("occurred_at", start)
+        .lt("occurred_at", end)
+        .order("occurred_at", { ascending: false })
+        .range(from, from + SUMMARY_PAGE_SIZE - 1);
+      pageData = legacyResult.data as Transaction[] | null;
+      pageError = legacyResult.error;
+    }
+
+    if (pageError) return { data: [], error: pageError.message };
+    const page = pageData ?? [];
     rows.push(...page);
     if (page.length < SUMMARY_PAGE_SIZE) return { data: rows, error: null };
   }
@@ -625,7 +640,11 @@ export default function TransactionsPage() {
     });
 
     if (error) {
-      setErrorMsg(error.message);
+      setErrorMsg(
+        isMissingLedgerMetadata(error)
+          ? "Transfers and currency exchanges are being upgraded. Refresh after the database update is complete."
+          : "We could not save both sides of this balance movement. No partial transfer was created."
+      );
       setSavingTransfer(false);
       return;
     }

@@ -11,6 +11,7 @@ import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
 import { PrerequisiteGuide } from "@/components/activation/PrerequisiteGuide";
 import { parsePositiveMoneyToMinor } from "@/lib/finance/money";
 import { isOperationalTransaction } from "@/lib/transactions/classification";
+import { isMissingLedgerMetadata } from "@/lib/supabase/schemaCompatibility";
 
 type Wallet = {
   id: string;
@@ -56,15 +57,28 @@ async function loadAllExpenseTransactions(): Promise<{
   const rows: Transaction[] = [];
 
   for (let from = 0; ; from += BUDGET_TRANSACTION_PAGE_SIZE) {
-    const { data, error } = await supabaseBrowserClient
+    const enhancedResult = await supabaseBrowserClient
       .from("transactions")
       .select("id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at, transaction_kind, transfer_id")
       .eq("type", "expense")
       .order("occurred_at", { ascending: false })
       .range(from, from + BUDGET_TRANSACTION_PAGE_SIZE - 1);
 
-    if (error) return { data: [], error: error.message };
-    const page = (data ?? []) as Transaction[];
+    let pageData = enhancedResult.data as Transaction[] | null;
+    let pageError = enhancedResult.error;
+    if (isMissingLedgerMetadata(enhancedResult.error)) {
+      const legacyResult = await supabaseBrowserClient
+        .from("transactions")
+        .select("id, wallet_id, category_id, type, amount_minor, currency_code, occurred_at")
+        .eq("type", "expense")
+        .order("occurred_at", { ascending: false })
+        .range(from, from + BUDGET_TRANSACTION_PAGE_SIZE - 1);
+      pageData = legacyResult.data as Transaction[] | null;
+      pageError = legacyResult.error;
+    }
+
+    if (pageError) return { data: [], error: pageError.message };
+    const page = pageData ?? [];
     rows.push(...page);
     if (page.length < BUDGET_TRANSACTION_PAGE_SIZE) return { data: rows, error: null };
   }

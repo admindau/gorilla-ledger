@@ -8,6 +8,7 @@ import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
 import Skeleton from "@/components/ui/Skeleton";
 import TrustIndicator from "@/components/ui/TrustIndicator";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
+import { isMissingLedgerMetadata } from "@/lib/supabase/schemaCompatibility";
 import {
   buildLedgerExports,
   type ExportBudget,
@@ -37,6 +38,18 @@ async function loadPagedTable(table: string, columns: string) {
   }
 }
 
+async function loadTransactionsForExport() {
+  const enhanced = await loadPagedTable(
+    "transactions",
+    "id,wallet_id,category_id,type,amount_minor,currency_code,occurred_at,description,created_at,transaction_kind,transfer_id,recurring_rule_id,scheduled_for"
+  );
+  if (!enhanced.error || !isMissingLedgerMetadata({ message: enhanced.error })) return enhanced;
+  return loadPagedTable(
+    "transactions",
+    "id,wallet_id,category_id,type,amount_minor,currency_code,occurred_at,description,created_at"
+  );
+}
+
 export default function ExportCenterPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -55,7 +68,7 @@ export default function ExportCenterPage() {
           supabaseBrowserClient.auth.getUser(),
           loadPagedTable("wallets", "id,name,type,currency_code,starting_balance_minor,created_at,updated_at"),
           loadPagedTable("categories", "id,name,type,is_active,created_at"),
-          loadPagedTable("transactions", "id,wallet_id,category_id,type,amount_minor,currency_code,occurred_at,description,created_at,transaction_kind,transfer_id,recurring_rule_id,scheduled_for"),
+          loadTransactionsForExport(),
           loadPagedTable("budgets", "id,wallet_id,category_id,year,month,amount_minor,created_at,updated_at"),
           loadPagedTable("recurring_rules", "id,wallet_id,category_id,type,amount_minor,currency_code,frequency,interval,day_of_month,day_of_week,start_date,end_date,next_run_at,last_run_at,total_runs,description,is_active,created_at"),
         ]);
@@ -117,6 +130,25 @@ export default function ExportCenterPage() {
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
+  if (loadError && !loading) {
+    return (
+      <div className="gl-page-migrated">
+        <PageShell className="max-w-5xl">
+          <PageHeader
+            eyebrow="Data Portability"
+            title="Export Center"
+            description="Take a complete, currency-explicit copy of your Gorilla Ledger records for analysis, reporting, or safekeeping."
+          />
+          <DataLoadAlert
+            title="Exports are temporarily unavailable"
+            message="We could not verify every ledger dataset, so export files have not been generated. Your records remain safely stored and unchanged."
+            onRetry={() => setLoadVersion((value) => value + 1)}
+          />
+        </PageShell>
+      </div>
+    );
+  }
+
   return (
     <div className="gl-page-migrated">
       <PageShell className="max-w-5xl">
@@ -125,8 +157,6 @@ export default function ExportCenterPage() {
           title="Export Center"
           description="Take a complete, currency-explicit copy of your Gorilla Ledger records for analysis, reporting, or safekeeping."
         />
-
-        {loadError ? <DataLoadAlert onRetry={() => setLoadVersion((value) => value + 1)} /> : null}
 
         <Card variant="premium" className="p-5 sm:p-6" aria-busy={loading}>
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">

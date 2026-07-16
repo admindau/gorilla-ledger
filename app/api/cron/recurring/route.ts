@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
 import { advanceRecurringDate } from "@/lib/recurring/forecast";
+import { isMissingLedgerMetadata } from "@/lib/supabase/schemaCompatibility";
 
 /**
  * Match your recurring_rules schema.
@@ -234,13 +235,34 @@ async function handler(req: NextRequest) {
         break;
       }
 
-      const existingQuery = supabase
+      const enhancedExistingResult = await supabase
         .from("transactions")
         .select("id")
         .eq("recurring_rule_id", rule.id)
-        .eq("scheduled_for", dueAtIso);
+        .eq("scheduled_for", dueAtIso)
+        .maybeSingle();
 
-      const { data: existingTx, error: exErr } = await existingQuery.maybeSingle();
+      let metadataAvailable = !isMissingLedgerMetadata(enhancedExistingResult.error);
+      let existingTx = enhancedExistingResult.data;
+      let exErr = enhancedExistingResult.error;
+
+      if (!metadataAvailable) {
+        let legacyQuery = supabase
+          .from("transactions")
+          .select("id")
+          .eq("user_id", rule.user_id)
+          .eq("wallet_id", rule.wallet_id)
+          .eq("amount_minor", rule.amount_minor)
+          .eq("currency_code", rule.currency_code)
+          .eq("type", rule.type)
+          .eq("occurred_at", dueAtIso);
+        legacyQuery = rule.category_id
+          ? legacyQuery.eq("category_id", rule.category_id)
+          : legacyQuery.is("category_id", null);
+        const legacyExistingResult = await legacyQuery.maybeSingle();
+        existingTx = legacyExistingResult.data;
+        exErr = legacyExistingResult.error;
+      }
 
       if (exErr) {
         failedCount += 1;
@@ -270,17 +292,20 @@ async function handler(req: NextRequest) {
           details: `Transaction already existed for scheduled run ${dueAtIso}. Rule advanced without creating a duplicate.`,
         });
       } else {
-        const { data: insertedTx, error: insertError } = await supabase
+        const baseTransaction = {
+          user_id: rule.user_id,
+          wallet_id: rule.wallet_id,
+          category_id: rule.category_id,
+          amount_minor: rule.amount_minor,
+          currency_code: rule.currency_code,
+          type: rule.type,
+          description: rule.description,
+          occurred_at: dueAtIso,
+        };
+        let insertResult = await supabase
           .from("transactions")
           .insert({
-            user_id: rule.user_id,
-            wallet_id: rule.wallet_id,
-            category_id: rule.category_id,
-            amount_minor: rule.amount_minor,
-            currency_code: rule.currency_code,
-            type: rule.type,
-            description: rule.description,
-            occurred_at: dueAtIso,
+            ...baseTransaction,
             recurring_rule_id: rule.id,
             scheduled_for: dueAtIso,
             transaction_kind: "operational",
@@ -288,7 +313,18 @@ async function handler(req: NextRequest) {
           .select("id")
           .single();
 
-        if (insertError?.code === "23505") {
+        if (isMissingLedgerMetadata(insertResult.error)) {
+          metadataAvailable = false;
+          insertResult = await supabase
+            .from("transactions")
+            .insert(baseTransaction)
+            .select("id")
+            .single();
+        }
+
+        const { data: insertedTx, error: insertError } = insertResult;
+
+        if (metadataAvailable && insertError?.code === "23505") {
           const { data: concurrentTx } = await supabase
             .from("transactions")
             .select("id")
