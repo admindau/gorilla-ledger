@@ -165,22 +165,6 @@ export default function WalletsPage() {
         setWalletBalances(Object.fromEntries(rows.map((row) => [row.wallet_id, row])));
       }
       setLoading(false);
-
-      // Profile maintenance supports onboarding but must not delay wallet data.
-      void supabaseBrowserClient
-        .from("profiles")
-        .upsert(
-          {
-            id: user.id,
-            full_name: user.email ?? null,
-          },
-          { onConflict: "id" }
-        )
-        .then(({ error: profileError }) => {
-          if (profileError) {
-            console.warn("Unable to refresh wallet profile metadata", profileError);
-          }
-        });
     }
 
     loadWallets();
