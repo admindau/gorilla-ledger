@@ -33,26 +33,6 @@ function isSixDigitCode(value: string) {
   return /^\d{6}$/.test(trimmed);
 }
 
-function ymd(d = new Date()) {
-  return d.toISOString().slice(0, 10);
-}
-
-function shortToken(len = 6) {
-  // client-safe, no dependencies
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let out = "";
-  const arr = new Uint8Array(len);
-  // crypto exists in modern browsers; fallback if not
-  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
-    crypto.getRandomValues(arr);
-    for (let i = 0; i < len; i++) out += chars[arr[i] % chars.length];
-    return out;
-  }
-  for (let i = 0; i < len; i++)
-    out += chars[Math.floor(Math.random() * chars.length)];
-  return out;
-}
-
 function looksLikeFriendlyNameExists(msg: string) {
   const m = (msg || "").toLowerCase();
   return m.includes("friendly name") && m.includes("already exists");
@@ -102,6 +82,8 @@ export default function SecuritySettingsPage() {
 
   const [enroll, setEnroll] = useState<EnrollState>({ status: "idle" });
   const [otp, setOtp] = useState("");
+  const [enrollmentSetupOpen, setEnrollmentSetupOpen] = useState(false);
+  const [enrollmentName, setEnrollmentName] = useState("");
 
   // Factors
   const [allTotp, setAllTotp] = useState<TotpFactor[]>([]);
@@ -177,27 +159,27 @@ export default function SecuritySettingsPage() {
     }
   }
 
-  function nextFriendlyName(existing: TotpFactor[], kind: "primary" | "backup") {
-    // NOTE: We *always* ensure uniqueness to avoid conflicts with orphaned/unverified factors.
-    const base = kind === "backup" ? "Backup Authenticator" : "Authenticator";
+  function nextFriendlyName(
+    existing: TotpFactor[],
+    kind: "primary" | "backup",
+    requestedName?: string,
+  ) {
+    const fallback = kind === "backup" ? "Backup authenticator" : "My authenticator";
+    const base = requestedName?.trim().slice(0, 64) || fallback;
     const existingNames = new Set(
       existing
         .map((f) => (f.friendly_name ?? "").trim())
         .filter(Boolean)
     );
 
-    // Preferred format: human-readable + date, with a short unique suffix.
-    // Example: "Authenticator (2025-12-24) — K7P2QM"
-    // Keeps it professional while preventing collisions.
-    let attempt = 0;
-    while (attempt < 5) {
-      const name = `${base} (${ymd()}) — ${shortToken(6)}`;
+    if (!existingNames.has(base)) return base;
+
+    for (let suffix = 2; suffix < 100; suffix++) {
+      const name = `${base} (${suffix})`;
       if (!existingNames.has(name)) return name;
-      attempt++;
     }
 
-    // Extreme fallback
-    return `${base} (${ymd()}) — ${Date.now()}`;
+    return `${base} (${Date.now()})`;
   }
 
   // ---------------------------------------------------------------------------
@@ -261,10 +243,28 @@ export default function SecuritySettingsPage() {
   // ---------------------------------------------------------------------------
   // Actions: Enroll / Verify / Disable
   // ---------------------------------------------------------------------------
-  async function startEnroll() {
+  function openEnrollmentSetup() {
+    setErrorMsg("");
+    setSuccessMsg("");
+    setEnrollmentName(mfaEnabled ? "Backup authenticator" : "My authenticator");
+    setEnrollmentSetupOpen(true);
+  }
+
+  function cancelEnrollmentSetup() {
+    setEnrollmentSetupOpen(false);
+    setEnrollmentName("");
+  }
+
+  async function startEnroll(requestedName: string) {
     setErrorMsg("");
     setSuccessMsg("");
     setOtp("");
+
+    if (!requestedName.trim()) {
+      setErrorMsg("Give this authenticator a recognizable name.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -272,7 +272,7 @@ export default function SecuritySettingsPage() {
       const current = await refreshFactors();
 
       const kind: "primary" | "backup" = mfaEnabled ? "backup" : "primary";
-      const friendlyName = nextFriendlyName(current, kind);
+      const friendlyName = nextFriendlyName(current, kind, requestedName);
 
       const { data, error } = await supabaseBrowserClient.auth.mfa.enroll({
         factorType: "totp",
@@ -283,7 +283,7 @@ export default function SecuritySettingsPage() {
         // One automatic retry if Supabase complains about friendly-name collision
         if (looksLikeFriendlyNameExists(error?.message ?? "")) {
           const refreshed = await refreshFactors();
-          const retryName = nextFriendlyName(refreshed, kind);
+          const retryName = nextFriendlyName(refreshed, kind, requestedName);
 
           const retry = await supabaseBrowserClient.auth.mfa.enroll({
             factorType: "totp",
@@ -303,6 +303,7 @@ export default function SecuritySettingsPage() {
             secret: retry.data.totp.secret,
             qr: retry.data.totp.qr_code,
           });
+          setEnrollmentSetupOpen(false);
           return;
         }
 
@@ -316,8 +317,51 @@ export default function SecuritySettingsPage() {
         secret: data.totp.secret,
         qr: data.totp.qr_code,
       });
+      setEnrollmentSetupOpen(false);
     } catch (error: unknown) {
       setErrorMsg(getErrorMessage(error, "Failed to start MFA enrollment."));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function removeFactor(factor: TotpFactor) {
+    const name = factor.friendly_name?.trim() || "this authenticator";
+    const isLastVerified =
+      factor.status === "verified" && verifiedTotp.length === 1;
+    const confirmed = window.confirm(
+      isLastVerified
+        ? `Remove ${name}? This is your last verified authenticator and will disable MFA.`
+        : `Remove ${name} from your account?`,
+    );
+    if (!confirmed) return;
+
+    setErrorMsg("");
+    setSuccessMsg("");
+    setLoading(true);
+
+    try {
+      const { error } = await supabaseBrowserClient.auth.mfa.unenroll({
+        factorId: factor.id,
+      });
+      if (error) {
+        setErrorMsg(error.message ?? "Could not remove the authenticator.");
+        return;
+      }
+
+      const refreshed = await refreshFactors();
+      const remainingVerified = refreshed.filter(
+        (item) => item.status === "verified",
+      );
+      setEnroll({ status: remainingVerified.length > 0 ? "enabled" : "idle" });
+      await bumpLastSecurityCheck();
+      setSuccessMsg(
+        remainingVerified.length > 0
+          ? `${name} was removed.`
+          : `${name} was removed and MFA is now disabled.`,
+      );
+    } catch (error: unknown) {
+      setErrorMsg(getErrorMessage(error, "Could not remove the authenticator."));
     } finally {
       setLoading(false);
     }
@@ -462,7 +506,14 @@ export default function SecuritySettingsPage() {
             enroll={enroll}
             otp={otp}
             setOtp={setOtp}
+            factors={allTotp}
+            enrollmentSetupOpen={enrollmentSetupOpen}
+            enrollmentName={enrollmentName}
+            setEnrollmentName={setEnrollmentName}
+            openEnrollmentSetup={openEnrollmentSetup}
+            cancelEnrollmentSetup={cancelEnrollmentSetup}
             startEnroll={startEnroll}
+            removeFactor={removeFactor}
             disableMfa={disableMfa}
             verifyEnroll={verifyEnroll}
           />
@@ -474,7 +525,7 @@ export default function SecuritySettingsPage() {
             lastCheckLabel={lastCheckLabel}
             loading={loading}
             booting={booting}
-            onStartEnroll={startEnroll}
+            onStartEnroll={openEnrollmentSetup}
             onMarkReviewed={bumpLastSecurityCheck}
           />
         </div>

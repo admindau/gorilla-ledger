@@ -4,8 +4,6 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
-const MFA_STORAGE_KEY = "gl_mfa_ctx_v1";
-
 export function LoginForm({ next }: { next: string }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -31,10 +29,8 @@ export function LoginForm({ next }: { next: string }) {
 
       const nextUrl = next || "/dashboard";
 
-      /**
-       * MFA (TOTP) handling:
-       * If user has a verified TOTP factor, start an MFA challenge and redirect to /auth/mfa.
-       */
+      // Determine whether the account needs an MFA step. The MFA page lists all
+      // verified factors and creates a fresh challenge for the user's selection.
       const { data: factorsData, error: factorsErr } =
         await supabaseBrowserClient.auth.mfa.listFactors();
 
@@ -45,30 +41,11 @@ export function LoginForm({ next }: { next: string }) {
         return;
       }
 
-      const verifiedTotp = factorsData?.totp?.find(
+      const verifiedTotp = factorsData?.totp?.filter(
         (f) => f.status === "verified"
-      );
+      ) ?? [];
 
-      if (verifiedTotp) {
-        const { data: challengeData, error: chErr } =
-          await supabaseBrowserClient.auth.mfa.challenge({
-            factorId: verifiedTotp.id,
-          });
-
-        if (chErr || !challengeData) {
-          setErrorMsg(chErr?.message ?? "Failed to start MFA challenge.");
-          return;
-        }
-
-        sessionStorage.setItem(
-          MFA_STORAGE_KEY,
-          JSON.stringify({
-            factorId: verifiedTotp.id,
-            challengeId: challengeData.id,
-            next: nextUrl,
-          })
-        );
-
+      if (verifiedTotp.length > 0) {
         router.replace(`/auth/mfa?next=${encodeURIComponent(nextUrl)}`);
         return;
       }

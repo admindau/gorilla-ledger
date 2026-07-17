@@ -6,6 +6,12 @@ type EnrollState =
   | { status: "enrolling"; qr: string; secret: string; factorId: string }
   | { status: "enabled" };
 
+type TotpFactor = {
+  id: string;
+  status: string;
+  friendly_name?: string | null;
+};
+
 type SecurityMfaPanelProps = {
   mfaEnabled: boolean;
   backupConfigured: boolean;
@@ -15,7 +21,14 @@ type SecurityMfaPanelProps = {
   enroll: EnrollState;
   otp: string;
   setOtp: Dispatch<SetStateAction<string>>;
-  startEnroll: () => void;
+  factors: TotpFactor[];
+  enrollmentSetupOpen: boolean;
+  enrollmentName: string;
+  setEnrollmentName: Dispatch<SetStateAction<string>>;
+  openEnrollmentSetup: () => void;
+  cancelEnrollmentSetup: () => void;
+  startEnroll: (friendlyName: string) => void;
+  removeFactor: (factor: TotpFactor) => void;
   disableMfa: () => void;
   verifyEnroll: (event: FormEvent) => void;
 };
@@ -29,7 +42,14 @@ export function SecurityMfaPanel({
   enroll,
   otp,
   setOtp,
+  factors,
+  enrollmentSetupOpen,
+  enrollmentName,
+  setEnrollmentName,
+  openEnrollmentSetup,
+  cancelEnrollmentSetup,
   startEnroll,
+  removeFactor,
   disableMfa,
   verifyEnroll,
 }: SecurityMfaPanelProps) {
@@ -55,7 +75,7 @@ export function SecurityMfaPanel({
               {!backupConfigured ? (
                 <button
                   type="button"
-                  onClick={startEnroll}
+                  onClick={openEnrollmentSetup}
                   disabled={loading || booting}
                   className="gl-btn gl-btn-primary gl-btn-md"
                 >
@@ -75,7 +95,7 @@ export function SecurityMfaPanel({
           ) : (
             <button
               type="button"
-              onClick={startEnroll}
+              onClick={openEnrollmentSetup}
               disabled={loading || booting}
               className="gl-btn gl-btn-primary gl-btn-md"
             >
@@ -84,6 +104,47 @@ export function SecurityMfaPanel({
           )}
         </div>
       </div>
+
+      {enrollmentSetupOpen ? (
+        <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <h3 className="text-sm font-semibold text-white">
+            {mfaEnabled ? "Name your backup authenticator" : "Name your authenticator"}
+          </h3>
+          <p className="mt-1 text-xs leading-5 text-gray-400">
+            Use a name you will recognize at sign-in, such as “iPhone” or “1Password”.
+          </p>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <label htmlFor="authenticator-name" className="sr-only">
+              Authenticator name
+            </label>
+            <input
+              id="authenticator-name"
+              value={enrollmentName}
+              onChange={(event) => setEnrollmentName(event.target.value)}
+              className="gl-input flex-1"
+              placeholder="iPhone authenticator"
+              maxLength={64}
+              autoFocus
+            />
+            <button
+              type="button"
+              onClick={() => startEnroll(enrollmentName)}
+              disabled={loading || !enrollmentName.trim()}
+              className="gl-btn gl-btn-primary gl-btn-md"
+            >
+              Continue
+            </button>
+            <button
+              type="button"
+              onClick={cancelEnrollmentSetup}
+              disabled={loading}
+              className="gl-btn gl-btn-secondary gl-btn-md"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
@@ -108,6 +169,39 @@ export function SecurityMfaPanel({
         <div className="mt-5 rounded-2xl border border-yellow-500/30 bg-yellow-950/20 px-4 py-3 text-sm text-yellow-100">
           Gorilla Ledger does not currently issue recovery codes. For account
           recovery, enroll a backup authenticator on a different device or app.
+        </div>
+      ) : null}
+
+      {factors.length > 0 ? (
+        <div className="mt-5 border-t border-white/10 pt-5">
+          <h3 className="text-sm font-semibold text-white">Your authenticators</h3>
+          <div className="mt-3 space-y-2">
+            {factors.map((factor, index) => {
+              const name = factor.friendly_name?.trim() || `Authenticator ${index + 1}`;
+              const verified = factor.status === "verified";
+              return (
+                <div
+                  key={factor.id}
+                  className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-white">{name}</p>
+                    <p className={verified ? "mt-1 text-xs text-emerald-300" : "mt-1 text-xs text-yellow-300"}>
+                      {verified ? "Verified and available at sign-in" : "Enrollment incomplete"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeFactor(factor)}
+                    disabled={loading || booting}
+                    className="gl-btn gl-btn-danger gl-btn-sm"
+                  >
+                    Remove
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       ) : null}
 
