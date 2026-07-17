@@ -106,7 +106,6 @@ export default function SecuritySettingsPage() {
   // Factors
   const [allTotp, setAllTotp] = useState<TotpFactor[]>([]);
   const [verifiedTotp, setVerifiedTotp] = useState<TotpFactor[]>([]);
-  const [primaryFactorId, setPrimaryFactorId] = useState<string | null>(null);
 
   // Last security check
   const [lastCheckAt, setLastCheckAt] = useState<number | null>(null);
@@ -138,9 +137,6 @@ export default function SecuritySettingsPage() {
 
     const verified = totp.filter((f) => f.status === "verified");
     setVerifiedTotp(verified);
-
-    // Choose a “primary” deterministically (first verified)
-    setPrimaryFactorId(verified[0]?.id ?? null);
 
     return totp;
   }
@@ -382,27 +378,43 @@ export default function SecuritySettingsPage() {
   }
 
   async function disableMfa() {
-    if (!primaryFactorId) return;
+    if (verifiedTotp.length === 0) return;
+
+    const confirmed = window.confirm(
+      `Disable multi-factor authentication and remove ${verifiedTotp.length} verified authenticator${verifiedTotp.length === 1 ? "" : "s"}?`
+    );
+    if (!confirmed) return;
 
     setErrorMsg("");
     setSuccessMsg("");
     setLoading(true);
 
     try {
-      const { error } = await supabaseBrowserClient.auth.mfa.unenroll({
-        factorId: primaryFactorId,
-      });
+      const failures: string[] = [];
+      for (const factor of verifiedTotp) {
+        const { error } = await supabaseBrowserClient.auth.mfa.unenroll({
+          factorId: factor.id,
+        });
+        if (error) failures.push(error.message ?? `Could not remove ${factor.id}.`);
+      }
 
-      if (error) {
-        setErrorMsg(error.message ?? "Failed to disable MFA.");
+      const refreshed = await refreshFactors();
+      const remainingVerified = refreshed.filter((factor) => factor.status === "verified");
+
+      if (failures.length > 0 || remainingVerified.length > 0) {
+        setErrorMsg(
+          `MFA was only partially disabled. ${remainingVerified.length} verified authenticator${remainingVerified.length === 1 ? " remains" : "s remain"}. ${failures.join(" ")}`.trim()
+        );
+        setEnroll({ status: remainingVerified.length > 0 ? "enabled" : "idle" });
         return;
       }
 
-      await refreshFactors();
       bumpLastSecurityCheck();
 
       setSuccessMsg("Multi-factor authentication disabled.");
       setEnroll({ status: "idle" });
+    } catch (error: unknown) {
+      setErrorMsg(getErrorMessage(error, "Failed to disable MFA."));
     } finally {
       setLoading(false);
     }

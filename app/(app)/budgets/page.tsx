@@ -10,7 +10,10 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
 import { PrerequisiteGuide } from "@/components/activation/PrerequisiteGuide";
 import { parsePositiveMoneyToMinor } from "@/lib/finance/money";
-import { isOperationalTransaction } from "@/lib/transactions/classification";
+import {
+  isInternalTransferCategory,
+  isOperationalTransaction,
+} from "@/lib/transactions/classification";
 import { isMissingLedgerMetadata } from "@/lib/supabase/schemaCompatibility";
 import { occurredAtDateKey, type OccurredAtPrecision } from "@/lib/time/ledgerTime";
 
@@ -52,6 +55,29 @@ type Transaction = {
 };
 
 const BUDGET_TRANSACTION_PAGE_SIZE = 1000;
+const BUDGET_PAGE_SIZE = 1000;
+
+async function loadAllBudgets(): Promise<{
+  data: Budget[];
+  error: string | null;
+}> {
+  const rows: Budget[] = [];
+
+  for (let from = 0; ; from += BUDGET_PAGE_SIZE) {
+    const result = await supabaseBrowserClient
+      .from("budgets")
+      .select("*")
+      .order("year", { ascending: false })
+      .order("month", { ascending: false })
+      .order("created_at", { ascending: false })
+      .range(from, from + BUDGET_PAGE_SIZE - 1);
+
+    if (result.error) return { data: [], error: result.error.message };
+    const page = (result.data ?? []) as Budget[];
+    rows.push(...page);
+    if (page.length < BUDGET_PAGE_SIZE) return { data: rows, error: null };
+  }
+}
 
 async function loadAllExpenseTransactions(): Promise<{
   data: Transaction[];
@@ -91,14 +117,6 @@ function formatMinorToAmount(minor: number): string {
   return (minor / 100).toFixed(2);
 }
 
-function computeDaysAgo(iso: string) {
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return null;
-  const now = Date.now();
-  const diffDays = Math.floor((now - t) / (1000 * 60 * 60 * 24));
-  return Math.max(0, diffDays);
-}
-
 function monthKeyFromParts(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, "0")}`;
 }
@@ -115,11 +133,6 @@ export default function BudgetsPage() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
-  // Header/security UI state
-  const [, setUserEmail] = useState<string>("");
-  const [, setMfaEnabled] = useState<boolean>(false);
-  const [, setLastSecurityCheckDays] = useState<number | null>(null);
-
   // Form + filter state
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -133,44 +146,6 @@ export default function BudgetsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState("0");
   const [rowBusyId, setRowBusyId] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function loadHeaderSecurity() {
-      try {
-        const {
-          data: { user },
-        } = await supabaseBrowserClient.auth.getUser();
-
-        setUserEmail(user?.email ?? "");
-
-        const { data: factorsData } = await supabaseBrowserClient.auth.mfa.listFactors();
-        const totpCount = factorsData?.totp?.length ?? 0;
-        const enabled = totpCount > 0;
-        setMfaEnabled(enabled);
-
-        const { data: aal } = await supabaseBrowserClient.auth.mfa.getAuthenticatorAssuranceLevel();
-        const isAAL2 = aal?.currentLevel === "aal2";
-
-        const key = "gl_last_security_check_at";
-        if (enabled && isAAL2) {
-          const nowIso = new Date().toISOString();
-          localStorage.setItem(key, nowIso);
-        }
-
-        const existing = localStorage.getItem(key);
-        if (existing) {
-          const d = computeDaysAgo(existing);
-          setLastSecurityCheckDays(d);
-        } else {
-          setLastSecurityCheckDays(null);
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    loadHeaderSecurity();
-  }, []);
 
   useEffect(() => {
     async function loadData() {
@@ -193,13 +168,14 @@ export default function BudgetsPage() {
       const [walletResult, categoryResult, budgetResult, transactionResult] = await Promise.all([
         supabaseBrowserClient.from("wallets").select("id, name, currency_code").order("created_at", { ascending: true }),
         supabaseBrowserClient.from("categories").select("id, name, type, is_active").order("type", { ascending: true }).order("name", { ascending: true }),
-        supabaseBrowserClient.from("budgets").select("*").order("year", { ascending: false }).order("month", { ascending: false }).order("created_at", { ascending: false }).limit(200),
+        loadAllBudgets(),
         loadAllExpenseTransactions(),
       ]);
 
       const { data: walletData, error: walletError } = walletResult;
       const { data: categoryData, error: categoryError } = categoryResult;
-      const { data: budgetData, error: budgetError } = budgetResult;
+      const budgetData = budgetResult.data;
+      const budgetError = budgetResult.error;
       const transactionData = transactionResult.data;
       const transactionError = transactionResult.error;
 
@@ -220,7 +196,12 @@ export default function BudgetsPage() {
       setTransactions(transactionData as Transaction[]);
 
       if (walletData && walletData.length > 0 && !walletId) setWalletId(walletData[0].id);
-      const initialExpenseCategory = (categoryData as Category[] | null)?.find((category) => category.is_active && category.type === "expense");
+      const initialExpenseCategory = (categoryData as Category[] | null)?.find(
+        (category) =>
+          category.is_active &&
+          category.type === "expense" &&
+          !isInternalTransferCategory(category)
+      );
       if (initialExpenseCategory && !categoryId) setCategoryId(initialExpenseCategory.id);
 
       setLoading(false);
@@ -238,7 +219,13 @@ export default function BudgetsPage() {
     [categories]
   );
   const activeExpenseCategories = useMemo(
-    () => categories.filter((category) => category.is_active && category.type === "expense"),
+    () =>
+      categories.filter(
+        (category) =>
+          category.is_active &&
+          category.type === "expense" &&
+          !isInternalTransferCategory(category)
+      ),
     [categories]
   );
 
@@ -302,7 +289,11 @@ export default function BudgetsPage() {
       setSaving(false);
       return;
     }
-    if (!categoryMap[categoryId]?.is_active || categoryMap[categoryId]?.type !== "expense") {
+    if (
+      !categoryMap[categoryId]?.is_active ||
+      categoryMap[categoryId]?.type !== "expense" ||
+      isInternalTransferCategory(categoryMap[categoryId])
+    ) {
       setErrorMsg("Budgets require an expense category.");
       setSaving(false);
       return;

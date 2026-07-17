@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
+import { sanitizeConfirmationDestination } from "@/lib/auth/navigation";
 
 function parseHashParams(hash: string) {
   const h = hash.startsWith("#") ? hash.slice(1) : hash;
@@ -17,7 +18,10 @@ export default function ConfirmClient() {
   const router = useRouter();
   const sp = useSearchParams();
 
-  const next = useMemo(() => sp.get("next") ?? "/auth/update-password", [sp]);
+  const next = useMemo(
+    () => sanitizeConfirmationDestination(sp.get("next")),
+    [sp]
+  );
   const code = useMemo(() => sp.get("code"), [sp]);
 
   const [status, setStatus] = useState<"working" | "error">("working");

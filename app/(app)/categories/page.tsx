@@ -206,6 +206,49 @@ export default function CategoriesPage() {
       return;
     }
 
+    const existingCategory = categoryById[id];
+    if (!existingCategory) {
+      setErrorMsg("This category is no longer available. Refresh and try again.");
+      setRowBusyId(null);
+      return;
+    }
+
+    if (existingCategory.type !== editType) {
+      const references = await Promise.all([
+        supabaseBrowserClient
+          .from("transactions")
+          .select("id", { count: "exact", head: true })
+          .eq("category_id", id),
+        supabaseBrowserClient
+          .from("budgets")
+          .select("id", { count: "exact", head: true })
+          .eq("category_id", id),
+        supabaseBrowserClient
+          .from("recurring_rules")
+          .select("id", { count: "exact", head: true })
+          .eq("category_id", id),
+      ]);
+
+      if (references.some((result) => result.error)) {
+        console.error("Unable to verify category references:", references);
+        setErrorMsg("We could not safely verify this category's usage. Its type was not changed.");
+        setRowBusyId(null);
+        return;
+      }
+
+      const referenceCount = references.reduce(
+        (total, result) => total + (result.count ?? 0),
+        0
+      );
+      if (referenceCount > 0) {
+        setErrorMsg(
+          "A category already used by transactions, budgets, or recurring rules cannot change type. Rename it or create a new category instead."
+        );
+        setRowBusyId(null);
+        return;
+      }
+    }
+
     const { data, error } = await supabaseBrowserClient
       .from("categories")
       .update({ name: trimmed, type: editType })
@@ -243,6 +286,28 @@ export default function CategoriesPage() {
 
     if (userError || !user) {
       setErrorMsg("You must be logged in.");
+      setRowBusyId(null);
+      return;
+    }
+
+    const { count: activeRuleCount, error: recurringError } =
+      await supabaseBrowserClient
+        .from("recurring_rules")
+        .select("id", { count: "exact", head: true })
+        .eq("category_id", id)
+        .eq("is_active", true);
+
+    if (recurringError) {
+      console.error("Unable to verify recurring category usage:", recurringError);
+      setErrorMsg("We could not safely verify this category's recurring rules. It was not disabled.");
+      setRowBusyId(null);
+      return;
+    }
+
+    if ((activeRuleCount ?? 0) > 0) {
+      setErrorMsg(
+        "Pause or delete the active recurring rules using this category before disabling it."
+      );
       setRowBusyId(null);
       return;
     }

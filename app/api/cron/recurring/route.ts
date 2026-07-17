@@ -168,12 +168,29 @@ async function handler(req: NextRequest) {
     }
 
     if (rule.end_date && todayStr > rule.end_date) {
+      const { error: deactivateError } = await supabase
+        .from("recurring_rules")
+        .update({ is_active: false })
+        .eq("id", rule.id);
+
+      if (deactivateError) {
+        failedCount += 1;
+        await writeRunLog({
+          ruleId: rule.id,
+          userId: rule.user_id,
+          status: "failed",
+          details: `Rule end date ${rule.end_date} has passed, but automatic deactivation failed: ${deactivateError.message}`,
+        });
+        continue;
+      }
+
       skippedCount += 1;
+      updatedCount += 1;
       await writeRunLog({
         ruleId: rule.id,
         userId: rule.user_id,
         status: "skipped",
-        details: `Rule skipped because end date ${rule.end_date} has passed.`,
+        details: `Rule automatically deactivated because end date ${rule.end_date} has passed.`,
       });
       continue;
     }

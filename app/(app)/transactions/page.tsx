@@ -144,6 +144,8 @@ async function uploadReceiptForTransaction(params: {
   transactionId: string;
   file: File;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  let receiptId: string | null = null;
+
   try {
     // Create receipt row first to get receipt_id (uuid) for a stable path
     const { data: receipt, error: insErr } = await supabaseBrowserClient
@@ -167,7 +169,7 @@ async function uploadReceiptForTransaction(params: {
       };
     }
 
-    const receiptId = receipt.id as string;
+    receiptId = receipt.id as string;
     const ext = extFromFile(params.file);
 
     // Ensure we have a session token for secure server-side validation.
@@ -207,6 +209,18 @@ async function uploadReceiptForTransaction(params: {
     const path = signJson.path as string;
     const token = signJson.token as string;
 
+    // Persist the signed path before uploading so a successful upload can never
+    // be left behind with an unusable "pending" database record.
+    const { error: pathError } = await supabaseBrowserClient
+      .from("receipts")
+      .update({ storage_path: path })
+      .eq("id", receiptId);
+
+    if (pathError) {
+      await supabaseBrowserClient.from("receipts").delete().eq("id", receiptId);
+      return { ok: false, error: pathError.message };
+    }
+
     // Upload using signed token
     const { error: upErr } = await supabaseBrowserClient.storage
       .from("receipts")
@@ -221,18 +235,11 @@ async function uploadReceiptForTransaction(params: {
       return { ok: false, error: upErr.message };
     }
 
-    // Finalize receipt row with real storage_path
-    const { error: updErr } = await supabaseBrowserClient
-      .from("receipts")
-      .update({ storage_path: path })
-      .eq("id", receiptId);
-
-    if (updErr) {
-      return { ok: false, error: updErr.message };
-    }
-
     return { ok: true };
   } catch (error: unknown) {
+    if (receiptId) {
+      await supabaseBrowserClient.from("receipts").delete().eq("id", receiptId);
+    }
     return { ok: false, error: getErrorMessage(error, "Unknown upload error.") };
   }
 }
@@ -915,15 +922,31 @@ export default function TransactionsPage() {
     handleCancelInlineEdit();
   }
 
-  async function actuallyDeleteFromDatabase(id: string) {
+  async function actuallyDeleteFromDatabase(tx: Transaction) {
     const { error } = await supabaseBrowserClient
       .from("transactions")
       .delete()
-      .eq("id", id);
+      .eq("id", tx.id);
     if (error) {
       console.error(error);
-      setErrorMsg(error.message);
+      setTransactions((prev) => {
+        if (prev.some((item) => item.id === tx.id)) return prev;
+        const restored = [tx, ...prev];
+        restored.sort(compareLedgerTransactions);
+        return restored;
+      });
+      if (isCurrentMonthTransaction(tx)) {
+        setMonthTransactions((prev) => {
+          if (prev.some((item) => item.id === tx.id)) return prev;
+          const restored = [tx, ...prev];
+          restored.sort(compareLedgerTransactions);
+          return restored;
+        });
+      }
+      setErrorMsg(`The transaction could not be deleted and was restored. ${error.message}`);
+      return false;
     }
+    return true;
   }
 
   async function handleDeleteTransaction(tx: Transaction) {
@@ -931,6 +954,7 @@ export default function TransactionsPage() {
 
     if (pendingDelete) {
       clearTimeout(pendingDelete.timeoutId);
+      await actuallyDeleteFromDatabase(pendingDelete.tx);
       setPendingDelete(null);
     }
 
@@ -961,7 +985,7 @@ export default function TransactionsPage() {
     if (editingTxId === tx.id) handleCancelInlineEdit();
 
     const timeoutId = setTimeout(() => {
-      actuallyDeleteFromDatabase(tx.id);
+      void actuallyDeleteFromDatabase(tx);
       setPendingDelete(null);
     }, 10000);
 

@@ -24,7 +24,7 @@ export default function RegisterPage() {
     // This must be allowed in Supabase Auth "Redirect URLs".
     const origin =
       typeof window !== "undefined" ? window.location.origin : "";
-    const emailRedirectTo = `${origin}/auth/confirm`;
+    const emailRedirectTo = `${origin}/auth/confirm?next=${encodeURIComponent("/dashboard")}`;
 
     const { error } = await supabaseBrowserClient.auth.signUp({
       email,

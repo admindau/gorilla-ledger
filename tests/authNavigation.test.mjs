@@ -6,6 +6,7 @@ import {
   isProtectedAppPath,
   requiresMfaStepUp,
   sanitizeAppDestination,
+  sanitizeConfirmationDestination,
   shouldRedirectAuthenticatedHome,
   shouldRedirectAuthenticatedLogin,
 } from "../lib/auth/navigation.ts";
@@ -36,6 +37,18 @@ test("return destinations remain inside the application", () => {
   assert.equal(sanitizeAppDestination("//example.com/path"), "/dashboard");
   assert.equal(sanitizeAppDestination("/auth/login"), "/dashboard");
   assert.equal(sanitizeAppDestination("/"), "/dashboard");
+});
+
+test("confirmation destinations are limited to protected app and recovery routes", () => {
+  assert.equal(sanitizeConfirmationDestination("/dashboard"), "/dashboard");
+  assert.equal(
+    sanitizeConfirmationDestination("/auth/update-password"),
+    "/auth/update-password"
+  );
+  assert.equal(sanitizeConfirmationDestination("https://example.com"), "/dashboard");
+  assert.equal(sanitizeConfirmationDestination("//example.com/path"), "/dashboard");
+  assert.equal(sanitizeConfirmationDestination("/auth/logout"), "/dashboard");
+  assert.equal(sanitizeConfirmationDestination("/about"), "/dashboard");
 });
 
 test("accounts expecting aal2 must complete MFA before app access", () => {

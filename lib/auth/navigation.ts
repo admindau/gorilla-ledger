@@ -53,6 +53,24 @@ export function sanitizeAppDestination(
   }
 }
 
+export function sanitizeConfirmationDestination(
+  value: string | null | undefined,
+  fallback = DEFAULT_APP_DESTINATION
+) {
+  if (value === "/auth/update-password") {
+    return value;
+  }
+
+  const destination = sanitizeAppDestination(value, fallback);
+
+  try {
+    const parsed = new URL(destination, APP_ORIGIN);
+    return isProtectedAppPath(parsed.pathname) ? destination : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export function requiresMfaStepUp(
   currentLevel: string | null | undefined,
   nextLevel: string | null | undefined
