@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { PublicFooter } from "@/components/public/PublicFooter";
 import { PublicHeader } from "@/components/public/PublicHeader";
 import { COMPANY_NAME, PRODUCT_NAME } from "@/lib/brand";
@@ -8,44 +9,57 @@ export default function HomePage() {
     <div className="gl-public-shell">
       <PublicHeader />
       <main id="main-content" className="gl-home-hero">
-        <div className="flex flex-col items-center space-y-6">
-        
-        {/* Logo */}
-        <Image
-          src="/logos/savvy-gorilla-logo.png"
-          alt={COMPANY_NAME}
-          width={250}
-          height={250}
-          className="object-contain"
-        />
+        <div className="gl-home-hero-inner">
+          <section className="gl-home-copy" aria-labelledby="home-title">
+            <p className="gl-home-eyebrow">
+              <span aria-hidden="true" /> Personal finance, made legible
+            </p>
+            <h1 id="home-title">Know where your money stands.</h1>
+            <p className="gl-home-lede">
+              {PRODUCT_NAME} gives you a calm, precise view of every wallet,
+              currency, and transaction—without the clutter of traditional finance apps.
+            </p>
 
-        {/* Title */}
-        <h1 className="text-4xl font-semibold text-center">
-          {PRODUCT_NAME}
-        </h1>
+            <div className="gl-home-actions">
+              <Link href="/auth/register" className="gl-btn gl-btn-primary gl-btn-lg">
+                Start your ledger <span aria-hidden="true">↗</span>
+              </Link>
+              <Link href="/auth/login" className="gl-btn gl-btn-secondary gl-btn-lg">
+                Sign in
+              </Link>
+            </div>
 
-        {/* Description */}
-        <p className="text-gray-400 text-center max-w-xl">
-          A clean, focused ledger to track your finances across wallets, currencies,
-          and time. Built by {COMPANY_NAME} — for clarity, not confusion.
-        </p>
+            <p className="gl-home-assurance">
+              Private by design <span aria-hidden="true">·</span> Multi-currency ready <span aria-hidden="true">·</span> Built for clarity
+            </p>
+          </section>
 
-          {/* Buttons */}
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-          <a
-            href="/auth/register"
-            className="gl-btn gl-btn-primary gl-btn-md"
-          >
-            Get Started
-          </a>
+          <aside className="gl-home-showcase" aria-label="Gorilla Ledger product identity">
+            <div className="gl-home-showcase-glow" aria-hidden="true" />
+            <div className="gl-home-logo-frame">
+              <Image
+                src="/logos/savvy-gorilla-logo.png"
+                alt={`${COMPANY_NAME} mark`}
+                width={360}
+                height={360}
+                priority
+                className="gl-home-logo"
+              />
+            </div>
+            <div className="gl-home-showcase-caption">
+              <div>
+                <span>Designed by</span>
+                <strong>{COMPANY_NAME}</strong>
+              </div>
+              <span className="gl-home-monogram" aria-hidden="true">GL</span>
+            </div>
+          </aside>
+        </div>
 
-          <a
-            href="/auth/login"
-            className="gl-btn gl-btn-secondary gl-btn-md"
-          >
-            Login
-          </a>
-          </div>
+        <div className="gl-home-feature-rail" aria-label="Product highlights">
+          <div><span>01</span><strong>One clear picture</strong><p>Balances and activity stay reconciled.</p></div>
+          <div><span>02</span><strong>Every currency</strong><p>Track value without flattening context.</p></div>
+          <div><span>03</span><strong>Quiet intelligence</strong><p>Useful signals, never dashboard noise.</p></div>
         </div>
       </main>
       <PublicFooter />

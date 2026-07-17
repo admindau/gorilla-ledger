@@ -89,50 +89,53 @@ export function LoginForm({ next }: { next: string }) {
   }
 
   return (
-    <div className="gl-card w-full max-w-md p-6">
-      <h1 className="text-2xl font-semibold mb-1 text-center">
-        Login to Gorilla Ledger™
-      </h1>
-      <p className="text-gray-400 text-xs mb-6 text-center">
-        Enter your email and password to continue.
-      </p>
+    <div className="gl-auth-card gl-card w-full max-w-md">
+      <div className="gl-auth-card-heading">
+        <p className="gl-auth-eyebrow">Welcome back</p>
+        <h1>Sign in to your ledger</h1>
+        <p>Your financial picture is ready when you are.</p>
+      </div>
 
       {errorMsg && (
-        <p className="mb-4 text-xs text-red-400 border border-red-500/40 rounded px-3 py-2 bg-red-950/30">
+        <p className="gl-auth-alert gl-auth-alert-error" role="alert">
           {errorMsg}
         </p>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4 text-sm">
         <div>
-          <label className="block mb-1 text-xs text-gray-400">Email</label>
+          <label htmlFor="login-email" className="gl-label">Email address</label>
           <input
+            id="login-email"
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="gl-input"
-            placeholder="you@example.com"
+            placeholder="name@company.com"
+            autoComplete="email"
           />
         </div>
 
         <div>
-          <label className="block mb-1 text-xs text-gray-400">Password</label>
+          <label htmlFor="login-password" className="gl-label">Password</label>
           <input
+            id="login-password"
             type="password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="gl-input"
             placeholder="••••••••"
+            autoComplete="current-password"
           />
         </div>
 
-        <div className="flex items-center justify-between text-xs">
+        <div className="gl-auth-form-meta">
           <button
             type="button"
             onClick={goToResetPassword}
-            className="text-gray-300 hover:text-white underline"
+            className="gl-auth-text-link"
           >
             Forgot password?
           </button>
@@ -143,18 +146,18 @@ export function LoginForm({ next }: { next: string }) {
           disabled={loading}
           className="gl-btn gl-btn-primary gl-btn-md w-full mt-2"
         >
-          {loading ? "Logging in..." : "Login"}
+          {loading ? "Signing in…" : "Sign in"}
         </button>
       </form>
 
-      <div className="mt-4 text-xs text-gray-400 text-center">
-        No account yet?{" "}
+      <div className="gl-auth-card-footer">
+        New to Gorilla Ledger?{" "}
         <button
           type="button"
           onClick={goToRegister}
-          className="text-white underline"
+          className="gl-auth-text-link"
         >
-          Register
+          Create an account
         </button>
       </div>
     </div>

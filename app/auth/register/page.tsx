@@ -64,30 +64,38 @@ export default function RegisterPage() {
   return (
     <PublicAuthShell>
     <div className="flex w-full items-center justify-center px-4 text-white">
-      <div className="gl-card w-full max-w-md p-6">
-        <h1 className="text-2xl mb-4 font-semibold">Create an Account</h1>
+      <div className="gl-auth-card gl-card w-full max-w-md">
+        <div className="gl-auth-card-heading">
+          <p className="gl-auth-eyebrow">Your ledger starts here</p>
+          <h1>Create your account</h1>
+          <p>Build a clearer view of your money in a few minutes.</p>
+        </div>
 
         <form onSubmit={handleRegister} className="space-y-4">
           <input
+            aria-label="Email address"
             type="email"
-            placeholder="Email address"
+            placeholder="name@company.com"
             className="gl-input"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            autoComplete="email"
           />
 
           <input
+            aria-label="Password"
             type="password"
             placeholder="Password"
             className="gl-input"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            autoComplete="new-password"
           />
 
-          {errorMsg && <p className="text-red-400 text-sm">{errorMsg}</p>}
-          {successMsg && <p className="text-green-400 text-sm">{successMsg}</p>}
+          {errorMsg && <p className="gl-auth-alert gl-auth-alert-error" role="alert">{errorMsg}</p>}
+          {successMsg && <p className="gl-auth-alert gl-auth-alert-success" role="status">{successMsg}</p>}
 
           <button
             type="submit"
@@ -97,15 +105,15 @@ export default function RegisterPage() {
             {loading ? "Creating account..." : "Register"}
           </button>
 
-          <p className="text-xs leading-5 text-gray-500">
+          <p className="gl-auth-legal">
             By creating an account, you agree to the <a href="/terms" className="text-gray-300 underline underline-offset-4">Terms</a> and acknowledge the <a href="/privacy" className="text-gray-300 underline underline-offset-4">Privacy Notice</a>.
           </p>
         </form>
 
-        <p className="mt-4 text-sm text-gray-400">
+        <p className="gl-auth-card-footer">
           Already have an account?{" "}
-          <a href="/auth/login" className="underline">
-            Login
+          <a href="/auth/login" className="gl-auth-text-link">
+            Sign in
           </a>
         </p>
       </div>
