@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import ErrorCard from "@/components/ui/ErrorCard";
 import { logError } from "@/lib/errors/errorLogger";
 
@@ -17,13 +17,6 @@ export default function AppError({
 }: AppErrorProps) {
   const errorInfo = useMemo(() => {
     return logError(error, {
-      route: "/(app)",
-      component: "AuthenticatedErrorBoundary",
-    });
-  }, [error]);
-
-  useEffect(() => {
-    logError(error, {
       route: "/(app)",
       component: "AuthenticatedErrorBoundary",
     });

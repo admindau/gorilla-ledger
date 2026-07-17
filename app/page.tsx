@@ -7,6 +7,7 @@ import { COMPANY_NAME, PRODUCT_NAME } from "@/lib/brand";
 export default function HomePage() {
   return (
     <div className="gl-public-shell">
+      <a className="gl-skip-link" href="#main-content">Skip to main content</a>
       <PublicHeader />
       <main id="main-content" className="gl-home-hero">
         <div className="gl-home-hero-inner">

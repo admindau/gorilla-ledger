@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import ErrorCard from "@/components/ui/ErrorCard";
 import { logError } from "@/lib/errors/errorLogger";
@@ -16,14 +16,6 @@ export default function GlobalError({
 }: GlobalErrorProps) {
   const errorInfo = useMemo(() => {
     return logError(error, {
-      route: "global",
-      component: "GlobalErrorBoundary",
-    });
-  }, [error]);
-
-  useEffect(() => {
-    // Ensure the error is reported whenever the boundary is rendered.
-    logError(error, {
       route: "global",
       component: "GlobalErrorBoundary",
     });

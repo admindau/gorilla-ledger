@@ -1,4 +1,9 @@
+import type { Metadata } from "next";
 import AppTopNav from "@/components/AppTopNav";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (

@@ -388,8 +388,9 @@ export default function CategoriesPage() {
 
             <form onSubmit={handleCreateCategory} className="grid gap-3 sm:grid-cols-2">
               <div className="sm:col-span-2">
-                <label className="mb-1 block text-xs text-gray-400">Name</label>
+                <label htmlFor="new-category-name" className="mb-1 block text-xs text-gray-400">Name</label>
                 <input
+                  id="new-category-name"
                   ref={createNameRef}
                   type="text"
                   className="gl-input"
@@ -401,8 +402,8 @@ export default function CategoriesPage() {
               </div>
 
               <div className="sm:col-span-2">
-                <label className="mb-1 block text-xs text-gray-400">Type</label>
-                <select className="gl-input" value={type} onChange={(e) => setType(e.target.value as CategoryType)}>
+                <label htmlFor="new-category-type" className="mb-1 block text-xs text-gray-400">Type</label>
+                <select id="new-category-type" className="gl-input" value={type} onChange={(e) => setType(e.target.value as CategoryType)}>
                   <option value="expense">Expense</option>
                   <option value="income">Income</option>
                 </select>

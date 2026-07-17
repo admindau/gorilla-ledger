@@ -72,27 +72,36 @@ export default function RegisterPage() {
         </div>
 
         <form onSubmit={handleRegister} className="space-y-4">
-          <input
-            aria-label="Email address"
-            type="email"
-            placeholder="name@company.com"
-            className="gl-input"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-          />
+          <div>
+            <label htmlFor="register-email" className="gl-label">Email address</label>
+            <input
+              id="register-email"
+              type="email"
+              placeholder="name@company.com"
+              className="gl-input"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+            />
+          </div>
 
-          <input
-            aria-label="Password"
-            type="password"
-            placeholder="Password"
-            className="gl-input"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="new-password"
-          />
+          <div>
+            <label htmlFor="register-password" className="gl-label">Password</label>
+            <input
+              id="register-password"
+              type="password"
+              placeholder="At least 6 characters"
+              className="gl-input"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              autoComplete="new-password"
+              aria-describedby="register-password-hint"
+            />
+            <p id="register-password-hint" className="gl-field-hint">Use at least 6 characters.</p>
+          </div>
 
           {errorMsg && <p className="gl-auth-alert gl-auth-alert-error" role="alert">{errorMsg}</p>}
           {successMsg && <p className="gl-auth-alert gl-auth-alert-success" role="status">{successMsg}</p>}
@@ -102,7 +111,7 @@ export default function RegisterPage() {
             disabled={loading}
             className="gl-btn gl-btn-primary gl-btn-md w-full"
           >
-            {loading ? "Creating account..." : "Register"}
+            {loading ? "Creating account…" : "Create account"}
           </button>
 
           <p className="gl-auth-legal">

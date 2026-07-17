@@ -181,8 +181,9 @@ export function BudgetCard({
               {summary.category?.name ?? "Unknown category"} • {summary.wallet?.name ?? "All wallets"}{" "}
               {currency ? `• ${currency}` : ""}
             </div>
-            <label className="mb-1 block text-xs text-gray-400">Budget amount</label>
+            <label htmlFor={`budget-amount-${summary.id}`} className="mb-1 block text-xs text-gray-400">Budget amount</label>
             <input
+              id={`budget-amount-${summary.id}`}
               type="text"
               className="gl-input"
               value={editAmount}

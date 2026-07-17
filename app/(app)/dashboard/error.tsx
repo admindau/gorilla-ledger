@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import ErrorCard from "@/components/ui/ErrorCard";
 import { logError } from "@/lib/errors/errorLogger";
 
@@ -17,13 +17,6 @@ export default function DashboardError({
 }: DashboardErrorProps) {
   const errorInfo = useMemo(() => {
     return logError(error, {
-      route: "/dashboard",
-      component: "DashboardErrorBoundary",
-    });
-  }, [error]);
-
-  useEffect(() => {
-    logError(error, {
       route: "/dashboard",
       component: "DashboardErrorBoundary",
     });

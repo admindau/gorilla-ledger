@@ -222,11 +222,15 @@ export function SecurityMfaPanel({
 
             <form onSubmit={verifyEnroll} className="space-y-4">
               <div>
-                <label className="mb-1 block text-xs text-gray-400">6-digit code</label>
+                <label htmlFor="mfa-enrollment-code" className="mb-1 block text-xs text-gray-400">6-digit code</label>
                 <input
+                  id="mfa-enrollment-code"
                   value={otp}
                   onChange={(event) => setOtp(event.target.value)}
                   inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="[0-9]{6}"
+                  maxLength={6}
                   placeholder="123456"
                   className="w-full rounded-xl border border-white/10 bg-black px-3 py-2 text-sm text-white outline-none transition focus:border-white/40"
                 />

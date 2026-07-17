@@ -460,8 +460,9 @@ export default function BudgetsPage() {
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-xs text-gray-400">Year</label>
+                <label htmlFor="budget-year" className="mb-1 block text-xs text-gray-400">Year</label>
                 <input
+                  id="budget-year"
                   type="number"
                   className="gl-input w-28 py-1"
                   value={year}
@@ -469,8 +470,9 @@ export default function BudgetsPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-gray-400">Month</label>
+                <label htmlFor="budget-month" className="mb-1 block text-xs text-gray-400">Month</label>
                 <select
+                  id="budget-month"
                   className="gl-input w-40 py-1"
                   value={month}
                   onChange={(e) => setMonth(Number(e.target.value))}
@@ -534,8 +536,9 @@ export default function BudgetsPage() {
               ) : (
                 <form onSubmit={handleCreateBudget} className="grid gap-4 md:grid-cols-3">
                   <div>
-                    <label className="mb-1 block text-sm">Wallet</label>
+                    <label htmlFor="new-budget-wallet" className="mb-1 block text-sm">Wallet</label>
                     <select
+                      id="new-budget-wallet"
                       className="gl-input"
                       value={walletId}
                       onChange={(e) => setWalletId(e.target.value)}
@@ -549,8 +552,9 @@ export default function BudgetsPage() {
                   </div>
 
                   <div>
-                    <label className="mb-1 block text-sm">Category</label>
+                    <label htmlFor="new-budget-category" className="mb-1 block text-sm">Category</label>
                     <select
+                      id="new-budget-category"
                       className="gl-input"
                       value={categoryId}
                       onChange={(e) => setCategoryId(e.target.value)}
@@ -564,8 +568,9 @@ export default function BudgetsPage() {
                   </div>
 
                   <div>
-                    <label className="mb-1 block text-sm">Budget Amount</label>
+                    <label htmlFor="new-budget-amount" className="mb-1 block text-sm">Budget Amount</label>
                     <input
+                      id="new-budget-amount"
                       type="text"
                       className="gl-input"
                       value={amount}

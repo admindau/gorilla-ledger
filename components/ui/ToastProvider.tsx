@@ -52,7 +52,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={{ showToast }}>
       {children}
       {/* Toast container */}
-      <div className="fixed bottom-4 right-4 z-50 space-y-2 px-3 sm:px-0">
+      <div
+        className="pointer-events-none fixed inset-x-0 bottom-4 z-50 space-y-2 px-3 sm:left-auto sm:right-4 sm:max-w-sm sm:px-0"
+        aria-live="polite"
+        aria-atomic="false"
+      >
         {toasts.map((toast) => {
           let borderColor = "border-gray-700";
           let textColor = "text-gray-100";
@@ -68,7 +72,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           return (
             <div
               key={toast.id}
-              className={`gl-motion gl-fade-in min-w-[220px] max-w-sm rounded-xl border ${borderColor} bg-black/90 px-4 py-2 shadow-lg backdrop-blur`}
+              role={toast.type === "error" ? "alert" : "status"}
+              className={`gl-motion gl-fade-in mx-auto w-full min-w-0 max-w-sm rounded-xl border ${borderColor} bg-black/90 px-4 py-3 shadow-lg backdrop-blur sm:mx-0`}
             >
               <p className={`text-xs ${textColor}`}>{toast.message}</p>
             </div>

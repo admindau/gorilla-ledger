@@ -52,12 +52,13 @@ export function CategoryCard({
       <article className="gl-premium-card p-4">
         <div className="grid gap-3 md:grid-cols-3 md:items-end">
           <div className="md:col-span-2">
-            <label className="mb-1 block text-xs text-gray-400">Name</label>
-            <input className="gl-input" value={editName} onChange={(e) => onEditNameChange(e.target.value)} />
+            <label htmlFor={`category-name-${category.id}`} className="mb-1 block text-xs text-gray-400">Name</label>
+            <input id={`category-name-${category.id}`} className="gl-input" value={editName} onChange={(e) => onEditNameChange(e.target.value)} />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-gray-400">Type</label>
+            <label htmlFor={`category-type-${category.id}`} className="mb-1 block text-xs text-gray-400">Type</label>
             <select
+              id={`category-type-${category.id}`}
               className="gl-input"
               value={editType}
               onChange={(e) => onEditTypeChange(e.target.value as CategoryType)}

@@ -5,8 +5,6 @@ import { PRODUCT_NAME, PRODUCT_SIGNATURE } from "@/lib/brand";
 
 export async function POST(request: Request) {
   try {
-    console.log("[send-reset] route hit");
-
     const { email } = await request.json();
 
     if (!email || typeof email !== "string") {
@@ -76,8 +74,6 @@ export async function POST(request: Request) {
     // --------------------------------------------------------
 
     const resetLink = data.properties.action_link;
-    console.log("[send-reset] got resetLink");
-
     const html = `
       <html>
         <body style="margin:0; padding:24px; background-color:#000000; font-family: Arial, sans-serif; color:#000000;">
@@ -132,13 +128,11 @@ export async function POST(request: Request) {
       </html>
     `;
 
-    const result = await sendEmail({
+    await sendEmail({
       to: email,
       subject: `Reset your ${PRODUCT_NAME} password`,
       html,
     });
-
-    console.log("[send-reset] sendEmail result:", result);
 
     return NextResponse.json(
       {

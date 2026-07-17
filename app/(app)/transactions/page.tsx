@@ -1135,10 +1135,11 @@ export default function TransactionsPage() {
                 className="grid gap-4 md:grid-cols-3"
               >
                 <div>
-                  <label className="block text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                  <label htmlFor="transaction-wallet" className="block text-[11px] uppercase tracking-wide text-gray-400 mb-1">
                     Wallet
                   </label>
                   <select
+                    id="transaction-wallet"
                     className="gl-input"
                     value={walletId}
                     onChange={(e) => setWalletId(e.target.value)}
@@ -1155,10 +1156,11 @@ export default function TransactionsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                  <label htmlFor="transaction-category" className="block text-[11px] uppercase tracking-wide text-gray-400 mb-1">
                     Category
                   </label>
                   <select
+                    id="transaction-category"
                     className="gl-input"
                     value={categoryId}
                     onChange={(e) => {
@@ -1201,10 +1203,11 @@ export default function TransactionsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                  <label htmlFor="transaction-type" className="block text-[11px] uppercase tracking-wide text-gray-400 mb-1">
                     Type
                   </label>
                   <select
+                    id="transaction-type"
                     className="gl-input"
                     value={type}
                     onChange={(e) => {
@@ -1219,10 +1222,11 @@ export default function TransactionsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                  <label htmlFor="transaction-amount" className="block text-[11px] uppercase tracking-wide text-gray-400 mb-1">
                     Amount
                   </label>
                   <input
+                    id="transaction-amount"
                     type="text"
                     className="gl-input"
                     value={amount}
@@ -1231,10 +1235,11 @@ export default function TransactionsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                  <label htmlFor="transaction-date" className="block text-[11px] uppercase tracking-wide text-gray-400 mb-1">
                     Date
                   </label>
                   <input
+                    id="transaction-date"
                     type="date"
                     className="gl-input"
                     value={date}
@@ -1243,10 +1248,11 @@ export default function TransactionsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                  <label htmlFor="transaction-time" className="block text-[11px] uppercase tracking-wide text-gray-400 mb-1">
                     Time
                   </label>
                   <input
+                    id="transaction-time"
                     type="time"
                     className="gl-input"
                     value={time}
@@ -1265,10 +1271,11 @@ export default function TransactionsPage() {
                 </div>
 
                 <div className="md:col-span-3">
-                  <label className="block text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                  <label htmlFor="transaction-description" className="block text-[11px] uppercase tracking-wide text-gray-400 mb-1">
                     Description
                   </label>
                   <input
+                    id="transaction-description"
                     type="text"
                     className="gl-input"
                     placeholder="Optional note (e.g. salary for Nov, rent for Juba house)"
@@ -1324,32 +1331,33 @@ export default function TransactionsPage() {
           {showTransferForm ? (
             <form onSubmit={handleCreateTransfer} className="grid gap-4 p-4 md:grid-cols-2">
               <div>
-                <label className="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">From wallet</label>
-                <select className="gl-input" value={sourceWalletId} onChange={(event) => setSourceWalletId(event.target.value)}>
+                <label htmlFor="transfer-source-wallet" className="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">From wallet</label>
+                <select id="transfer-source-wallet" className="gl-input" value={sourceWalletId} onChange={(event) => setSourceWalletId(event.target.value)}>
                   {wallets.map((wallet) => <option key={wallet.id} value={wallet.id}>{wallet.name} ({wallet.currency_code})</option>)}
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">To wallet</label>
-                <select className="gl-input" value={destinationWalletId} onChange={(event) => setDestinationWalletId(event.target.value)}>
+                <label htmlFor="transfer-destination-wallet" className="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">To wallet</label>
+                <select id="transfer-destination-wallet" className="gl-input" value={destinationWalletId} onChange={(event) => setDestinationWalletId(event.target.value)}>
                   {wallets.map((wallet) => <option key={wallet.id} value={wallet.id}>{wallet.name} ({wallet.currency_code})</option>)}
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">Amount sent ({walletMap[sourceWalletId]?.currency_code ?? "—"})</label>
-                <input className="gl-input" inputMode="decimal" value={sourceAmount} onChange={(event) => setSourceAmount(event.target.value)} placeholder="0.00" />
+                <label htmlFor="transfer-source-amount" className="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">Amount sent ({walletMap[sourceWalletId]?.currency_code ?? "—"})</label>
+                <input id="transfer-source-amount" className="gl-input" inputMode="decimal" value={sourceAmount} onChange={(event) => setSourceAmount(event.target.value)} placeholder="0.00" />
               </div>
               <div>
-                <label className="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">Amount received ({walletMap[destinationWalletId]?.currency_code ?? "—"})</label>
-                <input className="gl-input" inputMode="decimal" value={destinationAmount} onChange={(event) => setDestinationAmount(event.target.value)} placeholder="0.00" />
+                <label htmlFor="transfer-destination-amount" className="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">Amount received ({walletMap[destinationWalletId]?.currency_code ?? "—"})</label>
+                <input id="transfer-destination-amount" className="gl-input" inputMode="decimal" value={destinationAmount} onChange={(event) => setDestinationAmount(event.target.value)} placeholder="0.00" />
               </div>
               <div>
-                <label className="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">Date</label>
-                <input type="date" className="gl-input" value={transferDate} onChange={(event) => setTransferDate(event.target.value)} />
+                <label htmlFor="transfer-date" className="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">Date</label>
+                <input id="transfer-date" type="date" className="gl-input" value={transferDate} onChange={(event) => setTransferDate(event.target.value)} />
               </div>
               <div>
-                <label className="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">Time</label>
+                <label htmlFor="transfer-time" className="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">Time</label>
                 <input
+                  id="transfer-time"
                   type="time"
                   className="gl-input"
                   value={transferTime}
@@ -1367,8 +1375,8 @@ export default function TransactionsPage() {
                 </label>
               </div>
               <div>
-                <label className="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">Description</label>
-                <input className="gl-input" value={transferDescription} onChange={(event) => setTransferDescription(event.target.value)} placeholder="Optional transfer or exchange note" />
+                <label htmlFor="transfer-description" className="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">Description</label>
+                <input id="transfer-description" className="gl-input" value={transferDescription} onChange={(event) => setTransferDescription(event.target.value)} placeholder="Optional transfer or exchange note" />
               </div>
               <div className="md:col-span-2">
                 <button type="submit" disabled={savingTransfer} className="gl-btn gl-btn-primary gl-btn-md">
@@ -1399,6 +1407,7 @@ export default function TransactionsPage() {
                 <input
                   type="date"
                   className="gl-input"
+                  aria-label="Filter transactions from date"
                   value={fromDate}
                   onChange={(e) => setFromDate(e.target.value)}
                 />
@@ -1406,6 +1415,7 @@ export default function TransactionsPage() {
                 <input
                   type="date"
                   className="gl-input"
+                  aria-label="Filter transactions through date"
                   value={toDate}
                   onChange={(e) => setToDate(e.target.value)}
                 />
@@ -1432,6 +1442,7 @@ export default function TransactionsPage() {
                 <input
                   type="text"
                   className="flex-1 gl-input"
+                  aria-label="Search recent transactions"
                   placeholder="Search recent transactions..."
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
@@ -1506,10 +1517,11 @@ export default function TransactionsPage() {
                                 Wallet, currency, direction, and classification stay locked so both ledger legs remain consistent. Date and description update both sides.
                               </p>
                               <div>
-                                <label className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
+                                <label htmlFor={`edit-date-${tx.id}`} className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
                                   Date
                                 </label>
                                 <input
+                                  id={`edit-date-${tx.id}`}
                                   type="date"
                                   className="gl-input text-xs py-1.5"
                                   value={editDate}
@@ -1520,10 +1532,11 @@ export default function TransactionsPage() {
                           ) : (
                             <div className="grid gap-2 md:grid-cols-4">
                             <div>
-                              <label className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
+                              <label htmlFor={`edit-wallet-${tx.id}`} className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
                                 Wallet
                               </label>
                               <select
+                                id={`edit-wallet-${tx.id}`}
                                 className="gl-input text-xs py-1.5"
                                 value={editWalletId}
                                 onChange={(e) => setEditWalletId(e.target.value)}
@@ -1537,10 +1550,11 @@ export default function TransactionsPage() {
                             </div>
 
                             <div>
-                              <label className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
+                              <label htmlFor={`edit-category-${tx.id}`} className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
                                 Category
                               </label>
                               <select
+                                id={`edit-category-${tx.id}`}
                                 className="gl-input text-xs py-1.5"
                                 value={editCategoryId}
                                 onChange={(e) => {
@@ -1574,10 +1588,11 @@ export default function TransactionsPage() {
                             </div>
 
                             <div>
-                              <label className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
+                              <label htmlFor={`edit-type-${tx.id}`} className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
                                 Type
                               </label>
                               <select
+                                id={`edit-type-${tx.id}`}
                                 className="gl-input text-xs py-1.5"
                                 value={editType}
                                 onChange={(e) => {
@@ -1594,10 +1609,11 @@ export default function TransactionsPage() {
                             </div>
 
                             <div>
-                              <label className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
+                              <label htmlFor={`edit-date-${tx.id}`} className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
                                 Date
                               </label>
                               <input
+                                id={`edit-date-${tx.id}`}
                                 type="date"
                                 className="gl-input text-xs py-1.5"
                                 value={editDate}
@@ -1609,10 +1625,11 @@ export default function TransactionsPage() {
 
                           <div className="grid gap-2 md:grid-cols-[220px_1fr] md:items-end">
                             <div>
-                              <label className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
+                              <label htmlFor={`edit-time-${tx.id}`} className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
                                 Time
                               </label>
                               <input
+                                id={`edit-time-${tx.id}`}
                                 type="time"
                                 className="gl-input text-xs py-1.5"
                                 value={editTime}
@@ -1633,10 +1650,11 @@ export default function TransactionsPage() {
 
                           <div className="grid gap-2 md:grid-cols-3">
                             <div>
-                              <label className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
+                              <label htmlFor={`edit-amount-${tx.id}`} className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
                                 Amount
                               </label>
                               <input
+                                id={`edit-amount-${tx.id}`}
                                 type="text"
                                 className="gl-input text-xs py-1.5"
                                 value={editAmount}
@@ -1645,10 +1663,11 @@ export default function TransactionsPage() {
                             </div>
 
                             <div className="md:col-span-2">
-                              <label className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
+                              <label htmlFor={`edit-description-${tx.id}`} className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
                                 Description
                               </label>
                               <input
+                                id={`edit-description-${tx.id}`}
                                 type="text"
                                 className="gl-input text-xs py-1.5"
                                 value={editDescription}

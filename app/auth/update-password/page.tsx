@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
+import { PublicAuthShell } from "@/components/public/PublicAuthShell";
 
 export default function UpdatePasswordPage() {
   const router = useRouter();
@@ -70,29 +71,31 @@ export default function UpdatePasswordPage() {
 
   if (checkingSession) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <p className="text-gray-400 text-sm">Verifying your link…</p>
-      </div>
+      <PublicAuthShell>
+        <p className="text-sm text-gray-400" role="status">
+          Verifying your secure link…
+        </p>
+      </PublicAuthShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
-      <div className="gl-card w-full max-w-md p-6">
-        <h1 className="text-2xl font-semibold mb-1 text-center">
-          Set a new password
-        </h1>
-        <p className="text-gray-400 text-xs mb-6 text-center">
-          Choose a new password for your Gorilla Ledger account.
-        </p>
+    <PublicAuthShell>
+      <div className="flex w-full items-center justify-center px-4 text-white">
+        <div className="gl-auth-card gl-card w-full max-w-md">
+          <div className="gl-auth-card-heading">
+            <p className="gl-auth-eyebrow">Account recovery</p>
+            <h1>Set a new password</h1>
+            <p>Choose a new password for your Gorilla Ledger account.</p>
+          </div>
 
         {errorMsg && (
-          <p className="mb-4 text-xs text-red-400 border border-red-500/40 rounded px-3 py-2 bg-red-950/30">
+          <p className="gl-auth-alert gl-auth-alert-error" role="alert">
             {errorMsg}
           </p>
         )}
         {successMsg && (
-          <p className="mb-4 text-xs text-emerald-400 border border-emerald-500/40 rounded px-3 py-2 bg-emerald-950/30">
+          <p className="gl-auth-alert gl-auth-alert-success" role="status">
             {successMsg}
           </p>
         )}
@@ -100,30 +103,40 @@ export default function UpdatePasswordPage() {
         {hasSession ? (
           <form onSubmit={handleSubmit} className="space-y-4 text-sm">
             <div>
-              <label className="block mb-1 text-xs text-gray-400">
+              <label htmlFor="new-password" className="gl-label">
                 New password
               </label>
               <input
+                id="new-password"
                 type="password"
                 required
+                minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="gl-input"
                 placeholder="••••••••"
+                autoComplete="new-password"
+                aria-describedby="new-password-hint"
               />
+              <p id="new-password-hint" className="gl-field-hint">
+                Use at least 6 characters.
+              </p>
             </div>
 
             <div>
-              <label className="block mb-1 text-xs text-gray-400">
+              <label htmlFor="confirm-password" className="gl-label">
                 Confirm password
               </label>
               <input
+                id="confirm-password"
                 type="password"
                 required
+                minLength={6}
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 className="gl-input"
                 placeholder="••••••••"
+                autoComplete="new-password"
               />
             </div>
 
@@ -132,7 +145,7 @@ export default function UpdatePasswordPage() {
               disabled={loading}
               className="gl-btn gl-btn-primary gl-btn-md w-full mt-2"
             >
-              {loading ? "Updating..." : "Update password"}
+              {loading ? "Updating…" : "Update password"}
             </button>
           </form>
         ) : (
@@ -146,7 +159,8 @@ export default function UpdatePasswordPage() {
             </button>
           </div>
         )}
+        </div>
       </div>
-    </div>
+    </PublicAuthShell>
   );
 }

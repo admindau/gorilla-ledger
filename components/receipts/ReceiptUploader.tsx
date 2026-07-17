@@ -80,7 +80,7 @@ export default function ReceiptUploader({
 
   return (
     <div className="md:col-span-3">
-      <label className="block text-sm mb-1">{label}</label>
+      <p className="mb-1 text-sm">{label}</p>
 
       <div
         className={`border border-gray-700 rounded p-3 bg-gray-900/40 ${

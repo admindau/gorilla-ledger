@@ -415,10 +415,11 @@ export default function RecurringPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block mb-1 text-xs text-gray-400">
+                <label htmlFor="recurring-wallet" className="block mb-1 text-xs text-gray-400">
                   Wallet
                 </label>
                 <select
+                  id="recurring-wallet"
                   value={walletId}
                   onChange={(e) => setWalletId(e.target.value)}
                   className="gl-input"
@@ -434,10 +435,11 @@ export default function RecurringPage() {
               </div>
 
               <div>
-                <label className="block mb-1 text-xs text-gray-400">
+                <label htmlFor="recurring-category" className="block mb-1 text-xs text-gray-400">
                   Category
                 </label>
                 <select
+                  id="recurring-category"
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
                   className="gl-input"
@@ -459,10 +461,11 @@ export default function RecurringPage() {
               </div>
 
               <div>
-                <label className="block mb-1 text-xs text-gray-400">
+                <label htmlFor="recurring-amount" className="block mb-1 text-xs text-gray-400">
                   Amount
                 </label>
                 <input
+                  id="recurring-amount"
                   type="number"
                   step="0.01"
                   min="0"
@@ -475,10 +478,11 @@ export default function RecurringPage() {
               </div>
 
               <div>
-                <label className="block mb-1 text-xs text-gray-400">
+                <label htmlFor="recurring-first-run" className="block mb-1 text-xs text-gray-400">
                   First run date
                 </label>
                 <input
+                  id="recurring-first-run"
                   type="date"
                   value={firstRunDate}
                   onChange={(e) => setFirstRunDate(e.target.value)}
@@ -488,10 +492,11 @@ export default function RecurringPage() {
               </div>
 
               <div>
-                <label className="block mb-1 text-xs text-gray-400">
+                <label htmlFor="recurring-frequency" className="block mb-1 text-xs text-gray-400">
                   Frequency
                 </label>
                 <select
+                  id="recurring-frequency"
                   value={frequency}
                   onChange={(e) => setFrequency(e.target.value as RecurringFrequency)}
                   className="gl-input"
@@ -506,10 +511,11 @@ export default function RecurringPage() {
             </div>
 
             <div>
-              <label className="block mb-1 text-xs text-gray-400">
+              <label htmlFor="recurring-description" className="block mb-1 text-xs text-gray-400">
                 Description (optional)
               </label>
               <input
+                id="recurring-description"
                 type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
