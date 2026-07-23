@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { PublicAuthShell } from "@/components/public/PublicAuthShell";
 
 export default function RegisterPage() {
@@ -17,23 +16,28 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const emailRedirectTo = `${window.location.origin}/auth/confirm?next=${encodeURIComponent("/dashboard")}`;
-      const { error } = await supabaseBrowserClient.auth.signInWithOtp({
-        email: email.trim(),
-        options: {
-          emailRedirectTo,
-          shouldCreateUser: true,
-        },
+      const response = await fetch("/auth/send-magic-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          mode: "signup",
+          next: "/dashboard",
+        }),
       });
+      const body = await response.json().catch(() => ({}));
 
-      if (error) {
-        setErrorMsg(error.message);
+      if (!response.ok && response.status !== 429) {
+        setErrorMsg(body.message ?? "We could not send a secure link. Please try again.");
         return;
       }
 
       setSuccessMsg(
-        "Check your email to finish creating your account. Your secure link signs you in automatically."
+        body.message ??
+          "Check your email to finish creating your account. Your secure link signs you in automatically."
       );
+    } catch {
+      setErrorMsg("We could not send a secure link. Check your connection and try again.");
     } finally {
       setLoading(false);
     }

@@ -2,7 +2,6 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabaseBrowserClient } from "@/lib/supabase/client";
 
 export function LoginForm({
   next,
@@ -24,27 +23,28 @@ export function LoginForm({
     setLoading(true);
 
     try {
-      const emailRedirectTo = `${window.location.origin}/auth/confirm?next=${encodeURIComponent(next)}`;
-      const { error } = await supabaseBrowserClient.auth.signInWithOtp({
-        email: email.trim(),
-        options: {
-          emailRedirectTo,
-          shouldCreateUser: false,
-        },
+      const response = await fetch("/auth/send-magic-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          mode: "login",
+          next,
+        }),
       });
+      const body = await response.json().catch(() => ({}));
 
-      if (error) {
-        setErrorMsg(
-          error.message.toLowerCase().includes("signups not allowed")
-            ? "We could not find a Gorilla Ledger account for that email."
-            : error.message
-        );
+      if (!response.ok && response.status !== 429) {
+        setErrorMsg(body.message ?? "We could not send a secure link. Please try again.");
         return;
       }
 
       setSuccessMsg(
-        "Check your email for a secure sign-in link. You can close this tab after opening it."
+        body.message ??
+          "Check your email for a secure sign-in link. You can close this tab after opening it."
       );
+    } catch {
+      setErrorMsg("We could not send a secure link. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
