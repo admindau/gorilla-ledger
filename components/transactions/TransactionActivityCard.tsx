@@ -60,7 +60,7 @@ export function TransactionActivityCard({
 }: TransactionActivityCardProps) {
   const [showActions, setShowActions] = useState(false);
   const isIncome = tx.type === "income";
-  const title = category?.name ?? "Uncategorized";
+  const title = category?.name.trim() || "Uncategorized";
   const occurredAt = formatOccurredAt(
     tx.occurred_at,
     tx.occurred_at_precision === "datetime" ? "datetime" : "date",
