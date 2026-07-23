@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { COMPANY_NAME, PRODUCT_NAME } from "@/lib/brand";
+import { COMPANY_NAME, COMPANY_SITE_URL, PRODUCT_NAME } from "@/lib/brand";
 
 const footerGroups = [
   {
@@ -25,7 +25,13 @@ export function PublicFooter({ compact = false }: { compact?: boolean }) {
       <div className="gl-public-footer-inner">
         <div>
           <Link href="/" className="gl-public-footer-brand">{PRODUCT_NAME}</Link>
-          <p>A product of {COMPANY_NAME}.</p>
+          <p>
+            A product of{" "}
+            <a href={COMPANY_SITE_URL} target="_blank" rel="noreferrer">
+              {COMPANY_NAME}
+            </a>
+            .
+          </p>
         </div>
 
         <div className="gl-public-footer-links">

@@ -2334,6 +2334,13 @@ body {
   font-size: 0.75rem;
 }
 
+.gl-public-footer-inner > div:first-child > p a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: rgba(156, 163, 175, 0.35);
+  text-underline-offset: 0.2em;
+}
+
 .gl-public-footer-links {
   display: flex;
   gap: 3rem;
