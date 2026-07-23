@@ -31,7 +31,7 @@ export default function SecurityPage() {
 
       <TrustSection title="What you can do">
         <ul>
-          <li>Use a strong password that you do not reuse elsewhere.</li>
+          <li>Sign in only from magic links you requested and never forward them.</li>
           <li>Enable MFA and configure a backup authenticator.</li>
           <li>Review account security regularly.</li>
           <li>Export important records and store the files securely.</li>

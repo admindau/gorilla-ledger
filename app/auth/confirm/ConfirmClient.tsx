@@ -46,7 +46,7 @@ export default function ConfirmClient() {
 
       if (!access_token || !refresh_token) {
         setStatus("error");
-        setMessage("Invalid or expired link. Please request a new password reset.");
+        setMessage("This link is invalid or has expired. Please request a new magic link.");
         return;
       }
 
@@ -61,7 +61,7 @@ export default function ConfirmClient() {
 
         if (browserErr) {
           setStatus("error");
-          setMessage("Could not establish session. Please request a new reset link.");
+          setMessage("Could not establish your session. Please request a new magic link.");
           return;
         }
 
@@ -74,7 +74,7 @@ export default function ConfirmClient() {
 
         if (!res.ok) {
           setStatus("error");
-          setMessage("Session cookie setup failed. Please request a new reset link.");
+          setMessage("Session setup failed. Please request a new magic link.");
           return;
         }
 
@@ -100,10 +100,10 @@ export default function ConfirmClient() {
         {status === "error" ? (
           <div className="mt-5">
             <a
-              href="/auth/reset-password"
+              href="/auth/login"
               className="inline-block rounded-full border border-white/20 px-4 py-2 text-sm hover:bg-white hover:text-black transition"
             >
-              Request a new reset link
+              Request a new magic link
             </a>
           </div>
         ) : null}

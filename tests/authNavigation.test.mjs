@@ -39,12 +39,9 @@ test("return destinations remain inside the application", () => {
   assert.equal(sanitizeAppDestination("/"), "/dashboard");
 });
 
-test("confirmation destinations are limited to protected app and recovery routes", () => {
+test("confirmation destinations are limited to protected app routes", () => {
   assert.equal(sanitizeConfirmationDestination("/dashboard"), "/dashboard");
-  assert.equal(
-    sanitizeConfirmationDestination("/auth/update-password"),
-    "/auth/update-password"
-  );
+  assert.equal(sanitizeConfirmationDestination("/auth/update-password"), "/dashboard");
   assert.equal(sanitizeConfirmationDestination("https://example.com"), "/dashboard");
   assert.equal(sanitizeConfirmationDestination("//example.com/path"), "/dashboard");
   assert.equal(sanitizeConfirmationDestination("/auth/logout"), "/dashboard");

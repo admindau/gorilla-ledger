@@ -57,7 +57,7 @@ export default function PrivacyPage() {
 
       <TrustSection title="Security">
         <p>
-          Gorilla Ledger uses authenticated access, user-scoped database controls, multi-factor authentication options, protected receipt access, and encrypted network connections. No online service can guarantee absolute security, so you should use a strong unique password and enable MFA.
+          Gorilla Ledger uses passwordless magic-link access, user-scoped database controls, multi-factor authentication options, protected receipt access, and encrypted network connections. No online service can guarantee absolute security, so you should protect access to your email account and enable MFA.
         </p>
       </TrustSection>
 

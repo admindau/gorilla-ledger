@@ -4,78 +4,68 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
-export function LoginForm({ next }: { next: string }) {
+export function LoginForm({
+  next,
+  initialError = "",
+}: {
+  next: string;
+  initialError?: string;
+}) {
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState(initialError);
+  const [successMsg, setSuccessMsg] = useState("");
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setErrorMsg("");
+    setSuccessMsg("");
     setLoading(true);
 
     try {
-      const { error } = await supabaseBrowserClient.auth.signInWithPassword({
-        email,
-        password,
+      const emailRedirectTo = `${window.location.origin}/auth/confirm?next=${encodeURIComponent(next)}`;
+      const { error } = await supabaseBrowserClient.auth.signInWithOtp({
+        email: email.trim(),
+        options: {
+          emailRedirectTo,
+          shouldCreateUser: false,
+        },
       });
 
       if (error) {
-        setErrorMsg(error.message);
-        return;
-      }
-
-      const nextUrl = next || "/dashboard";
-
-      // Determine whether the account needs an MFA step. The MFA page lists all
-      // verified factors and creates a fresh challenge for the user's selection.
-      const { data: factorsData, error: factorsErr } =
-        await supabaseBrowserClient.auth.mfa.listFactors();
-
-      if (factorsErr) {
         setErrorMsg(
-          "We could not verify your account's MFA requirements. Please try again."
+          error.message.toLowerCase().includes("signups not allowed")
+            ? "We could not find a Gorilla Ledger account for that email."
+            : error.message
         );
         return;
       }
 
-      const verifiedTotp = factorsData?.totp?.filter(
-        (f) => f.status === "verified"
-      ) ?? [];
-
-      if (verifiedTotp.length > 0) {
-        router.replace(`/auth/mfa?next=${encodeURIComponent(nextUrl)}`);
-        return;
-      }
-
-      // No MFA enabled -> proceed normally
-      router.push(nextUrl);
+      setSuccessMsg(
+        "Check your email for a secure sign-in link. You can close this tab after opening it."
+      );
     } finally {
       setLoading(false);
     }
-  }
-
-  function goToRegister() {
-    router.push("/auth/register");
-  }
-
-  function goToResetPassword() {
-    router.push("/auth/reset-password");
   }
 
   return (
     <div className="gl-auth-card gl-card w-full max-w-md">
       <div className="gl-auth-card-heading">
         <p className="gl-auth-eyebrow">Welcome back</p>
-        <h1>Sign in to your ledger</h1>
-        <p>Your financial picture is ready when you are.</p>
+        <h1>Sign in with a magic link</h1>
+        <p>No password to remember. We&apos;ll email you a secure, one-time link.</p>
       </div>
 
       {errorMsg && (
         <p className="gl-auth-alert gl-auth-alert-error" role="alert">
           {errorMsg}
+        </p>
+      )}
+      {successMsg && (
+        <p className="gl-auth-alert gl-auth-alert-success" role="status">
+          {successMsg}
         </p>
       )}
 
@@ -91,47 +81,28 @@ export function LoginForm({ next }: { next: string }) {
             className="gl-input"
             placeholder="name@company.com"
             autoComplete="email"
+            autoFocus
           />
-        </div>
-
-        <div>
-          <label htmlFor="login-password" className="gl-label">Password</label>
-          <input
-            id="login-password"
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="gl-input"
-            placeholder="••••••••"
-            autoComplete="current-password"
-          />
-        </div>
-
-        <div className="gl-auth-form-meta">
-          <button
-            type="button"
-            onClick={goToResetPassword}
-            className="gl-auth-text-link"
-          >
-            Forgot password?
-          </button>
         </div>
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || Boolean(successMsg)}
           className="gl-btn gl-btn-primary gl-btn-md w-full mt-2"
         >
-          {loading ? "Signing in…" : "Sign in"}
+          {loading ? "Sending secure link…" : successMsg ? "Magic link sent" : "Email me a magic link"}
         </button>
       </form>
+
+      <p className="gl-auth-legal">
+        Magic links are single-use and expire automatically. Only open links you requested.
+      </p>
 
       <div className="gl-auth-card-footer">
         New to Gorilla Ledger?{" "}
         <button
           type="button"
-          onClick={goToRegister}
+          onClick={() => router.push("/auth/register")}
           className="gl-auth-text-link"
         >
           Create an account

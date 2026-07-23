@@ -5,6 +5,7 @@ import { sanitizeAppDestination } from "@/lib/auth/navigation";
 type LoginPageProps = {
   searchParams?: Promise<{
     next?: string | string[];
+    error?: string | string[];
   }>;
 };
 
@@ -16,6 +17,7 @@ export default async function LoginPage({
     : undefined;
 
   const nextParam = resolvedSearchParams?.next;
+  const errorParam = resolvedSearchParams?.error;
 
   const next = sanitizeAppDestination(
     typeof nextParam === "string" ? nextParam : undefined
@@ -24,7 +26,14 @@ export default async function LoginPage({
   return (
     <PublicAuthShell>
       <div className="flex w-full items-center justify-center px-4 text-white">
-        <LoginForm next={next} />
+        <LoginForm
+          next={next}
+          initialError={
+            typeof errorParam === "string"
+              ? "That sign-in link is invalid or has expired. Request a new one below."
+              : ""
+          }
+        />
       </div>
     </PublicAuthShell>
   );

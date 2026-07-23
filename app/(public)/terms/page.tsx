@@ -24,7 +24,7 @@ export default function TermsPage() {
       <TrustSection title="Your account">
         <ul>
           <li>Provide accurate account information and keep it current.</li>
-          <li>Protect your password and authentication factors.</li>
+          <li>Protect your email account, magic links, and authentication factors.</li>
           <li>Use your account only for lawful purposes.</li>
           <li>Notify us promptly if you suspect unauthorized access.</li>
         </ul>

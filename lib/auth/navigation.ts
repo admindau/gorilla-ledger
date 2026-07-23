@@ -57,10 +57,6 @@ export function sanitizeConfirmationDestination(
   value: string | null | undefined,
   fallback = DEFAULT_APP_DESTINATION
 ) {
-  if (value === "/auth/update-password") {
-    return value;
-  }
-
   const destination = sanitizeAppDestination(value, fallback);
 
   try {
