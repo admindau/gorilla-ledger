@@ -42,7 +42,7 @@ function actionHref(target: IntelligenceActionTarget): string {
     case "categories":
       return "/categories";
     case "settings":
-      return "/settings";
+      return "/settings/security";
     default:
       return "/dashboard";
   }
@@ -83,7 +83,7 @@ function CurrencyCoach({ currency }: { currency: CurrencyInsight }) {
           <p className="mt-1.5 text-[11px] leading-5 opacity-80">{rationale}</p>
           <Link
             href={href}
-            className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-semibold text-white transition-opacity hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+            className="mt-3 inline-flex min-h-6 items-center gap-1.5 text-[11px] font-semibold text-white transition-opacity hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
           >
             {label}
             <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

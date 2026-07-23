@@ -128,6 +128,7 @@ export function TransactionActivityCard({
             onClick={() => setShowActions((value) => !value)}
             className="gl-btn gl-btn-secondary gl-btn-sm"
             aria-expanded={showActions}
+            aria-label={`${showActions ? "Close actions for" : "Manage"} ${title} transaction from ${occurredAt.date}`}
           >
             {showActions ? "Close" : "Manage"}
           </button>

@@ -1997,6 +1997,9 @@ body {
   }
 
   .gl-app-brand {
+    min-height: 2.75rem;
+    display: inline-flex;
+    align-items: center;
     font-size: 0.9rem;
   }
 
@@ -2655,6 +2658,13 @@ body {
     gap: 2.5rem;
   }
 
+  .gl-public-footer-brand,
+  .gl-public-footer-links a {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+  }
+
   .gl-public-footer-copy {
     white-space: normal;
   }
@@ -3017,6 +3027,9 @@ body {
 }
 
 .gl-auth-text-link {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
   color: rgba(255, 255, 255, 0.84);
   font-weight: 600;
   text-decoration: underline;
