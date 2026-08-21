@@ -37,7 +37,15 @@ export async function POST(request: NextRequest) {
   const data = rawData as InvitationResult | null;
 
   if (error || !data) {
-    return response({ error: error?.message ?? "Unable to create the invitation." }, 400);
+    const message = error?.message ?? "";
+    const invitationError = message.includes("already the owner")
+      ? "You already own this ledger. Invite a different email address."
+      : message.includes("Wait before")
+        ? "Please wait a moment before sending another invitation."
+        : message.includes("Invitation limit")
+          ? "You’ve reached the hourly invitation limit. Try again later."
+          : "Unable to create the invitation. Check the email address and try again.";
+    return response({ error: invitationError }, 400);
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gl.savvyrilla.tech";

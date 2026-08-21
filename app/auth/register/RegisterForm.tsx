@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-export function RegisterForm({ next }: { next: string }) {
+export function RegisterForm({ next, familyInvite = false }: { next: string; familyInvite?: boolean }) {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -20,13 +20,15 @@ export function RegisterForm({ next }: { next: string }) {
       if (!response.ok && response.status !== 429) {
         setErrorMsg(body.message ?? "We could not send a secure link. Please try again."); return;
       }
-      setSuccessMsg(body.message ?? "Check your email to finish creating your account. Your secure link signs you in automatically.");
+      setSuccessMsg(familyInvite
+        ? "Check your email for a secure link, then continue to the shared household ledger."
+        : body.message ?? "Check your email to finish creating your account. Your secure link signs you in automatically.");
     } catch { setErrorMsg("We could not send a secure link. Check your connection and try again."); }
     finally { setLoading(false); }
   }
 
   return <div className="gl-auth-card gl-card w-full max-w-md">
-    <div className="gl-auth-card-heading"><p className="gl-auth-eyebrow">Your ledger starts here</p><h1>Create your account</h1><p>Enter your email and we&apos;ll send a secure link—no password required.</p></div>
+    <div className="gl-auth-card-heading"><p className="gl-auth-eyebrow">{familyInvite ? "Create your secure account" : "Your ledger starts here"}</p><h1>{familyInvite ? "Join your family ledger" : "Create your account"}</h1><p>{familyInvite ? "Use the email address that received the invitation. We’ll send a secure sign-in link—no shared password required." : "Enter your email and we’ll send a secure link—no password required."}</p></div>
     {errorMsg && <p className="gl-auth-alert gl-auth-alert-error" role="alert">{errorMsg}</p>}
     {successMsg && <p className="gl-auth-alert gl-auth-alert-success" role="status">{successMsg}</p>}
     <form onSubmit={handleRegister} className="space-y-4">

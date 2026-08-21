@@ -22,7 +22,11 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
             <h1>Join a household ledger</h1>
             <p>Use your own secure account to work together. Your login and security settings remain private.</p>
           </div>
-          {!token ? <p className="gl-auth-alert gl-auth-alert-error">This invitation link is invalid.</p> : (
+          {!token ? <div className="grid gap-4">
+            <p className="gl-auth-alert gl-auth-alert-error">This invitation link is invalid or incomplete.</p>
+            <p className="gl-auth-legal">Ask the ledger owner to send you a new invitation.</p>
+            <Link className="gl-btn gl-btn-secondary gl-btn-md w-full text-center" href="/">Return to Gorilla Ledger</Link>
+          </div> : (
             <div className="grid gap-3">
               <Link className="gl-btn gl-btn-primary gl-btn-md w-full text-center" href={`/auth/login?next=${encodeURIComponent(destination)}`}>Sign in to accept</Link>
               <Link className="gl-btn gl-btn-secondary gl-btn-md w-full text-center" href={`/auth/register?next=${encodeURIComponent(destination)}`}>Create an account</Link>

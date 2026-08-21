@@ -11,10 +11,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "This invitation link is invalid." }, { status: 400 });
   }
   const { error } = await supabase.rpc("accept_ledger_invitation", { p_token: body.token });
+  const invitationError = error?.message.includes("Sign in with the email address")
+    ? "Sign in with the email address that received this invitation."
+    : "This invitation is invalid or has expired.";
   const response = error
-    ? NextResponse.json({ error: error.message }, { status: 400 })
+    ? NextResponse.json({ error: invitationError }, { status: 400 })
     : NextResponse.json({ message: "You’ve joined the household ledger." });
   applyPrivateNoStore(response.headers);
   return response;
 }
-

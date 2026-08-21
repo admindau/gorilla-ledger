@@ -60,6 +60,12 @@ from public.ledgers as ledger
 left join auth.users as auth_user on auth_user.id = ledger.owner_user_id
 on conflict (ledger_id, user_id) do update set role = 'owner';
 
+update public.ledgers as ledger
+set name = 'My Ledger', updated_at = now()
+from auth.users as auth_user
+where ledger.owner_user_id = auth_user.id
+  and lower(ledger.name) = lower(auth_user.email || '''s Ledger');
+
 update public.profiles as profile
 set active_ledger_id = ledger.id
 from public.ledgers as ledger
@@ -78,7 +84,10 @@ declare
 begin
   insert into public.ledgers (name, owner_user_id)
   values (
-    case when nullif(trim(new.full_name), '') is null then 'My Ledger' else left(trim(new.full_name) || '''s Ledger', 80) end,
+    case
+      when nullif(trim(new.full_name), '') is null or position('@' in new.full_name) > 0 then 'My Ledger'
+      else left(trim(new.full_name) || '''s Ledger', 80)
+    end,
     new.id
   )
   on conflict (owner_user_id) do update set updated_at = now()
@@ -312,7 +321,7 @@ as $$
 declare
   v_ledger_id uuid := public.current_ledger_id();
   v_email text := lower(trim(p_email));
-  v_token text := encode(gen_random_bytes(32), 'hex');
+  v_token text := encode(extensions.gen_random_bytes(32), 'hex');
 begin
   if not public.is_ledger_owner(v_ledger_id) then
     raise exception 'Only the ledger owner can invite family members';
@@ -324,6 +333,18 @@ begin
   if v_email = lower(coalesce(auth.jwt() ->> 'email', '')) then
     raise exception 'You are already the owner of this ledger';
   end if;
+  if exists (
+    select 1 from public.ledger_invitations
+    where invited_by = auth.uid() and created_at > now() - interval '30 seconds'
+  ) then
+    raise exception 'Wait before sending another invitation';
+  end if;
+  if (
+    select count(*) from public.ledger_invitations
+    where invited_by = auth.uid() and created_at > now() - interval '1 hour'
+  ) >= 20 then
+    raise exception 'Invitation limit reached';
+  end if;
 
   update public.ledger_invitations
   set revoked_at = now()
@@ -333,7 +354,7 @@ begin
   insert into public.ledger_invitations (
     ledger_id, email, role, token_hash, invited_by, expires_at
   ) values (
-    v_ledger_id, v_email, p_role, digest(v_token, 'sha256'), auth.uid(), now() + interval '7 days'
+    v_ledger_id, v_email, p_role, extensions.digest(v_token, 'sha256'), auth.uid(), now() + interval '7 days'
   ) returning id into invitation_id;
 
   invitation_token := v_token;
@@ -356,7 +377,7 @@ begin
 
   select * into v_invitation
   from public.ledger_invitations
-  where token_hash = digest(p_token, 'sha256')
+  where token_hash = extensions.digest(p_token, 'sha256')
   for update;
 
   if v_invitation.id is null or v_invitation.accepted_at is not null
