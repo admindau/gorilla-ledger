@@ -49,7 +49,7 @@ export default function FamilySettingsPage() {
           } else if (!cancelled) {
             setSuccess("You’ve joined the household ledger.");
           }
-          router.replace("/settings/family");
+          window.history.replaceState(null, "", "/settings/family");
         }
         await loadOverview();
       } catch (caught) {

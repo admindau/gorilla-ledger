@@ -36,7 +36,7 @@ test("receipt APIs can authorize a ledger member without sharing accounts", () =
 test("invitation failures recover to a usable family page", () => {
   assert.match(familyPage, /setError\(apiError\(body/);
   assert.match(familyPage, /await loadOverview\(\)/);
-  assert.match(familyPage, /router\.replace\("\/settings\/family"\)/);
+  assert.match(familyPage, /window\.history\.replaceState\(null, "", "\/settings\/family"\)/);
 });
 
 test("invitees receive contextual signup and invalid-link recovery", () => {
