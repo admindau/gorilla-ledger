@@ -1,98 +1,11 @@
-"use client";
-
-import { useState } from "react";
 import { PublicAuthShell } from "@/components/public/PublicAuthShell";
+import { sanitizeAppDestination } from "@/lib/auth/navigation";
+import { RegisterForm } from "./RegisterForm";
 
-export default function RegisterPage() {
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [successMsg, setSuccessMsg] = useState("");
+type RegisterPageProps = { searchParams?: Promise<{ next?: string | string[] }> };
 
-  async function handleRegister(e: React.FormEvent) {
-    e.preventDefault();
-    setErrorMsg("");
-    setSuccessMsg("");
-    setLoading(true);
-
-    try {
-      const response = await fetch("/auth/send-magic-link", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim(),
-          mode: "signup",
-          next: "/dashboard",
-        }),
-      });
-      const body = await response.json().catch(() => ({}));
-
-      if (!response.ok && response.status !== 429) {
-        setErrorMsg(body.message ?? "We could not send a secure link. Please try again.");
-        return;
-      }
-
-      setSuccessMsg(
-        body.message ??
-          "Check your email to finish creating your account. Your secure link signs you in automatically."
-      );
-    } catch {
-      setErrorMsg("We could not send a secure link. Check your connection and try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <PublicAuthShell>
-      <div className="flex w-full items-center justify-center px-4 text-white">
-        <div className="gl-auth-card gl-card w-full max-w-md">
-          <div className="gl-auth-card-heading">
-            <p className="gl-auth-eyebrow">Your ledger starts here</p>
-            <h1>Create your account</h1>
-            <p>Enter your email and we&apos;ll send a secure link—no password required.</p>
-          </div>
-
-          {errorMsg && <p className="gl-auth-alert gl-auth-alert-error" role="alert">{errorMsg}</p>}
-          {successMsg && <p className="gl-auth-alert gl-auth-alert-success" role="status">{successMsg}</p>}
-
-          <form onSubmit={handleRegister} className="space-y-4">
-            <div>
-              <label htmlFor="register-email" className="gl-label">Email address</label>
-              <input
-                id="register-email"
-                type="email"
-                placeholder="name@company.com"
-                className="gl-input"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                autoFocus
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading || Boolean(successMsg)}
-              className="gl-btn gl-btn-primary gl-btn-md w-full"
-            >
-              {loading ? "Sending secure link…" : successMsg ? "Magic link sent" : "Email me a sign-up link"}
-            </button>
-
-            <p className="gl-auth-legal">
-              By continuing, you agree to the <a href="/terms" className="text-gray-300 underline underline-offset-4">Terms</a> and acknowledge the <a href="/privacy" className="text-gray-300 underline underline-offset-4">Privacy Notice</a>.
-            </p>
-          </form>
-
-          <p className="gl-auth-card-footer">
-            Already have an account?{" "}
-            <a href="/auth/login" className="gl-auth-text-link">
-              Sign in
-            </a>
-          </p>
-        </div>
-      </div>
-    </PublicAuthShell>
-  );
+export default async function RegisterPage({ searchParams }: RegisterPageProps) {
+  const nextParam = (await searchParams)?.next;
+  const next = sanitizeAppDestination(typeof nextParam === "string" ? nextParam : undefined);
+  return <PublicAuthShell><div className="flex w-full items-center justify-center px-4 text-white"><RegisterForm next={next} /></div></PublicAuthShell>;
 }

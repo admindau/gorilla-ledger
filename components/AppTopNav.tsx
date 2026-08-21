@@ -16,6 +16,7 @@ const navItems = [
   { href: "/budgets", label: "Budgets", shortLabel: "Budgets" },
   { href: "/recurring", label: "Recurring", shortLabel: "Recurring" },
   { href: "/exports", label: "Exports", shortLabel: "Export" },
+  { href: "/settings/family", label: "Family", shortLabel: "Family" },
   { href: "/settings/security", label: "Security", shortLabel: "Security" },
 ] as const;
 
@@ -37,6 +38,7 @@ function NavIcon({ href }: { href: (typeof navItems)[number]["href"] }) {
     "/categories": <><path d="M4 4h5v5H4zM11 4h5v5h-5zM4 11h5v5H4zM11 11h5v5h-5z" /></>,
     "/recurring": <><path d="M15.5 7.5A6 6 0 0 0 5 6l-1.5 2" /><path d="M3.5 4v4h4M4.5 12.5A6 6 0 0 0 15 14l1.5-2" /><path d="M16.5 16v-4h-4" /></>,
     "/exports": <><path d="M10 3v9m0 0 3-3m-3 3L7 9" /><path d="M4 13v3h12v-3" /></>,
+    "/settings/family": <><circle cx="7" cy="7" r="2.5" /><circle cx="14" cy="8" r="2" /><path d="M2.5 16c.4-3 2-4.5 4.5-4.5s4.1 1.5 4.5 4.5M11 12.5c2.8-.6 5 .8 5.8 3.5" /></>,
     "/settings/security": <><path d="M10 3 4.5 5v4.5c0 3.6 2.2 6.2 5.5 7.5 3.3-1.3 5.5-3.9 5.5-7.5V5z" /><path d="m7.5 10 1.5 1.5 3.5-3.5" /></>,
   };
 

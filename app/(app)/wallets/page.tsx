@@ -306,7 +306,6 @@ export default function WalletsPage() {
         starting_balance_minor,
       })
       .eq("id", id)
-      .eq("user_id", user.id)
       .select()
       .single();
 
@@ -348,8 +347,7 @@ export default function WalletsPage() {
     const { error } = await supabaseBrowserClient
       .from("wallets")
       .delete()
-      .eq("id", id)
-      .eq("user_id", user.id);
+      .eq("id", id);
 
     if (error) {
       console.error(error);

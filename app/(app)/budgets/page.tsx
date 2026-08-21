@@ -383,7 +383,6 @@ export default function BudgetsPage() {
       .from("budgets")
       .update({ amount_minor })
       .eq("id", budget.id)
-      .eq("user_id", user.id)
       .select()
       .single();
 
@@ -421,8 +420,7 @@ export default function BudgetsPage() {
     const { error } = await supabaseBrowserClient
       .from("budgets")
       .delete()
-      .eq("id", budget.id)
-      .eq("user_id", user.id);
+      .eq("id", budget.id);
 
     if (error) {
       console.error(error);

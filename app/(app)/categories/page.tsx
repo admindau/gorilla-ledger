@@ -253,7 +253,6 @@ export default function CategoriesPage() {
       .from("categories")
       .update({ name: trimmed, type: editType })
       .eq("id", id)
-      .eq("user_id", user.id)
       .select()
       .single();
 
@@ -315,8 +314,7 @@ export default function CategoriesPage() {
     const { error } = await supabaseBrowserClient
       .from("categories")
       .update({ is_active: false })
-      .eq("id", id)
-      .eq("user_id", user.id);
+      .eq("id", id);
 
     if (error) {
       console.error(error);

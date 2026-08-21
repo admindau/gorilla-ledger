@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabaseServiceClient } from "@/lib/supabase/service";
+import { getLedgerAccessForOwner } from "@/lib/family/access";
 
 type Body = { receipt_id: string };
 
@@ -61,7 +62,7 @@ export async function POST(req: Request) {
     );
   }
 
-  if (receipt.user_id !== userId) {
+  if (!(await getLedgerAccessForOwner(userId, receipt.user_id))) {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });
   }
 

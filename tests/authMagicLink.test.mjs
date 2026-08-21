@@ -7,7 +7,7 @@ const loginSource = await readFile(
   "utf8"
 );
 const registerSource = await readFile(
-  new URL("../app/auth/register/page.tsx", import.meta.url),
+  new URL("../app/auth/register/RegisterForm.tsx", import.meta.url),
   "utf8"
 );
 const routeSource = await readFile(

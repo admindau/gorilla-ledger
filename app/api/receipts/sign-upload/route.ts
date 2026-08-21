@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabaseServiceClient } from "@/lib/supabase/service";
+import { getLedgerAccessForOwner } from "@/lib/family/access";
 
 type Body = {
   transaction_id: string;
@@ -70,7 +71,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Receipt not found." }, { status: 404 });
   }
 
-  if (receipt.user_id !== userId) {
+  const access = await getLedgerAccessForOwner(userId, receipt.user_id);
+  if (!access) {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });
   }
 
@@ -81,7 +83,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const path = `${userId}/${body.transaction_id}/${body.receipt_id}.${ext}`;
+  const path = `${access.ledgerId}/${body.transaction_id}/${body.receipt_id}.${ext}`;
 
   const { data, error } = await supabase.storage
     .from(bucket)
