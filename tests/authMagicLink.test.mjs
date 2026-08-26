@@ -31,33 +31,31 @@ const sessionRouteSource = await readFile(
   "utf8"
 );
 
-test("sign-in uses a magic link and never creates an unknown user", () => {
+test("sign-in uses an emailed code and never creates an unknown user", () => {
   assert.match(loginSource, /\/auth\/send-magic-link/);
   assert.match(loginSource, /mode:\s*"login"/);
   assert.doesNotMatch(loginSource, /signInWithPassword|type="password"/);
 });
 
-test("sign-up uses a magic link and can create a new user", () => {
+test("sign-up uses an emailed code and can create a new user", () => {
   assert.match(registerSource, /\/auth\/send-magic-link/);
   assert.match(registerSource, /mode:\s*"signup"/);
   assert.doesNotMatch(registerSource, /signUp\(|type="password"/);
 });
 
-test("magic-link delivery keeps shared Roots templates untouched", () => {
+test("code delivery keeps shared Roots templates untouched", () => {
   assert.match(routeSource, /auth\.admin\.generateLink/);
-  assert.match(routeSource, /Your \$\{PRODUCT_NAME\} sign-in code and link/);
+  assert.match(routeSource, /Your \$\{PRODUCT_NAME\} sign-in code/);
   assert.match(routeSource, /sendEmail/);
   assert.match(routeSource, /mode === "login" && !exists/);
-  assert.match(routeSource, /properties\?\.hashed_token/);
   assert.match(routeSource, /properties\?\.email_otp/);
   assert.match(routeSource, /Delivery accepted/);
   assert.match(routeSource, /deliveryId/);
   assert.match(routeSource, /Request reference|reference/);
-  assert.match(routeSource, /buildEmailConfirmationUrl/);
   assert.match(routeSource, /const deliveryMode.*exists \? "login" : "signup"/);
-  assert.match(routeSource, /use only the newest email/i);
+  assert.match(routeSource, /use only the newest code/i);
   assert.match(routeSource, /Retry-After/);
-  assert.doesNotMatch(routeSource, /magicLinkEmail\(actionLink/);
+  assert.doesNotMatch(routeSource, /href=/);
 });
 
 test("cross-device sign-in can verify the emailed one-time code", () => {

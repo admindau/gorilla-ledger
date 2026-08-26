@@ -48,7 +48,7 @@ export function LoginForm({
       const retryAfter = Number(response.headers.get("Retry-After"));
 
       if (!response.ok && response.status !== 429) {
-        setErrorMsg(body.message ?? "We could not send a secure link. Please try again.");
+        setErrorMsg(body.message ?? "We could not send a sign-in code. Please try again.");
         return;
       }
 
@@ -60,7 +60,7 @@ export function LoginForm({
       setReference(typeof body.reference === "string" ? body.reference.slice(0, 8) : "");
       setResendIn(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 60);
     } catch {
-      setErrorMsg("We could not send a secure link. Check your connection and try again.");
+      setErrorMsg("We could not send a sign-in code. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -105,7 +105,7 @@ export function LoginForm({
       <div className="gl-auth-card-heading">
         <p className="gl-auth-eyebrow">Welcome back</p>
         <h1>Sign in securely</h1>
-        <p>We&apos;ll email you a one-time code and a secure link.</p>
+        <p>We&apos;ll email you a one-time code—no password or link required.</p>
       </div>
 
       {errorMsg && (
@@ -117,8 +117,8 @@ export function LoginForm({
         <div className="gl-auth-alert gl-auth-alert-success" role="status">
           <p>{successMsg}</p>
           <p className="mt-2 text-xs leading-5 text-white/65">
-            Enter the code below on this computer, or open the link on the device you want to sign in to.
-            Search all mail folders for hello@savvyrilla.tech if it is not visible. Use only the newest email.
+            Enter the code below on this computer. Search all mail folders for hello@savvyrilla.tech if it is not visible,
+            and use only the newest code.
           </p>
           {reference ? <p className="mt-2 text-[11px] text-white/45">Request reference: {reference}</p> : null}
         </div>
@@ -151,7 +151,7 @@ export function LoginForm({
           disabled={loading || Boolean(successMsg)}
           className="gl-btn gl-btn-primary gl-btn-md w-full mt-2"
         >
-          {loading ? "Sending secure access…" : successMsg ? "Code and link sent" : "Email me a code and link"}
+          {loading ? "Sending secure code…" : successMsg ? "Code sent" : "Email me a sign-in code"}
         </button>
       </form>
 
@@ -184,7 +184,7 @@ export function LoginForm({
       ) : null}
 
       <p className="gl-auth-legal">
-        Codes and links are single-use and expire automatically. If one has expired, request a fresh email here.
+        Codes are single-use and expire automatically. If one has expired, request a fresh email here.
       </p>
 
       {successMsg ? (

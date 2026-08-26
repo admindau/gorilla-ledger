@@ -31,15 +31,15 @@ export function RegisterForm({ next, familyInvite = false }: { next: string; fam
       const body = await response.json().catch(() => ({}));
       const retryAfter = Number(response.headers.get("Retry-After"));
       if (!response.ok && response.status !== 429) {
-        setErrorMsg(body.message ?? "We could not send a secure link. Please try again."); return;
+        setErrorMsg(body.message ?? "We could not send an account code. Please try again."); return;
       }
       setSuccessMsg(familyInvite
-        ? "Check your email for a code and secure link, then continue to the shared household ledger."
-        : body.message ?? "Check your email for a code and secure link to finish creating your account.");
+        ? "Check your email for an account code, then continue to the shared household ledger."
+        : body.message ?? "Check your email for a code to finish creating your account.");
       setOtp("");
       setReference(typeof body.reference === "string" ? body.reference.slice(0, 8) : "");
       setResendIn(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 60);
-    } catch { setErrorMsg("We could not send a secure link. Check your connection and try again."); }
+    } catch { setErrorMsg("We could not send an account code. Check your connection and try again."); }
     finally { setLoading(false); }
   }
 
@@ -71,12 +71,12 @@ export function RegisterForm({ next, familyInvite = false }: { next: string; fam
   }
 
   return <div className="gl-auth-card gl-card w-full max-w-md">
-    <div className="gl-auth-card-heading"><p className="gl-auth-eyebrow">{familyInvite ? "Create your secure account" : "Your ledger starts here"}</p><h1>{familyInvite ? "Join your family ledger" : "Create your account"}</h1><p>{familyInvite ? "Use the email address that received the invitation. We’ll send a one-time code and secure link—no shared password required." : "Enter your email and we’ll send a one-time code and secure link—no password required."}</p></div>
+    <div className="gl-auth-card-heading"><p className="gl-auth-eyebrow">{familyInvite ? "Create your secure account" : "Your ledger starts here"}</p><h1>{familyInvite ? "Join your family ledger" : "Create your account"}</h1><p>{familyInvite ? "Use the email address that received the invitation. We’ll send a one-time code—no shared password required." : "Enter your email and we’ll send a one-time code—no password or link required."}</p></div>
     {errorMsg && <p className="gl-auth-alert gl-auth-alert-error" role="alert">{errorMsg}</p>}
-    {successMsg && <div className="gl-auth-alert gl-auth-alert-success" role="status"><p>{successMsg}</p><p className="mt-2 text-xs leading-5 text-white/65">Enter the code below on this computer, or open the link on the device you want to sign in to. Search all mail folders for hello@savvyrilla.tech and use only the newest email.</p>{reference ? <p className="mt-2 text-[11px] text-white/45">Request reference: {reference}</p> : null}</div>}
+    {successMsg && <div className="gl-auth-alert gl-auth-alert-success" role="status"><p>{successMsg}</p><p className="mt-2 text-xs leading-5 text-white/65">Enter the code below on this computer. Search all mail folders for hello@savvyrilla.tech if it is not visible, and use only the newest code.</p>{reference ? <p className="mt-2 text-[11px] text-white/45">Request reference: {reference}</p> : null}</div>}
     <form onSubmit={handleRegister} className="space-y-4">
       <div><label htmlFor="register-email" className="gl-label">Email address</label><input id="register-email" type="email" placeholder="name@example.com" className="gl-input" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" inputMode="email" spellCheck={false} aria-describedby="register-email-help" autoFocus /><p id="register-email-help" className="mt-2 text-xs leading-5 text-white/55">We use this only for secure account access and essential ledger notices.</p></div>
-      <button type="submit" disabled={loading || Boolean(successMsg)} className="gl-btn gl-btn-primary gl-btn-md w-full">{loading ? "Sending secure access…" : successMsg ? "Code and link sent" : "Email me a code and link"}</button>
+      <button type="submit" disabled={loading || Boolean(successMsg)} className="gl-btn gl-btn-primary gl-btn-md w-full">{loading ? "Sending account code…" : successMsg ? "Code sent" : "Email me an account code"}</button>
       <p className="gl-auth-legal">By continuing, you agree to the <a href="/terms" className="text-gray-300 underline underline-offset-4">Terms</a> and acknowledge the <a href="/privacy" className="text-gray-300 underline underline-offset-4">Privacy Notice</a>.</p>
     </form>
     {successMsg ? <form onSubmit={verifyCode} className="mt-5 space-y-3 border-t border-white/10 pt-5"><div><label htmlFor="register-code" className="gl-label">Account code</label><input id="register-code" className="gl-input text-center text-xl tracking-[0.28em]" value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 8))} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,8}" minLength={6} maxLength={8} required aria-describedby="register-code-help" autoFocus /><p id="register-code-help" className="mt-2 text-xs leading-5 text-white/55">Type the 6–8 digit code from the newest Gorilla Ledger email.</p></div><button type="submit" disabled={verifying} className="gl-btn gl-btn-primary gl-btn-md w-full">{verifying ? "Verifying code…" : "Continue with code"}</button></form> : null}

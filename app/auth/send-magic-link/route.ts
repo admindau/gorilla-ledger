@@ -3,10 +3,9 @@ import { supabaseAdminClient } from "@/lib/supabase/admin";
 import { sanitizeConfirmationDestination } from "@/lib/auth/navigation";
 import { sendEmail } from "@/lib/email";
 import { COMPANY_NAME, PRODUCT_NAME } from "@/lib/brand";
-import { buildEmailConfirmationUrl } from "@/lib/auth/confirmation";
 
 const GENERIC_MESSAGE =
-  "Check your email for a one-time code and secure sign-in link. They expire soon and can only be used once.";
+  "Check your email for a one-time sign-in code. It expires soon and can only be used once.";
 const RATE_LIMIT_MESSAGE =
   "A recent sign-in email is already on its way. Check all mail folders, then try again when the timer ends.";
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
@@ -58,21 +57,20 @@ async function userExists(email: string) {
   throw new Error("Auth user lookup exceeded the supported page limit.");
 }
 
-function magicLinkEmail(confirmationLink: string, emailOtp: string, mode: "login" | "signup") {
-  const safeLink = confirmationLink.replaceAll("&", "&amp;").replaceAll('"', "&quot;");
+function signInCodeEmail(emailOtp: string, mode: "login" | "signup") {
   const heading =
     mode === "signup" ? `Welcome to ${PRODUCT_NAME}` : `Sign in to ${PRODUCT_NAME}`;
   const intro =
     mode === "signup"
-      ? "Open Gorilla Ledger, then confirm once to finish creating your passwordless ledger."
-      : "Open Gorilla Ledger, then confirm once to return to your ledger.";
+      ? "Enter this one-time code in Gorilla Ledger to finish creating your passwordless ledger."
+      : "Enter this one-time code in Gorilla Ledger to return to your ledger.";
 
   return `
     <!doctype html>
     <html lang="en">
       <body style="margin:0;padding:32px 16px;background:#050505;color:#111111;font-family:Arial,sans-serif;">
         <div style="display:none;max-height:0;overflow:hidden;opacity:0;">
-          Your Gorilla Ledger sign-in code and secure link are ready. Use only the newest email.
+          Your Gorilla Ledger sign-in code is ready. Use only the newest email.
         </div>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;">
           <tr>
@@ -92,13 +90,8 @@ function magicLinkEmail(confirmationLink: string, emailOtp: string, mode: "login
                 <p style="margin:0;color:#111111;font-size:30px;font-weight:700;letter-spacing:.18em;">${emailOtp}</p>
                 <p style="margin:10px 0 0;color:#686868;font-size:12px;line-height:1.5;">Enter this code on the computer where you started signing in.</p>
               </div>
-              <p style="margin:0 0 24px;text-align:center;">
-                <a href="${safeLink}" style="display:inline-block;padding:13px 24px;border-radius:999px;background:#050505;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;">
-                  Open Gorilla Ledger
-                </a>
-              </p>
               <p style="margin:0 0 18px;color:#686868;font-size:12px;line-height:1.6;">
-                On the next screen, select <strong>Continue securely</strong>. The code and link expire soon and can only be used once. If you requested more than one email, use only the newest email. If you did not request it, you can safely ignore this email.
+                The code expires soon and can only be used once. If you requested more than one email, use only the newest code. Gorilla Ledger will never ask you to forward or reply with this code. If you did not request it, you can safely ignore this email.
               </p>
               <p style="margin:0;padding-top:18px;border-top:1px solid #e8e8e8;color:#8a8a8a;font-size:11px;">
                 ${COMPANY_NAME}
@@ -111,9 +104,9 @@ function magicLinkEmail(confirmationLink: string, emailOtp: string, mode: "login
   `;
 }
 
-function magicLinkEmailText(confirmationLink: string, emailOtp: string, mode: "login" | "signup") {
+function signInCodeEmailText(emailOtp: string, mode: "login" | "signup") {
   const action = mode === "signup" ? "Create your Gorilla Ledger account" : "Sign in to Gorilla Ledger";
-  return `${action}\n\nSign-in code: ${emailOtp}\nEnter this code on the computer where you started signing in.\n\nOr open this secure link, then select Continue securely:\n${confirmationLink}\n\nThe code and link expire soon and can only be used once. If you requested more than one email, use only the newest email. If you did not request it, you can safely ignore this email.\n\n${COMPANY_NAME}`;
+  return `${action}\n\nSign-in code: ${emailOtp}\nEnter this code on the computer where you started signing in.\n\nThe code expires soon and can only be used once. If you requested more than one email, use only the newest code. Gorilla Ledger will never ask you to forward or reply with this code. If you did not request it, you can safely ignore this email.\n\n${COMPANY_NAME}`;
 }
 
 export async function POST(request: NextRequest) {
@@ -159,31 +152,21 @@ export async function POST(request: NextRequest) {
           options: { redirectTo },
         });
 
-    const tokenHash = data?.properties?.hashed_token;
     const emailOtp = data?.properties?.email_otp;
     const verificationType = data?.properties?.verification_type;
-    if (error || !tokenHash || typeof emailOtp !== "string" || !/^\d{6,8}$/.test(emailOtp) || !verificationType) {
+    if (error || typeof emailOtp !== "string" || !/^\d{6,8}$/.test(emailOtp) || !verificationType) {
       console.error("[send-magic-link] Supabase link generation failed.", { reference });
       return json(GENERIC_MESSAGE, 200, undefined, reference);
     }
-
-    // Fragments never reach preview requests, so mail scanners cannot redeem
-    // this one-time token before the person confirms in their browser.
-    const confirmationUrl = buildEmailConfirmationUrl({
-      siteUrl,
-      next,
-      tokenHash,
-      type: verificationType,
-    });
 
     const delivery = await sendEmail({
       to: email,
       subject:
         deliveryMode === "signup"
-          ? `Your ${PRODUCT_NAME} account code and link`
-          : `Your ${PRODUCT_NAME} sign-in code and link`,
-      html: magicLinkEmail(confirmationUrl, emailOtp, deliveryMode),
-      text: magicLinkEmailText(confirmationUrl, emailOtp, deliveryMode),
+          ? `Your ${PRODUCT_NAME} account code`
+          : `Your ${PRODUCT_NAME} sign-in code`,
+      html: signInCodeEmail(emailOtp, deliveryMode),
+      text: signInCodeEmailText(emailOtp, deliveryMode),
       idempotencyKey: `auth/${reference}`,
     });
 
