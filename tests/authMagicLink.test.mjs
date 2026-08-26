@@ -26,6 +26,10 @@ const logoutRouteSource = await readFile(
   new URL("../app/auth/logout/route.ts", import.meta.url),
   "utf8"
 );
+const sessionRouteSource = await readFile(
+  new URL("../app/auth/confirm/session/route.ts", import.meta.url),
+  "utf8"
+);
 
 test("sign-in uses a magic link and never creates an unknown user", () => {
   assert.match(loginSource, /\/auth\/send-magic-link/);
@@ -41,20 +45,33 @@ test("sign-up uses a magic link and can create a new user", () => {
 
 test("magic-link delivery keeps shared Roots templates untouched", () => {
   assert.match(routeSource, /auth\.admin\.generateLink/);
-  assert.match(routeSource, /Your \$\{PRODUCT_NAME\} sign-in link/);
+  assert.match(routeSource, /Your \$\{PRODUCT_NAME\} sign-in code and link/);
   assert.match(routeSource, /sendEmail/);
   assert.match(routeSource, /mode === "login" && !exists/);
   assert.match(routeSource, /properties\?\.hashed_token/);
+  assert.match(routeSource, /properties\?\.email_otp/);
+  assert.match(routeSource, /Delivery accepted/);
+  assert.match(routeSource, /deliveryId/);
+  assert.match(routeSource, /Request reference|reference/);
   assert.match(routeSource, /buildEmailConfirmationUrl/);
   assert.match(routeSource, /const deliveryMode.*exists \? "login" : "signup"/);
-  assert.match(routeSource, /use only the newest link/i);
+  assert.match(routeSource, /use only the newest email/i);
   assert.match(routeSource, /Retry-After/);
   assert.doesNotMatch(routeSource, /magicLinkEmail\(actionLink/);
+});
+
+test("cross-device sign-in can verify the emailed one-time code", () => {
+  assert.match(loginSource, /autoComplete="one-time-code"/);
+  assert.match(loginSource, /Continue with code/);
+  assert.match(sessionRouteSource, /hasEmailOtp/);
+  assert.match(sessionRouteSource, /verifyOtp\(\{ email: email\.trim\(\)\.toLowerCase\(\), token, type \}\)/);
 });
 
 test("transactional email uses a monitored sender identity", () => {
   assert.match(emailSource, /from: `\$\{PRODUCT_NAME\} <\$\{SUPPORT_EMAIL\}>`/);
   assert.match(emailSource, /replyTo: SUPPORT_EMAIL/);
+  assert.match(emailSource, /idempotencyKey: deliveryKey/);
+  assert.match(emailSource, /attempt <= 2/);
   assert.doesNotMatch(emailSource, /no-reply@/);
 });
 

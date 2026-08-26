@@ -3,12 +3,19 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { isEmailOtpType } from "@/lib/auth/confirmation";
 
+function json(body: Record<string, unknown>, status: number) {
+  const response = NextResponse.json(body, { status });
+  response.headers.set("Cache-Control", "no-store");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  return response;
+}
+
 export async function POST(req: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json({ error: "missing_env" }, { status: 500 });
+    return json({ error: "missing_env" }, 500);
   }
 
   const body = await req.json().catch(() => null);
@@ -16,15 +23,23 @@ export async function POST(req: NextRequest) {
   const refresh_token = body?.refresh_token;
   const token_hash = body?.token_hash;
   const type = body?.type;
+  const email = body?.email;
+  const token = body?.token;
 
   const hasLegacySession = Boolean(access_token && refresh_token);
   const hasTokenHash =
     typeof token_hash === "string" &&
     token_hash.length > 0 &&
     isEmailOtpType(type);
+  const hasEmailOtp =
+    typeof email === "string" &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
+    typeof token === "string" &&
+    /^\d{6,8}$/.test(token) &&
+    isEmailOtpType(type);
 
-  if (!hasLegacySession && !hasTokenHash) {
-    return NextResponse.json({ error: "missing_tokens" }, { status: 400 });
+  if (!hasLegacySession && !hasTokenHash && !hasEmailOtp) {
+    return json({ error: "missing_tokens" }, 400);
   }
 
   const cookieStore = await cookies();
@@ -45,10 +60,12 @@ export async function POST(req: NextRequest) {
 
   const { error } = hasTokenHash
     ? await supabase.auth.verifyOtp({ token_hash, type })
-    : await supabase.auth.setSession({ access_token, refresh_token });
+    : hasEmailOtp
+      ? await supabase.auth.verifyOtp({ email: email.trim().toLowerCase(), token, type })
+      : await supabase.auth.setSession({ access_token, refresh_token });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    return json({ error: error.message }, 401);
   }
 
   // Defense-in-depth: ensure cookies are scoped correctly (origin-based).

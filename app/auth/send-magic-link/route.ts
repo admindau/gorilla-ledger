@@ -6,7 +6,9 @@ import { COMPANY_NAME, PRODUCT_NAME } from "@/lib/brand";
 import { buildEmailConfirmationUrl } from "@/lib/auth/confirmation";
 
 const GENERIC_MESSAGE =
-  "Check your email for a secure sign-in link. It expires soon and can only be used once.";
+  "Check your email for a one-time code and secure sign-in link. They expire soon and can only be used once.";
+const RATE_LIMIT_MESSAGE =
+  "A recent sign-in email is already on its way. Check all mail folders, then try again when the timer ends.";
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 5;
 const rateLimits = new Map<string, number[]>();
@@ -17,8 +19,8 @@ type RequestBody = {
   next?: unknown;
 };
 
-function json(message = GENERIC_MESSAGE, status = 200, retryAfter?: number) {
-  const response = NextResponse.json({ message }, { status });
+function json(message = GENERIC_MESSAGE, status = 200, retryAfter?: number, reference?: string) {
+  const response = NextResponse.json({ message, reference }, { status });
   response.headers.set("Cache-Control", "no-store");
   if (retryAfter) response.headers.set("Retry-After", String(retryAfter));
   return response;
@@ -56,7 +58,7 @@ async function userExists(email: string) {
   throw new Error("Auth user lookup exceeded the supported page limit.");
 }
 
-function magicLinkEmail(confirmationLink: string, mode: "login" | "signup") {
+function magicLinkEmail(confirmationLink: string, emailOtp: string, mode: "login" | "signup") {
   const safeLink = confirmationLink.replaceAll("&", "&amp;").replaceAll('"', "&quot;");
   const heading =
     mode === "signup" ? `Welcome to ${PRODUCT_NAME}` : `Sign in to ${PRODUCT_NAME}`;
@@ -70,7 +72,7 @@ function magicLinkEmail(confirmationLink: string, mode: "login" | "signup") {
     <html lang="en">
       <body style="margin:0;padding:32px 16px;background:#050505;color:#111111;font-family:Arial,sans-serif;">
         <div style="display:none;max-height:0;overflow:hidden;opacity:0;">
-          Your secure Gorilla Ledger link is ready. Only the newest link will work.
+          Your Gorilla Ledger sign-in code and secure link are ready. Use only the newest email.
         </div>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;">
           <tr>
@@ -85,13 +87,18 @@ function magicLinkEmail(confirmationLink: string, mode: "login" | "signup") {
               </p>
               <h1 style="margin:0 0 12px;color:#111111;font-size:28px;line-height:1.2;">${heading}</h1>
               <p style="margin:0 0 24px;color:#454545;font-size:15px;line-height:1.6;">${intro}</p>
+              <div style="margin:0 0 24px;padding:18px;border:1px solid #dedede;border-radius:14px;background:#f7f7f7;text-align:center;">
+                <p style="margin:0 0 8px;color:#686868;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;">Sign-in code</p>
+                <p style="margin:0;color:#111111;font-size:30px;font-weight:700;letter-spacing:.18em;">${emailOtp}</p>
+                <p style="margin:10px 0 0;color:#686868;font-size:12px;line-height:1.5;">Enter this code on the computer where you started signing in.</p>
+              </div>
               <p style="margin:0 0 24px;text-align:center;">
                 <a href="${safeLink}" style="display:inline-block;padding:13px 24px;border-radius:999px;background:#050505;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;">
                   Open Gorilla Ledger
                 </a>
               </p>
               <p style="margin:0 0 18px;color:#686868;font-size:12px;line-height:1.6;">
-                On the next screen, select <strong>Continue securely</strong>. The link expires soon and can only be used once. If you requested more than one email, use only the newest link. If you did not request it, you can safely ignore this email.
+                On the next screen, select <strong>Continue securely</strong>. The code and link expire soon and can only be used once. If you requested more than one email, use only the newest email. If you did not request it, you can safely ignore this email.
               </p>
               <p style="margin:0;padding-top:18px;border-top:1px solid #e8e8e8;color:#8a8a8a;font-size:11px;">
                 ${COMPANY_NAME}
@@ -104,9 +111,9 @@ function magicLinkEmail(confirmationLink: string, mode: "login" | "signup") {
   `;
 }
 
-function magicLinkEmailText(confirmationLink: string, mode: "login" | "signup") {
+function magicLinkEmailText(confirmationLink: string, emailOtp: string, mode: "login" | "signup") {
   const action = mode === "signup" ? "Create your Gorilla Ledger account" : "Sign in to Gorilla Ledger";
-  return `${action}\n\nOpen this secure link, then select Continue securely:\n${confirmationLink}\n\nThe link expires soon and can only be used once. If you requested more than one email, use only the newest link. If you did not request it, you can safely ignore this email.\n\n${COMPANY_NAME}`;
+  return `${action}\n\nSign-in code: ${emailOtp}\nEnter this code on the computer where you started signing in.\n\nOr open this secure link, then select Continue securely:\n${confirmationLink}\n\nThe code and link expire soon and can only be used once. If you requested more than one email, use only the newest email. If you did not request it, you can safely ignore this email.\n\n${COMPANY_NAME}`;
 }
 
 export async function POST(request: NextRequest) {
@@ -116,6 +123,7 @@ export async function POST(request: NextRequest) {
   }
 
   const email = body.email.trim().toLowerCase();
+  const reference = crypto.randomUUID();
   const mode = body.mode === "signup" ? "signup" : "login";
   const next = sanitizeConfirmationDestination(
     typeof body.next === "string" ? body.next : undefined
@@ -127,12 +135,12 @@ export async function POST(request: NextRequest) {
     isRateLimited(`email:${email}`) ||
     isRateLimited(`ip:${clientIp}`)
   ) {
-    return json(GENERIC_MESSAGE, 429, RATE_LIMIT_WINDOW_MS / 1000);
+    return json(RATE_LIMIT_MESSAGE, 429, RATE_LIMIT_WINDOW_MS / 1000, reference);
   }
 
   try {
     const exists = await userExists(email);
-    if (mode === "login" && !exists) return json();
+    if (mode === "login" && !exists) return json(GENERIC_MESSAGE, 200, undefined, reference);
     const deliveryMode: "login" | "signup" = exists ? "login" : "signup";
 
     const siteUrl =
@@ -152,10 +160,11 @@ export async function POST(request: NextRequest) {
         });
 
     const tokenHash = data?.properties?.hashed_token;
+    const emailOtp = data?.properties?.email_otp;
     const verificationType = data?.properties?.verification_type;
-    if (error || !tokenHash || !verificationType) {
-      console.error("[send-magic-link] Supabase link generation failed.");
-      return json();
+    if (error || !tokenHash || typeof emailOtp !== "string" || !/^\d{6,8}$/.test(emailOtp) || !verificationType) {
+      console.error("[send-magic-link] Supabase link generation failed.", { reference });
+      return json(GENERIC_MESSAGE, 200, undefined, reference);
     }
 
     // Fragments never reach preview requests, so mail scanners cannot redeem
@@ -171,19 +180,25 @@ export async function POST(request: NextRequest) {
       to: email,
       subject:
         deliveryMode === "signup"
-          ? `Finish setting up ${PRODUCT_NAME}`
-          : `Your ${PRODUCT_NAME} sign-in link`,
-      html: magicLinkEmail(confirmationUrl, deliveryMode),
-      text: magicLinkEmailText(confirmationUrl, deliveryMode),
+          ? `Your ${PRODUCT_NAME} account code and link`
+          : `Your ${PRODUCT_NAME} sign-in code and link`,
+      html: magicLinkEmail(confirmationUrl, emailOtp, deliveryMode),
+      text: magicLinkEmailText(confirmationUrl, emailOtp, deliveryMode),
+      idempotencyKey: `auth/${reference}`,
     });
 
     if (!delivery.success) {
-      console.error("[send-magic-link] Resend delivery failed.");
+      console.error("[send-magic-link] Resend delivery failed.", { reference });
+    } else {
+      console.info("[send-magic-link] Delivery accepted.", {
+        reference,
+        deliveryId: delivery.data?.id,
+      });
     }
 
-    return json();
+    return json(GENERIC_MESSAGE, 200, undefined, reference);
   } catch {
-    console.error("[send-magic-link] Unexpected delivery failure.");
-    return json();
+    console.error("[send-magic-link] Unexpected delivery failure.", { reference });
+    return json(GENERIC_MESSAGE, 200, undefined, reference);
   }
 }

@@ -16,6 +16,9 @@ export function LoginForm({
   const [errorMsg, setErrorMsg] = useState(initialError);
   const [successMsg, setSuccessMsg] = useState("");
   const [resendIn, setResendIn] = useState(0);
+  const [otp, setOtp] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [reference, setReference] = useState("");
 
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -53,11 +56,42 @@ export function LoginForm({
         body.message ??
           "Check your email for a secure sign-in link. You can close this tab after opening it."
       );
+      setOtp("");
+      setReference(typeof body.reference === "string" ? body.reference.slice(0, 8) : "");
       setResendIn(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 60);
     } catch {
       setErrorMsg("We could not send a secure link. Check your connection and try again.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function verifyCode(e: FormEvent) {
+    e.preventDefault();
+    setErrorMsg("");
+    setVerifying(true);
+
+    try {
+      const response = await fetch("/auth/confirm/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          token: otp.replace(/\s/g, ""),
+          type: "magiclink",
+        }),
+      });
+
+      if (!response.ok) {
+        setErrorMsg("That code is invalid or expired. Use the code from the newest email, or request another one.");
+        return;
+      }
+
+      window.location.replace(next);
+    } catch {
+      setErrorMsg("We could not verify that code. Check your connection and try again.");
+    } finally {
+      setVerifying(false);
     }
   }
 
@@ -70,8 +104,8 @@ export function LoginForm({
     <div className="gl-auth-card gl-card w-full max-w-md">
       <div className="gl-auth-card-heading">
         <p className="gl-auth-eyebrow">Welcome back</p>
-        <h1>Sign in with a magic link</h1>
-        <p>No password to remember. We&apos;ll email you a secure, one-time link.</p>
+        <h1>Sign in securely</h1>
+        <p>We&apos;ll email you a one-time code and a secure link.</p>
       </div>
 
       {errorMsg && (
@@ -83,9 +117,10 @@ export function LoginForm({
         <div className="gl-auth-alert gl-auth-alert-success" role="status">
           <p>{successMsg}</p>
           <p className="mt-2 text-xs leading-5 text-white/65">
-            Look in Focused, Other, Junk, and Deleted Items, or search all folders for hello@savvyrilla.tech.
-            If you requested more than one email, open only the newest link.
+            Enter the code below on this computer, or open the link on the device you want to sign in to.
+            Search all mail folders for hello@savvyrilla.tech if it is not visible. Use only the newest email.
           </p>
+          {reference ? <p className="mt-2 text-[11px] text-white/45">Request reference: {reference}</p> : null}
         </div>
       )}
 
@@ -116,12 +151,40 @@ export function LoginForm({
           disabled={loading || Boolean(successMsg)}
           className="gl-btn gl-btn-primary gl-btn-md w-full mt-2"
         >
-          {loading ? "Sending secure link…" : successMsg ? "Magic link sent" : "Email me a magic link"}
+          {loading ? "Sending secure access…" : successMsg ? "Code and link sent" : "Email me a code and link"}
         </button>
       </form>
 
+      {successMsg ? (
+        <form onSubmit={verifyCode} className="mt-5 space-y-3 border-t border-white/10 pt-5">
+          <div>
+            <label htmlFor="login-code" className="gl-label">Sign-in code</label>
+            <input
+              id="login-code"
+              className="gl-input text-center text-xl tracking-[0.28em]"
+              value={otp}
+              onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 8))}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="[0-9]{6,8}"
+              minLength={6}
+              maxLength={8}
+              required
+              aria-describedby="login-code-help"
+              autoFocus
+            />
+            <p id="login-code-help" className="mt-2 text-xs leading-5 text-white/55">
+              Type the 6–8 digit code from the newest Gorilla Ledger email.
+            </p>
+          </div>
+          <button type="submit" disabled={verifying} className="gl-btn gl-btn-primary gl-btn-md w-full">
+            {verifying ? "Verifying code…" : "Continue with code"}
+          </button>
+        </form>
+      ) : null}
+
       <p className="gl-auth-legal">
-        Links are single-use and expire automatically. If one has expired, request a fresh link here.
+        Codes and links are single-use and expire automatically. If one has expired, request a fresh email here.
       </p>
 
       {successMsg ? (
@@ -132,11 +195,11 @@ export function LoginForm({
             onClick={() => void sendMagicLink()}
             className="gl-auth-text-link disabled:cursor-not-allowed disabled:opacity-45"
           >
-            {resendIn > 0 ? `Send another link in ${resendIn}s` : "Send another link"}
+            {resendIn > 0 ? `Send another email in ${resendIn}s` : "Send another email"}
           </button>
           <button
             type="button"
-            onClick={() => { setSuccessMsg(""); setEmail(""); setResendIn(0); }}
+            onClick={() => { setSuccessMsg(""); setEmail(""); setOtp(""); setReference(""); setResendIn(0); }}
             className="gl-auth-text-link"
           >
             Use a different email address
