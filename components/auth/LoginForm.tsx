@@ -81,8 +81,14 @@ export function LoginForm({
             className="gl-input"
             placeholder="name@company.com"
             autoComplete="email"
+            inputMode="email"
+            spellCheck={false}
+            aria-describedby="login-email-help"
             autoFocus
           />
+          <p id="login-email-help" className="mt-2 text-xs leading-5 text-white/55">
+            Use the address already connected to your ledger.
+          </p>
         </div>
 
         <button
@@ -95,8 +101,18 @@ export function LoginForm({
       </form>
 
       <p className="gl-auth-legal">
-        Magic links are single-use and expire automatically. Only open links you requested.
+        Links are single-use and expire automatically. If one has expired, request a fresh link here.
       </p>
+
+      {successMsg ? (
+        <button
+          type="button"
+          onClick={() => { setSuccessMsg(""); setEmail(""); }}
+          className="gl-auth-text-link mt-4 text-sm"
+        >
+          Use a different email address
+        </button>
+      ) : null}
 
       <div className="gl-auth-card-footer">
         New to Gorilla Ledger?{" "}

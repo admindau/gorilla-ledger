@@ -32,10 +32,11 @@ export function RegisterForm({ next, familyInvite = false }: { next: string; fam
     {errorMsg && <p className="gl-auth-alert gl-auth-alert-error" role="alert">{errorMsg}</p>}
     {successMsg && <p className="gl-auth-alert gl-auth-alert-success" role="status">{successMsg}</p>}
     <form onSubmit={handleRegister} className="space-y-4">
-      <div><label htmlFor="register-email" className="gl-label">Email address</label><input id="register-email" type="email" placeholder="name@example.com" className="gl-input" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" autoFocus /></div>
+      <div><label htmlFor="register-email" className="gl-label">Email address</label><input id="register-email" type="email" placeholder="name@example.com" className="gl-input" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" inputMode="email" spellCheck={false} aria-describedby="register-email-help" autoFocus /><p id="register-email-help" className="mt-2 text-xs leading-5 text-white/55">We use this only for secure account access and essential ledger notices.</p></div>
       <button type="submit" disabled={loading || Boolean(successMsg)} className="gl-btn gl-btn-primary gl-btn-md w-full">{loading ? "Sending secure link…" : successMsg ? "Magic link sent" : "Email me a sign-up link"}</button>
       <p className="gl-auth-legal">By continuing, you agree to the <a href="/terms" className="text-gray-300 underline underline-offset-4">Terms</a> and acknowledge the <a href="/privacy" className="text-gray-300 underline underline-offset-4">Privacy Notice</a>.</p>
     </form>
+    {successMsg ? <button type="button" onClick={() => { setSuccessMsg(""); setEmail(""); }} className="gl-auth-text-link mt-4 text-sm">Use a different email address</button> : null}
     <p className="gl-auth-card-footer">Already have an account? <a href={`/auth/login?next=${encodeURIComponent(next)}`} className="gl-auth-text-link">Sign in</a></p>
   </div>;
 }

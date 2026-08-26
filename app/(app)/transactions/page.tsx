@@ -1114,8 +1114,10 @@ export default function TransactionsPage() {
               type="button"
               onClick={() => setShowCreateForm((value) => !value)}
               className="gl-btn gl-btn-primary gl-btn-sm"
+              disabled={loading}
+              aria-busy={loading}
             >
-              {showCreateForm ? "Hide Form" : "+ Add Transaction"}
+              {loading ? "Loading ledger…" : showCreateForm ? "Hide Form" : "+ Add Transaction"}
             </button>
           </div>
 
@@ -1323,9 +1325,10 @@ export default function TransactionsPage() {
               type="button"
               className="gl-btn gl-btn-secondary gl-btn-sm"
               onClick={() => setShowTransferForm((value) => !value)}
-              disabled={wallets.length < 2}
+              disabled={loading || wallets.length < 2}
+              aria-busy={loading}
             >
-              {showTransferForm ? "Hide Form" : "+ Transfer / FX"}
+              {loading ? "Loading wallets…" : showTransferForm ? "Hide Form" : "+ Transfer / FX"}
             </button>
           </div>
           {showTransferForm ? (

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { isEmailOtpType } from "@/lib/auth/confirmation";
 
 export async function POST(req: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -13,8 +14,16 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const access_token = body?.access_token;
   const refresh_token = body?.refresh_token;
+  const token_hash = body?.token_hash;
+  const type = body?.type;
 
-  if (!access_token || !refresh_token) {
+  const hasLegacySession = Boolean(access_token && refresh_token);
+  const hasTokenHash =
+    typeof token_hash === "string" &&
+    token_hash.length > 0 &&
+    isEmailOtpType(type);
+
+  if (!hasLegacySession && !hasTokenHash) {
     return NextResponse.json({ error: "missing_tokens" }, { status: 400 });
   }
 
@@ -34,10 +43,9 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  const { error } = await supabase.auth.setSession({
-    access_token,
-    refresh_token,
-  });
+  const { error } = hasTokenHash
+    ? await supabase.auth.verifyOtp({ token_hash, type })
+    : await supabase.auth.setSession({ access_token, refresh_token });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 401 });

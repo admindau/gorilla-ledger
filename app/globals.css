@@ -823,7 +823,9 @@ body {
 }
 
 .gl-app-brand {
-  display: block;
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
   color: #ffffff;
   font-size: 0.92rem;
   font-weight: 750;
@@ -863,6 +865,10 @@ body {
 
 .gl-app-nav-link {
   flex: 0 0 auto;
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  justify-content: center;
   border-radius: 999px;
   padding: 0.48rem 0.78rem;
   color: rgb(209 213 219);

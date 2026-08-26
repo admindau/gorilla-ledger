@@ -3,6 +3,7 @@ import { supabaseAdminClient } from "@/lib/supabase/admin";
 import { sanitizeConfirmationDestination } from "@/lib/auth/navigation";
 import { sendEmail } from "@/lib/email";
 import { COMPANY_NAME, PRODUCT_NAME } from "@/lib/brand";
+import { buildEmailConfirmationUrl } from "@/lib/auth/confirmation";
 
 const GENERIC_MESSAGE =
   "Check your email for a secure sign-in link. It expires soon and can only be used once.";
@@ -54,14 +55,14 @@ async function userExists(email: string) {
   throw new Error("Auth user lookup exceeded the supported page limit.");
 }
 
-function magicLinkEmail(actionLink: string, mode: "login" | "signup") {
-  const safeLink = actionLink.replaceAll("&", "&amp;").replaceAll('"', "&quot;");
+function magicLinkEmail(confirmationLink: string, mode: "login" | "signup") {
+  const safeLink = confirmationLink.replaceAll("&", "&amp;").replaceAll('"', "&quot;");
   const heading =
     mode === "signup" ? `Welcome to ${PRODUCT_NAME}` : `Sign in to ${PRODUCT_NAME}`;
   const intro =
     mode === "signup"
-      ? "Use this secure link to finish creating your passwordless ledger."
-      : "Use this secure, one-time link to return to your ledger.";
+      ? "Open Gorilla Ledger, then confirm once to finish creating your passwordless ledger."
+      : "Open Gorilla Ledger, then confirm once to return to your ledger.";
 
   return `
     <!doctype html>
@@ -86,7 +87,7 @@ function magicLinkEmail(actionLink: string, mode: "login" | "signup") {
                 </a>
               </p>
               <p style="margin:0 0 18px;color:#686868;font-size:12px;line-height:1.6;">
-                This link expires soon and can only be used once. If you did not request it, you can safely ignore this email.
+                On the next screen, select <strong>Continue securely</strong>. The link expires soon and can only be used once. If you did not request it, you can safely ignore this email.
               </p>
               <p style="margin:0;padding-top:18px;border-top:1px solid #e8e8e8;color:#8a8a8a;font-size:11px;">
                 ${COMPANY_NAME}
@@ -140,11 +141,21 @@ export async function POST(request: NextRequest) {
           options: { redirectTo },
         });
 
-    const actionLink = data?.properties?.action_link;
-    if (error || !actionLink) {
+    const tokenHash = data?.properties?.hashed_token;
+    const verificationType = data?.properties?.verification_type;
+    if (error || !tokenHash || !verificationType) {
       console.error("[send-magic-link] Supabase link generation failed.");
       return json();
     }
+
+    // Fragments never reach preview requests, so mail scanners cannot redeem
+    // this one-time token before the person confirms in their browser.
+    const confirmationUrl = buildEmailConfirmationUrl({
+      siteUrl,
+      next,
+      tokenHash,
+      type: verificationType,
+    });
 
     const delivery = await sendEmail({
       to: email,
@@ -152,7 +163,7 @@ export async function POST(request: NextRequest) {
         mode === "signup"
           ? `Finish setting up ${PRODUCT_NAME}`
           : `Your ${PRODUCT_NAME} sign-in link`,
-      html: magicLinkEmail(actionLink, mode),
+      html: magicLinkEmail(confirmationUrl, mode),
     });
 
     if (!delivery.success) {
