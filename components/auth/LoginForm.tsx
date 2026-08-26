@@ -69,6 +69,12 @@ export function LoginForm({
   async function verifyCode(e: FormEvent) {
     e.preventDefault();
     setErrorMsg("");
+
+    if (!email.trim()) {
+      setErrorMsg("Enter the email address that received the code.");
+      return;
+    }
+
     setVerifying(true);
 
     try {
@@ -155,8 +161,13 @@ export function LoginForm({
         </button>
       </form>
 
-      {successMsg ? (
-        <form onSubmit={verifyCode} className="mt-5 space-y-3 border-t border-white/10 pt-5">
+      <form onSubmit={verifyCode} className="mt-5 space-y-3 border-t border-white/10 pt-5">
+          <div>
+            <p className="gl-auth-eyebrow">Already have a code?</p>
+            <p className="mt-1 text-xs leading-5 text-white/55">
+              Enter the email address above, then type the code from your newest Gorilla Ledger email.
+            </p>
+          </div>
           <div>
             <label htmlFor="login-code" className="gl-label">Sign-in code</label>
             <input
@@ -171,7 +182,7 @@ export function LoginForm({
               maxLength={8}
               required
               aria-describedby="login-code-help"
-              autoFocus
+              autoFocus={Boolean(successMsg)}
             />
             <p id="login-code-help" className="mt-2 text-xs leading-5 text-white/55">
               Type the 6–8 digit code from the newest Gorilla Ledger email.
@@ -180,8 +191,7 @@ export function LoginForm({
           <button type="submit" disabled={verifying} className="gl-btn gl-btn-primary gl-btn-md w-full">
             {verifying ? "Verifying code…" : "Continue with code"}
           </button>
-        </form>
-      ) : null}
+      </form>
 
       <p className="gl-auth-legal">
         Codes are single-use and expire automatically. If one has expired, request a fresh email here.

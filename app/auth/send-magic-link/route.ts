@@ -64,6 +64,10 @@ function signInCodeEmail(emailOtp: string, mode: "login" | "signup") {
     mode === "signup"
       ? "Enter this one-time code in Gorilla Ledger to finish creating your passwordless ledger."
       : "Enter this one-time code in Gorilla Ledger to return to your ledger.";
+  const instructions =
+    mode === "signup"
+      ? "Open Gorilla Ledger and select Create account. Enter the email address that received this message, then type the code under Already have an account code?"
+      : "Open Gorilla Ledger and select Sign in. Enter the email address that received this message, then type the code under Already have a code?";
 
   return `
     <!doctype html>
@@ -90,6 +94,7 @@ function signInCodeEmail(emailOtp: string, mode: "login" | "signup") {
                 <p style="margin:0;color:#111111;font-size:30px;font-weight:700;letter-spacing:.18em;">${emailOtp}</p>
                 <p style="margin:10px 0 0;color:#686868;font-size:12px;line-height:1.5;">Enter this code on the computer where you started signing in.</p>
               </div>
+              <p style="margin:0 0 18px;color:#454545;font-size:13px;line-height:1.6;">${instructions}</p>
               <p style="margin:0 0 18px;color:#686868;font-size:12px;line-height:1.6;">
                 The code expires soon and can only be used once. If you requested more than one email, use only the newest code. Gorilla Ledger will never ask you to forward or reply with this code. If you did not request it, you can safely ignore this email.
               </p>
@@ -106,7 +111,10 @@ function signInCodeEmail(emailOtp: string, mode: "login" | "signup") {
 
 function signInCodeEmailText(emailOtp: string, mode: "login" | "signup") {
   const action = mode === "signup" ? "Create your Gorilla Ledger account" : "Sign in to Gorilla Ledger";
-  return `${action}\n\nSign-in code: ${emailOtp}\nEnter this code on the computer where you started signing in.\n\nThe code expires soon and can only be used once. If you requested more than one email, use only the newest code. Gorilla Ledger will never ask you to forward or reply with this code. If you did not request it, you can safely ignore this email.\n\n${COMPANY_NAME}`;
+  const instructions = mode === "signup"
+    ? "Open Gorilla Ledger and select Create account. Enter the email address that received this message, then type the code under Already have an account code?"
+    : "Open Gorilla Ledger and select Sign in. Enter the email address that received this message, then type the code under Already have a code?";
+  return `${action}\n\nSign-in code: ${emailOtp}\nEnter this code on the computer where you started signing in.\n\n${instructions}\n\nThe code expires soon and can only be used once. If you requested more than one email, use only the newest code. Gorilla Ledger will never ask you to forward or reply with this code. If you did not request it, you can safely ignore this email.\n\n${COMPANY_NAME}`;
 }
 
 export async function POST(request: NextRequest) {

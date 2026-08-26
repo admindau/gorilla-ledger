@@ -60,9 +60,19 @@ test("code delivery keeps shared Roots templates untouched", () => {
 
 test("cross-device sign-in can verify the emailed one-time code", () => {
   assert.match(loginSource, /autoComplete="one-time-code"/);
+  assert.match(loginSource, /Already have a code\?/);
+  assert.match(loginSource, /Enter the email address that received the code/);
   assert.match(loginSource, /Continue with code/);
+  assert.match(registerSource, /Already have an account code\?/);
   assert.match(sessionRouteSource, /hasEmailOtp/);
   assert.match(sessionRouteSource, /verifyOtp\(\{ email: email\.trim\(\)\.toLowerCase\(\), token, type \}\)/);
+});
+
+test("code-only emails explain exactly where the code belongs", () => {
+  assert.match(routeSource, /select Sign in/);
+  assert.match(routeSource, /type the code under Already have a code/);
+  assert.match(routeSource, /select Create account/);
+  assert.doesNotMatch(routeSource, /href=/);
 });
 
 test("transactional email uses a monitored sender identity", () => {
