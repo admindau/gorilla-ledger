@@ -34,5 +34,8 @@ test("magic-link delivery keeps shared Roots templates untouched", () => {
   assert.match(routeSource, /mode === "login" && !exists/);
   assert.match(routeSource, /properties\?\.hashed_token/);
   assert.match(routeSource, /buildEmailConfirmationUrl/);
+  assert.match(routeSource, /const deliveryMode.*exists \? "login" : "signup"/);
+  assert.match(routeSource, /use only the newest link/i);
+  assert.match(routeSource, /Retry-After/);
   assert.doesNotMatch(routeSource, /magicLinkEmail\(actionLink/);
 });

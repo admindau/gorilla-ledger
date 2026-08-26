@@ -29,6 +29,13 @@ export default function ConfirmClient() {
   const [message, setMessage] = useState("Checking your secure link…");
   const [tokenHash, setTokenHash] = useState("");
   const [verificationType, setVerificationType] = useState("");
+  const [hashRevision, setHashRevision] = useState(0);
+
+  useEffect(() => {
+    const handleHashChange = () => setHashRevision((revision) => revision + 1);
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
 
   const finishConfirmation = useCallback(async () => {
     if (!tokenHash || !isEmailOtpType(verificationType)) return;
@@ -65,6 +72,9 @@ export default function ConfirmClient() {
 
   useEffect(() => {
     async function prepareConfirmation() {
+      setStatus("working");
+      setMessage("Checking your secure link…");
+
       if (code) {
         window.location.assign(
           `/auth/confirm/callback?code=${encodeURIComponent(code)}&next=${encodeURIComponent(next)}`
@@ -126,7 +136,7 @@ export default function ConfirmClient() {
     }
 
     void prepareConfirmation();
-  }, [code, next, router]);
+  }, [code, hashRevision, next, router]);
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-black text-white px-6">

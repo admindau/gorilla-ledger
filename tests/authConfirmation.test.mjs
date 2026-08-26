@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   buildEmailConfirmationUrl,
   isEmailOtpType,
 } from "../lib/auth/confirmation.ts";
+
+const confirmClientSource = await readFile(
+  new URL("../app/auth/confirm/ConfirmClient.tsx", import.meta.url),
+  "utf8"
+);
 
 test("email confirmation tokens stay in the fragment and out of preview requests", () => {
   const result = new URL(
@@ -29,4 +35,9 @@ test("only supported email verification types reach Supabase", () => {
   }
   assert.equal(isEmailOtpType("sms"), false);
   assert.equal(isEmailOtpType(null), false);
+});
+
+test("an already-open confirmation tab reacts to a newly opened link", () => {
+  assert.match(confirmClientSource, /addEventListener\("hashchange"/);
+  assert.match(confirmClientSource, /\[code, hashRevision, next, router\]/);
 });

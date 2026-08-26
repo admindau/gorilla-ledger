@@ -7,15 +7,17 @@ type SendEmailArgs = {
   to: string;
   subject: string;
   html: string;
+  text?: string;
 };
 
-export async function sendEmail({ to, subject, html }: SendEmailArgs) {
+export async function sendEmail({ to, subject, html, text }: SendEmailArgs) {
   try {
     const { data, error } = await resend.emails.send({
       from: `${PRODUCT_NAME} <no-reply@savvyrilla.tech>`,
       to,
       subject,
       html,
+      text,
     });
 
     if (error) {

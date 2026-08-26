@@ -17,9 +17,10 @@ type RequestBody = {
   next?: unknown;
 };
 
-function json(message = GENERIC_MESSAGE, status = 200) {
+function json(message = GENERIC_MESSAGE, status = 200, retryAfter?: number) {
   const response = NextResponse.json({ message }, { status });
   response.headers.set("Cache-Control", "no-store");
+  if (retryAfter) response.headers.set("Retry-After", String(retryAfter));
   return response;
 }
 
@@ -68,6 +69,9 @@ function magicLinkEmail(confirmationLink: string, mode: "login" | "signup") {
     <!doctype html>
     <html lang="en">
       <body style="margin:0;padding:32px 16px;background:#050505;color:#111111;font-family:Arial,sans-serif;">
+        <div style="display:none;max-height:0;overflow:hidden;opacity:0;">
+          Your secure Gorilla Ledger link is ready. Only the newest link will work.
+        </div>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;">
           <tr>
             <td style="padding:0 0 16px;text-align:center;color:#ffffff;font-size:12px;letter-spacing:.16em;text-transform:uppercase;">
@@ -87,7 +91,7 @@ function magicLinkEmail(confirmationLink: string, mode: "login" | "signup") {
                 </a>
               </p>
               <p style="margin:0 0 18px;color:#686868;font-size:12px;line-height:1.6;">
-                On the next screen, select <strong>Continue securely</strong>. The link expires soon and can only be used once. If you did not request it, you can safely ignore this email.
+                On the next screen, select <strong>Continue securely</strong>. The link expires soon and can only be used once. If you requested more than one email, use only the newest link. If you did not request it, you can safely ignore this email.
               </p>
               <p style="margin:0;padding-top:18px;border-top:1px solid #e8e8e8;color:#8a8a8a;font-size:11px;">
                 ${COMPANY_NAME}
@@ -98,6 +102,11 @@ function magicLinkEmail(confirmationLink: string, mode: "login" | "signup") {
       </body>
     </html>
   `;
+}
+
+function magicLinkEmailText(confirmationLink: string, mode: "login" | "signup") {
+  const action = mode === "signup" ? "Create your Gorilla Ledger account" : "Sign in to Gorilla Ledger";
+  return `${action}\n\nOpen this secure link, then select Continue securely:\n${confirmationLink}\n\nThe link expires soon and can only be used once. If you requested more than one email, use only the newest link. If you did not request it, you can safely ignore this email.\n\n${COMPANY_NAME}`;
 }
 
 export async function POST(request: NextRequest) {
@@ -118,12 +127,13 @@ export async function POST(request: NextRequest) {
     isRateLimited(`email:${email}`) ||
     isRateLimited(`ip:${clientIp}`)
   ) {
-    return json(GENERIC_MESSAGE, 429);
+    return json(GENERIC_MESSAGE, 429, RATE_LIMIT_WINDOW_MS / 1000);
   }
 
   try {
     const exists = await userExists(email);
     if (mode === "login" && !exists) return json();
+    const deliveryMode: "login" | "signup" = exists ? "login" : "signup";
 
     const siteUrl =
       process.env.NEXT_PUBLIC_SITE_URL ?? "https://gl.savvyrilla.tech";
@@ -160,10 +170,11 @@ export async function POST(request: NextRequest) {
     const delivery = await sendEmail({
       to: email,
       subject:
-        mode === "signup"
+        deliveryMode === "signup"
           ? `Finish setting up ${PRODUCT_NAME}`
           : `Your ${PRODUCT_NAME} sign-in link`,
-      html: magicLinkEmail(confirmationUrl, mode),
+      html: magicLinkEmail(confirmationUrl, deliveryMode),
+      text: magicLinkEmailText(confirmationUrl, deliveryMode),
     });
 
     if (!delivery.success) {

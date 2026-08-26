@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export function LoginForm({
@@ -15,9 +15,18 @@ export function LoginForm({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(initialError);
   const [successMsg, setSuccessMsg] = useState("");
+  const [resendIn, setResendIn] = useState(0);
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const timer = window.setInterval(
+      () => setResendIn((seconds) => Math.max(0, seconds - 1)),
+      1000
+    );
+    return () => window.clearInterval(timer);
+  }, [resendIn]);
+
+  async function sendMagicLink() {
     setErrorMsg("");
     setSuccessMsg("");
     setLoading(true);
@@ -33,6 +42,7 @@ export function LoginForm({
         }),
       });
       const body = await response.json().catch(() => ({}));
+      const retryAfter = Number(response.headers.get("Retry-After"));
 
       if (!response.ok && response.status !== 429) {
         setErrorMsg(body.message ?? "We could not send a secure link. Please try again.");
@@ -43,11 +53,17 @@ export function LoginForm({
         body.message ??
           "Check your email for a secure sign-in link. You can close this tab after opening it."
       );
+      setResendIn(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 60);
     } catch {
       setErrorMsg("We could not send a secure link. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    void sendMagicLink();
   }
 
   return (
@@ -64,9 +80,13 @@ export function LoginForm({
         </p>
       )}
       {successMsg && (
-        <p className="gl-auth-alert gl-auth-alert-success" role="status">
-          {successMsg}
-        </p>
+        <div className="gl-auth-alert gl-auth-alert-success" role="status">
+          <p>{successMsg}</p>
+          <p className="mt-2 text-xs leading-5 text-white/65">
+            Look in Focused, Other, and Junk, or search for no-reply@savvyrilla.tech.
+            If you requested more than one email, open only the newest link.
+          </p>
+        </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4 text-sm">
@@ -105,13 +125,23 @@ export function LoginForm({
       </p>
 
       {successMsg ? (
-        <button
-          type="button"
-          onClick={() => { setSuccessMsg(""); setEmail(""); }}
-          className="gl-auth-text-link mt-4 text-sm"
-        >
-          Use a different email address
-        </button>
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3 text-sm">
+          <button
+            type="button"
+            disabled={loading || resendIn > 0}
+            onClick={() => void sendMagicLink()}
+            className="gl-auth-text-link disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {resendIn > 0 ? `Send another link in ${resendIn}s` : "Send another link"}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setSuccessMsg(""); setEmail(""); setResendIn(0); }}
+            className="gl-auth-text-link"
+          >
+            Use a different email address
+          </button>
+        </div>
       ) : null}
 
       <div className="gl-auth-card-footer">
