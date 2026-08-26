@@ -160,6 +160,7 @@ export function BudgetCard({
               type="button"
               onClick={onBeginEdit}
               disabled={isBusy}
+              aria-label={`Edit ${summary.category?.name ?? "unknown category"} budget`}
               className="gl-btn gl-btn-secondary gl-btn-sm"
             >
               Edit
@@ -168,6 +169,7 @@ export function BudgetCard({
               type="button"
               onClick={onDelete}
               disabled={isBusy}
+              aria-label={`Delete ${summary.category?.name ?? "unknown category"} budget`}
               className="gl-btn gl-btn-danger gl-btn-sm"
             >
               {isBusy ? "Working..." : "Delete"}

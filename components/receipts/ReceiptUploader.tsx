@@ -59,7 +59,7 @@ export default function ReceiptUploader({
   label = "Add receipts (PDF or images, max 5 MB each)",
 }: Props) {
   const countLabel = useMemo(
-    () => (files.length === 0 ? "No files selected" : `${files.length} file(s)`),
+    () => (files.length === 0 ? "No files selected" : `${files.length} ${files.length === 1 ? "file" : "files"}`),
     [files.length]
   );
 
@@ -98,7 +98,8 @@ export default function ReceiptUploader({
               type="file"
               multiple
               accept="application/pdf,image/*"
-              className="hidden"
+              className="sr-only"
+              aria-label={label}
               onChange={handlePick}
               disabled={disabled}
             />

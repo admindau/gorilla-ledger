@@ -83,7 +83,7 @@ export function LoginForm({
         <div className="gl-auth-alert gl-auth-alert-success" role="status">
           <p>{successMsg}</p>
           <p className="mt-2 text-xs leading-5 text-white/65">
-            Look in Focused, Other, and Junk, or search for no-reply@savvyrilla.tech.
+            Look in Focused, Other, Junk, and Deleted Items, or search all folders for hello@savvyrilla.tech.
             If you requested more than one email, open only the newest link.
           </p>
         </div>

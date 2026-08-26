@@ -107,13 +107,14 @@ export function CategoryCard({
       </div>
 
       <div className="mt-4 flex justify-end gap-2 border-t border-gray-900 pt-3">
-        <button type="button" onClick={onBeginEdit} disabled={isBusy} className="gl-btn gl-btn-secondary gl-btn-sm">
+        <button type="button" onClick={onBeginEdit} disabled={isBusy} aria-label={`Edit ${category.name} category`} className="gl-btn gl-btn-secondary gl-btn-sm">
           Edit
         </button>
         <button
           type="button"
           onClick={onDelete}
           disabled={isBusy}
+          aria-label={`Delete ${category.name} category`}
           className="rounded-full border border-red-900/80 px-3 py-1.5 text-xs text-red-300 transition hover:bg-red-500/10"
         >
           {isBusy ? "Working..." : "Delete"}

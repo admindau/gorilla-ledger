@@ -142,6 +142,7 @@ export function RecurringRuleCard({ rule, wallet, category, onToggle, onDelete }
             <button
               type="button"
               onClick={() => onToggle(false)}
+              aria-label={`Pause ${title} recurring rule`}
               className="rounded-lg border border-white/10 px-3 py-1.5 text-gray-300 transition hover:bg-white/5"
             >
               Pause
@@ -150,6 +151,7 @@ export function RecurringRuleCard({ rule, wallet, category, onToggle, onDelete }
             <button
               type="button"
               onClick={() => onToggle(true)}
+              aria-label={`Activate ${title} recurring rule`}
               className="rounded-lg border border-white/10 px-3 py-1.5 text-gray-300 transition hover:bg-white/5"
             >
               Activate
@@ -158,6 +160,7 @@ export function RecurringRuleCard({ rule, wallet, category, onToggle, onDelete }
           <button
             type="button"
             onClick={onDelete}
+            aria-label={`Delete ${title} recurring rule`}
             className="rounded-lg border border-red-500/40 px-3 py-1.5 text-red-300 transition hover:bg-red-950/30"
           >
             Delete

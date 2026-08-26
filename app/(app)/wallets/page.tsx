@@ -625,6 +625,7 @@ export default function WalletsPage() {
                             size="sm"
                             onClick={() => beginEdit(wallet.id)}
                             disabled={isBusy}
+                            aria-label={`Manage ${wallet.name} wallet`}
                           >
                             Manage
                           </Button>
@@ -634,6 +635,7 @@ export default function WalletsPage() {
                             size="sm"
                             onClick={() => handleDeleteWallet(wallet.id)}
                             disabled={isBusy}
+                            aria-label={`Delete ${wallet.name} wallet`}
                           >
                             {isBusy ? "Working..." : "Delete"}
                           </Button>

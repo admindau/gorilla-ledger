@@ -14,6 +14,18 @@ const routeSource = await readFile(
   new URL("../app/auth/send-magic-link/route.ts", import.meta.url),
   "utf8"
 );
+const emailSource = await readFile(
+  new URL("../lib/email.ts", import.meta.url),
+  "utf8"
+);
+const topNavSource = await readFile(
+  new URL("../components/AppTopNav.tsx", import.meta.url),
+  "utf8"
+);
+const logoutRouteSource = await readFile(
+  new URL("../app/auth/logout/route.ts", import.meta.url),
+  "utf8"
+);
 
 test("sign-in uses a magic link and never creates an unknown user", () => {
   assert.match(loginSource, /\/auth\/send-magic-link/);
@@ -38,4 +50,18 @@ test("magic-link delivery keeps shared Roots templates untouched", () => {
   assert.match(routeSource, /use only the newest link/i);
   assert.match(routeSource, /Retry-After/);
   assert.doesNotMatch(routeSource, /magicLinkEmail\(actionLink/);
+});
+
+test("transactional email uses a monitored sender identity", () => {
+  assert.match(emailSource, /from: `\$\{PRODUCT_NAME\} <\$\{SUPPORT_EMAIL\}>`/);
+  assert.match(emailSource, /replyTo: SUPPORT_EMAIL/);
+  assert.doesNotMatch(emailSource, /no-reply@/);
+});
+
+test("logout clears both server and browser sessions", () => {
+  assert.match(topNavSource, /fetch\("\/auth\/logout"/);
+  assert.match(topNavSource, /signOut\(\{ scope: "local" \}\)/);
+  assert.match(topNavSource, /location\.replace\("\/auth\/login"\)/);
+  assert.match(logoutRouteSource, /signOut\(\{ scope: "local" \}\)/);
+  assert.match(logoutRouteSource, /NEXT_PUBLIC_SITE_URL/);
 });

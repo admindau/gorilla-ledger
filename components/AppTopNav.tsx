@@ -224,9 +224,19 @@ export default function AppTopNav() {
     if (signingOut) return;
     setSigningOut(true);
     try {
-      await supabaseBrowserClient.auth.signOut();
+      // Clear both the server cookie and this browser's local session. The
+      // server endpoint also makes logout reliable when client storage is
+      // stale or partially unavailable.
+      await fetch("/auth/logout", {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        redirect: "manual",
+      });
+      await supabaseBrowserClient.auth.signOut({ scope: "local" });
+      localStorage.removeItem(LAST_SECURITY_CHECK_AT_KEY);
     } finally {
-      window.location.href = "/";
+      window.location.replace("/auth/login");
     }
   }
 

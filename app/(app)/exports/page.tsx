@@ -122,7 +122,7 @@ export default function ExportCenterPage() {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `gorilla-ledger-${filename}`;
+    anchor.download = filename;
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
@@ -208,6 +208,7 @@ export default function ExportCenterPage() {
                       className="gl-btn gl-btn-secondary gl-btn-sm"
                       onClick={() => downloadDataset(dataset.filename, dataset.csv)}
                       disabled={dataset.rowCount === 0}
+                      aria-label={`Export ${dataset.label} as CSV`}
                     >
                       Export CSV
                     </button>

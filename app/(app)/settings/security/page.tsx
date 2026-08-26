@@ -104,7 +104,8 @@ export default function SecuritySettingsPage() {
 
   const lastCheckLabel = useMemo(() => {
     if (!lastCheckAt || lastCheckAt <= 0) return "Not recorded";
-    return `${daysAgoFromMs(lastCheckAt)} day(s) ago`;
+    const days = daysAgoFromMs(lastCheckAt);
+    return `${days} ${days === 1 ? "day" : "days"} ago`;
   }, [lastCheckAt]);
 
   // ---------------------------------------------------------------------------

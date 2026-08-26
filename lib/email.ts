@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { PRODUCT_NAME } from "@/lib/brand";
+import { PRODUCT_NAME, SUPPORT_EMAIL } from "@/lib/brand";
 
 const resend = new Resend(process.env.RESEND_API_KEY || "");
 
@@ -13,7 +13,8 @@ type SendEmailArgs = {
 export async function sendEmail({ to, subject, html, text }: SendEmailArgs) {
   try {
     const { data, error } = await resend.emails.send({
-      from: `${PRODUCT_NAME} <no-reply@savvyrilla.tech>`,
+      from: `${PRODUCT_NAME} <${SUPPORT_EMAIL}>`,
+      replyTo: SUPPORT_EMAIL,
       to,
       subject,
       html,
