@@ -12,6 +12,7 @@ const categoriesPage = await read("../app/(app)/categories/page.tsx");
 const familyPage = await read("../app/(app)/settings/family/page.tsx");
 const emailDelivery = await read("../lib/email.ts");
 const adminClient = await read("../lib/supabase/admin.ts");
+const browserClient = await read("../lib/supabase/client.ts");
 
 test("passwordless throttling is distributed and account lookup does not enumerate users", () => {
   assert.match(authRoute, /consume_auth_rate_limit/);
@@ -56,4 +57,10 @@ test("the Supabase service-role client is initialized only at request time", () 
       adminClient.indexOf("export function getSupabaseAdminClient"),
     "the admin client must not require deployment secrets during module evaluation"
   );
+});
+
+test("public auth pages can prerender without CI-only Supabase variables", () => {
+  assert.match(browserClient, /typeof window === "undefined"/);
+  assert.match(browserClient, /build-time-placeholder/);
+  assert.match(browserClient, /throw new Error\("Missing NEXT_PUBLIC_SUPABASE_URL/);
 });

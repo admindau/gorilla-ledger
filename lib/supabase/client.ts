@@ -9,16 +9,22 @@ import { createBrowserClient } from "@supabase/ssr";
  * If you have Database types, you can re-add generics later.
  */
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+function getBrowserConfig() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (supabaseUrl && supabaseAnonKey) return { supabaseUrl, supabaseAnonKey };
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  // This throws early in dev if env vars are missing.
-  // In prod, Vercel will have them if configured properly.
-  throw new Error(
-    "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY"
-  );
+  if (typeof window === "undefined") {
+    return {
+      supabaseUrl: "http://127.0.0.1:54321",
+      supabaseAnonKey: "build-time-placeholder",
+    };
+  }
+
+  throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
 }
+
+const { supabaseUrl, supabaseAnonKey } = getBrowserConfig();
 
 /**
  * Singleton browser client.
