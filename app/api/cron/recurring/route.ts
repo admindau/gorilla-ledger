@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
-import { supabaseAdminClient } from "@/lib/supabase/admin";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { advanceRecurringDate } from "@/lib/recurring/forecast";
 import { isMissingLedgerMetadata } from "@/lib/supabase/schemaCompatibility";
 
@@ -89,6 +89,7 @@ async function writeRunLog(input: {
   status: RunLogStatus;
   details?: string | null;
 }) {
+  const supabaseAdminClient = getSupabaseAdminClient();
   const { error } = await supabaseAdminClient.from("recurring_run_logs").insert({
     rule_id: input.ruleId,
     user_id: input.userId,
@@ -111,7 +112,7 @@ async function handler(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
-  const supabase = supabaseAdminClient;
+  const supabase = getSupabaseAdminClient();
 
   const now = new Date();
   const nowIso = now.toISOString();

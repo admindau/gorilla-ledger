@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdminClient } from "@/lib/supabase/admin";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { sanitizeConfirmationDestination } from "@/lib/auth/navigation";
 import { sendEmail } from "@/lib/email";
 import { COMPANY_NAME, PRODUCT_NAME } from "@/lib/brand";
@@ -36,6 +36,7 @@ function privacySafeBucket(value: string) {
 }
 
 async function consumeRateLimit(key: string, maxRequests: number) {
+  const supabaseAdminClient = getSupabaseAdminClient();
   const { data, error } = await supabaseAdminClient.rpc("consume_auth_rate_limit", {
     p_bucket_hash: privacySafeBucket(key),
     p_window_seconds: RATE_LIMIT_WINDOW_MS / 1000,
@@ -50,6 +51,7 @@ async function consumeRateLimit(key: string, maxRequests: number) {
 }
 
 async function userExists(email: string) {
+  const supabaseAdminClient = getSupabaseAdminClient();
   const { data, error } = await supabaseAdminClient.rpc("auth_user_exists", { p_email: email });
   if (error) throw error;
   return data === true;
@@ -131,6 +133,7 @@ export async function POST(request: NextRequest) {
   const clientIp = forwardedFor?.split(",")[0]?.trim() || "unknown";
 
   try {
+    const supabaseAdminClient = getSupabaseAdminClient();
     const [emailLimit, ipLimit] = await Promise.all([
       consumeRateLimit(`send-code:email:${email}`, 5),
       consumeRateLimit(`send-code:ip:${clientIp}`, 20),

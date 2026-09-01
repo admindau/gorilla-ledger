@@ -11,6 +11,7 @@ const mfaPanel = await read("../components/security/SecurityMfaPanel.tsx");
 const categoriesPage = await read("../app/(app)/categories/page.tsx");
 const familyPage = await read("../app/(app)/settings/family/page.tsx");
 const emailDelivery = await read("../lib/email.ts");
+const adminClient = await read("../lib/supabase/admin.ts");
 
 test("passwordless throttling is distributed and account lookup does not enumerate users", () => {
   assert.match(authRoute, /consume_auth_rate_limit/);
@@ -44,5 +45,15 @@ test("email delivery can be imported during builds without a runtime API key", (
   assert.ok(
     emailDelivery.indexOf("new Resend(apiKey)") > emailDelivery.indexOf("export async function sendEmail"),
     "Resend must be initialized lazily inside sendEmail"
+  );
+});
+
+test("the Supabase service-role client is initialized only at request time", () => {
+  assert.match(adminClient, /export function getSupabaseAdminClient/);
+  assert.match(adminClient, /function createAdminClient/);
+  assert.ok(
+    adminClient.indexOf("adminClient ??= createAdminClient") >
+      adminClient.indexOf("export function getSupabaseAdminClient"),
+    "the admin client must not require deployment secrets during module evaluation"
   );
 });
