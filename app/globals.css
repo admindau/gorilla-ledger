@@ -3105,7 +3105,7 @@ body {
   margin-top: 1.25rem;
   padding-top: 1.25rem;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  color: rgba(156, 163, 175, 0.72);
+  color: rgba(209, 213, 219, 0.72);
   font-size: 0.76rem;
   text-align: center;
 }
@@ -3132,7 +3132,7 @@ body {
 }
 
 .gl-auth-legal {
-  color: rgba(156, 163, 175, 0.62);
+  color: rgba(209, 213, 219, 0.72);
   font-size: 0.7rem;
   line-height: 1.6;
 }
