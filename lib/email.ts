@@ -1,8 +1,6 @@
 import { Resend } from "resend";
 import { PRODUCT_NAME, SUPPORT_EMAIL } from "@/lib/brand";
 
-const resend = new Resend(process.env.RESEND_API_KEY || "");
-
 type SendEmailArgs = {
   to: string;
   subject: string;
@@ -12,6 +10,13 @@ type SendEmailArgs = {
 };
 
 export async function sendEmail({ to, subject, html, text, idempotencyKey }: SendEmailArgs) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.error("Email delivery is unavailable: RESEND_API_KEY is not configured");
+    return { success: false, error: new Error("Email delivery is unavailable") };
+  }
+
+  const resend = new Resend(apiKey);
   const deliveryKey = idempotencyKey ?? `email/${crypto.randomUUID()}`;
 
   for (let attempt = 1; attempt <= 2; attempt += 1) {

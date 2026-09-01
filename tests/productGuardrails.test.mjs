@@ -10,6 +10,7 @@ const receiptMigration = await read("../supabase/migrations/20260901183000_recei
 const mfaPanel = await read("../components/security/SecurityMfaPanel.tsx");
 const categoriesPage = await read("../app/(app)/categories/page.tsx");
 const familyPage = await read("../app/(app)/settings/family/page.tsx");
+const emailDelivery = await read("../lib/email.ts");
 
 test("passwordless throttling is distributed and account lookup does not enumerate users", () => {
   assert.match(authRoute, /consume_auth_rate_limit/);
@@ -36,4 +37,12 @@ test("private collection and household routes use resolved loading skeletons", (
   assert.match(categoriesPage, /if \(loading\) return <CategoriesLoadingSkeleton/);
   assert.match(familyPage, /if \(loading\) return <FamilyLoadingSkeleton/);
   assert.doesNotMatch(familyPage, /Loading household access/);
+});
+
+test("email delivery can be imported during builds without a runtime API key", () => {
+  assert.match(emailDelivery, /if \(!apiKey\)/);
+  assert.ok(
+    emailDelivery.indexOf("new Resend(apiKey)") > emailDelivery.indexOf("export async function sendEmail"),
+    "Resend must be initialized lazily inside sendEmail"
+  );
 });
