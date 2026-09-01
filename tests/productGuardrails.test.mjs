@@ -13,6 +13,8 @@ const familyPage = await read("../app/(app)/settings/family/page.tsx");
 const emailDelivery = await read("../lib/email.ts");
 const adminClient = await read("../lib/supabase/admin.ts");
 const browserClient = await read("../lib/supabase/client.ts");
+const ciWorkflow = await read("../.github/workflows/ci.yml");
+const playwrightConfig = await read("../playwright.config.ts");
 
 test("passwordless throttling is distributed and account lookup does not enumerate users", () => {
   assert.match(authRoute, /consume_auth_rate_limit/);
@@ -63,4 +65,10 @@ test("public auth pages can prerender without CI-only Supabase variables", () =>
   assert.match(browserClient, /typeof window === "undefined"/);
   assert.match(browserClient, /build-time-placeholder/);
   assert.match(browserClient, /throw new Error\("Missing NEXT_PUBLIC_SUPABASE_URL/);
+});
+
+test("CI browser checks use inert public configuration and Chromium on mobile", () => {
+  assert.match(ciWorkflow, /NEXT_PUBLIC_SUPABASE_URL: http:\/\/127\.0\.0\.1:54321/);
+  assert.match(ciWorkflow, /NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-public-anon-key/);
+  assert.match(playwrightConfig, /devices\["iPhone 13"\], browserName: "chromium"/);
 });

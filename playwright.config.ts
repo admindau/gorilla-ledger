@@ -16,7 +16,10 @@ export default defineConfig({
   },
   projects: [
     { name: "chromium-desktop", use: { ...devices["Desktop Chrome"] } },
-    { name: "chromium-mobile", use: { ...devices["iPhone 13"] } },
+    {
+      name: "chromium-mobile",
+      use: { ...devices["iPhone 13"], browserName: "chromium" },
+    },
   ],
   webServer: {
     command: "node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3108",
