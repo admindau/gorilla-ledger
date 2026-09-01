@@ -21,6 +21,5 @@ export async function getLedgerAccessForOwner(
     .maybeSingle();
 
   if (memberError || !member) return null;
-  return { ledgerId: ledger.id as string, role: member.role as "owner" | "editor" };
+  return { ledgerId: ledger.id as string, role: member.role as "owner" | "editor" | "viewer" };
 }
-

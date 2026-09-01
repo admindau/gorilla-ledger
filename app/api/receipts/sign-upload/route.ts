@@ -9,6 +9,15 @@ type Body = {
   ext: string; // e.g. "pdf", "jpg"
 };
 
+const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
+const RECEIPT_EXTENSIONS: Record<string, readonly string[]> = {
+  "application/pdf": ["pdf"],
+  "image/jpeg": ["jpg", "jpeg"],
+  "image/png": ["png"],
+  "image/webp": ["webp"],
+  "image/heic": ["heic"],
+};
+
 function getBearerToken(req: Request): string | null {
   const h = req.headers.get("authorization") || req.headers.get("Authorization");
   if (!h) return null;
@@ -63,7 +72,7 @@ export async function POST(req: Request) {
 
   const { data: receipt, error: rErr } = await supabase
     .from("receipts")
-    .select("id, user_id, transaction_id")
+    .select("id, user_id, transaction_id, original_name, mime_type, size_bytes")
     .eq("id", body.receipt_id)
     .single();
 
@@ -75,6 +84,9 @@ export async function POST(req: Request) {
   if (!access) {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });
   }
+  if (access.role === "viewer") {
+    return NextResponse.json({ error: "View-only members cannot add receipts." }, { status: 403 });
+  }
 
   if (receipt.transaction_id !== body.transaction_id) {
     return NextResponse.json(
@@ -83,7 +95,20 @@ export async function POST(req: Request) {
     );
   }
 
-  const path = `${access.ledgerId}/${body.transaction_id}/${body.receipt_id}.${ext}`;
+  const allowedExtensions = RECEIPT_EXTENSIONS[receipt.mime_type];
+  if (!allowedExtensions || receipt.size_bytes <= 0 || receipt.size_bytes > MAX_RECEIPT_BYTES) {
+    return NextResponse.json(
+      { error: "Receipt must be a PDF, JPEG, PNG, WebP, or HEIC file no larger than 5 MB." },
+      { status: 415 }
+    );
+  }
+
+  const originalExtension = cleanExt(receipt.original_name.split(".").pop() ?? "");
+  if (!allowedExtensions.includes(originalExtension) || !allowedExtensions.includes(ext)) {
+    return NextResponse.json({ error: "Receipt extension does not match its declared file type." }, { status: 415 });
+  }
+
+  const path = `${access.ledgerId}/${body.transaction_id}/${body.receipt_id}.${originalExtension}`;
 
   const { data, error } = await supabase.storage
     .from(bucket)

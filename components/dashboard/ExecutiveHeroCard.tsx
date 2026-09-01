@@ -18,7 +18,7 @@ function riskClasses(riskLevel: string) {
     };
   }
 
-  if (riskLevel === "Warning") {
+  if (riskLevel === "At risk") {
     return {
       border: "border-amber-400/40",
       pill: "border-amber-400/30 bg-amber-400/10 text-amber-200",

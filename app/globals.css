@@ -2916,6 +2916,41 @@ body {
   filter: drop-shadow(0 24px 44px rgba(0, 0, 0, 0.58));
 }
 
+.gl-product-preview {
+  position: relative;
+  display: grid;
+  min-height: 25rem;
+  gap: 0.8rem;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 1.15rem;
+  background: radial-gradient(circle at 80% 0%, rgba(183,247,209,0.08), transparent 16rem), #050505;
+  padding: 1.25rem;
+}
+
+.gl-product-preview-bar,
+.gl-product-preview-position,
+.gl-product-preview-grid > div,
+.gl-product-preview-signal {
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 1rem;
+  background: linear-gradient(180deg, rgba(255,255,255,0.065), rgba(255,255,255,0.022));
+}
+
+.gl-product-preview-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.8rem 1rem; color: #a3a3a3; font-size: 0.7rem; }
+.gl-product-preview-bar strong { color: #fff; font-size: 0.76rem; }
+.gl-product-preview-position { padding: 1.1rem; }
+.gl-product-preview-position span, .gl-product-preview-grid span { color: #a3a3a3; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; }
+.gl-product-preview-position strong { display: block; margin-top: 0.45rem; color: #b7f7d1; font-size: 1.5rem; }
+.gl-product-preview-position p { margin-top: 0.3rem; color: #a3a3a3; font-size: 0.7rem; }
+.gl-product-preview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; }
+.gl-product-preview-grid > div { min-width: 0; padding: 0.8rem; }
+.gl-product-preview-grid strong { display: block; margin-top: 0.4rem; overflow-wrap: anywhere; color: #fff; font-size: 0.78rem; }
+.gl-product-preview-signal { display: flex; align-items: center; gap: 0.75rem; padding: 0.9rem; }
+.gl-product-preview-signal > span { display: grid; width: 1.75rem; height: 1.75rem; flex: 0 0 auto; place-items: center; border: 1px solid rgba(251,191,36,0.4); border-radius: 999px; color: #fde68a; }
+.gl-product-preview-signal strong { color: #fff; font-size: 0.75rem; }
+.gl-product-preview-signal p { margin-top: 0.2rem; color: #a3a3a3; font-size: 0.65rem; }
+
 .gl-home-showcase-caption {
   position: relative;
   display: flex;
@@ -2999,6 +3034,16 @@ body {
   font-size: 0.72rem;
   line-height: 1.45;
 }
+
+.gl-home-proof { padding: clamp(4rem, 8vw, 7rem) 0 2rem; }
+.gl-home-proof-heading { max-width: 48rem; }
+.gl-home-proof-heading > span { color: #a3a3a3; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+.gl-home-proof-heading h2 { margin-top: 0.8rem; color: #fff; font-size: clamp(2rem, 4vw, 3.4rem); font-weight: 650; letter-spacing: -0.055em; line-height: 1.04; text-wrap: balance; }
+.gl-home-proof-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-top: 2.5rem; }
+.gl-home-proof-grid article { min-height: 15rem; border: 1px solid rgba(255,255,255,0.1); border-radius: 1.25rem; background: rgba(255,255,255,0.025); padding: 1.4rem; }
+.gl-home-proof-grid article > span { color: #737373; font-family: var(--font-mono); font-size: 0.65rem; }
+.gl-home-proof-grid h3 { margin-top: 4rem; color: #fff; font-size: 1.05rem; }
+.gl-home-proof-grid p { margin-top: 0.7rem; color: #a3a3a3; font-size: 0.82rem; line-height: 1.7; }
 
 .gl-public-auth-main {
   padding: clamp(2.5rem, 7vw, 5.5rem) 0;
@@ -3113,6 +3158,10 @@ body {
   .gl-home-logo-frame {
     min-height: 22rem;
   }
+
+  .gl-home-proof-grid { grid-template-columns: 1fr; }
+  .gl-home-proof-grid article { min-height: 0; }
+  .gl-home-proof-grid h3 { margin-top: 2rem; }
 }
 
 @media (max-width: 600px) {

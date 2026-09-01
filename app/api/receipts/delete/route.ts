@@ -62,7 +62,8 @@ export async function POST(req: Request) {
     );
   }
 
-  if (!(await getLedgerAccessForOwner(userId, receipt.user_id))) {
+  const access = await getLedgerAccessForOwner(userId, receipt.user_id);
+  if (!access || access.role === "viewer") {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });
   }
 

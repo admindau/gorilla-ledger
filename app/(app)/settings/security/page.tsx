@@ -15,6 +15,7 @@ import { SecurityCommandCenter } from "@/components/security/SecurityCommandCent
 import { SecurityMfaPanel } from "@/components/security/SecurityMfaPanel";
 import { SecurityRecommendations } from "@/components/security/SecurityRecommendations";
 import { CompanyLegalLinks } from "@/components/public/CompanyLegalLinks";
+import { SecurityLoadingSkeleton } from "@/components/ui/PlatformLoading";
 
 /* =============================================================================
    Constants & Helpers
@@ -468,6 +469,8 @@ export default function SecuritySettingsPage() {
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
+  if (booting) return <SecurityLoadingSkeleton />;
+
   return (
     <div className="gl-page-migrated">
       <div className="gl-page-shell max-w-6xl">

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   buildLedgerExports,
+  buildLedgerArchive,
   protectSpreadsheetText,
 } from "../lib/export/ledgerExport.ts";
 
@@ -50,9 +51,18 @@ test("export center creates all roadmap datasets", () => {
   const datasets = buildLedgerExports(fixture);
   assert.deepEqual(
     datasets.map((dataset) => dataset.id),
-    ["transactions", "wallets", "categories", "budgets", "recurring"]
+    ["transactions", "wallets", "categories", "budgets", "recurring", "receipts", "household"]
   );
   assert.equal(datasets.find((dataset) => dataset.id === "transactions")?.rowCount, 1);
+});
+
+test("complete archive is versioned and checksum-verifiable", async () => {
+  const archive = JSON.parse(await buildLedgerArchive(buildLedgerExports(fixture)));
+  assert.equal(archive.manifest.schema_version, "1.0.0");
+  assert.equal(archive.manifest.checksum_algorithm, "SHA-256");
+  assert.equal(archive.files.length, 7);
+  assert.match(archive.files[0].sha256, /^[a-f0-9]{64}$/);
+  assert.ok(archive.manifest.excluded_secrets.includes("authentication tokens"));
 });
 
 test("transaction export resolves names and preserves explicit currency", () => {

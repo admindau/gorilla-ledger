@@ -51,19 +51,17 @@ function formatRunDate(value: string | null | undefined) {
 
 function getAutomationHealth(runLogs: RecurringRunLog[]) {
   if (runLogs.length === 0) {
-    return { score: 100, label: "Ready" };
+    return { value: "No runs yet", label: "Waiting for the first due rule" };
   }
 
   const recentLogs = runLogs.slice(0, 12);
+  const success = recentLogs.filter((log) => log.status === "success").length;
   const failed = recentLogs.filter((log) => log.status === "failed").length;
-  const skipped = recentLogs.filter((log) => log.status === "skipped").length;
-  const penalty = failed * 18 + skipped * 8;
-  const score = Math.max(0, Math.min(100, 100 - penalty));
-
-  if (score >= 90) return { score, label: "Excellent" };
-  if (score >= 75) return { score, label: "Stable" };
-  if (score >= 55) return { score, label: "Needs Review" };
-  return { score, label: "At Risk" };
+  const attempted = success + failed;
+  return {
+    value: attempted === 0 ? "No attempts" : `${success} of ${attempted}`,
+    label: failed > 0 ? `${failed} failed · review needed` : "successful",
+  };
 }
 
 function getNextRun(rules: RecurringRule[]) {
@@ -110,8 +108,8 @@ export function RecurringCommandCenter({
       detail: "Completed successfully",
     },
     {
-      label: "Recent success",
-      value: `${health.score}%`,
+      label: "Recent reliability",
+      value: health.value,
       detail: health.label,
     },
   ];

@@ -8,11 +8,14 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
+import { FamilyLoadingSkeleton } from "@/components/ui/PlatformLoading";
 
-type LedgerSummary = { id: string; name: string; role: "owner" | "editor" };
-type Member = { user_id: string; email: string; role: "owner" | "editor"; joined_at: string; is_current_user: boolean };
-type Invitation = { id: string; email: string; role: "editor"; expires_at: string; created_at: string };
-type Overview = { ledger: LedgerSummary; available_ledgers: LedgerSummary[]; members: Member[]; invitations: Invitation[] };
+type HouseholdRole = "owner" | "editor" | "viewer";
+type LedgerSummary = { id: string; name: string; role: HouseholdRole };
+type Member = { user_id: string; email: string; role: HouseholdRole; joined_at: string; is_current_user: boolean };
+type Invitation = { id: string; email: string; role: "editor" | "viewer"; expires_at: string; created_at: string };
+type Activity = { id: number; actor_user_id: string | null; event_type: string; entity_type: string; occurred_at: string };
+type Overview = { ledger: LedgerSummary; available_ledgers: LedgerSummary[]; members: Member[]; invitations: Invitation[]; activity?: Activity[] };
 
 function apiError(value: unknown, fallback: string) {
   if (typeof value === "object" && value && "error" in value && typeof value.error === "string") return value.error;
@@ -24,6 +27,7 @@ export default function FamilySettingsPage() {
   const inviteToken = useSearchParams().get("invite");
   const [overview, setOverview] = useState<Overview | null>(null);
   const [email, setEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"editor" | "viewer">("editor");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -63,7 +67,7 @@ export default function FamilySettingsPage() {
   async function inviteMember(event: React.FormEvent) {
     event.preventDefault(); setBusy(true); setError(""); setSuccess("");
     try {
-      const response = await fetch("/api/family/invitations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) });
+      const response = await fetch("/api/family/invitations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, role: inviteRole }) });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(apiError(body, "Unable to send the invitation."));
       setEmail(""); setSuccess(body.message ?? "Invitation sent."); await loadOverview();
@@ -107,22 +111,25 @@ export default function FamilySettingsPage() {
   }
 
   const isOwner = overview?.ledger.role === "owner";
+  if (loading) return <FamilyLoadingSkeleton />;
+
   return <PageShell className="gl-page-stack" size="lg">
     <PageHeader eyebrow="Household collaboration" title="Family & access" description="Invite someone you trust to help manage the same ledger using their own secure account." />
     {error ? <p className="gl-auth-alert gl-auth-alert-error" role="alert">{error}</p> : null}
     {success ? <p className="gl-auth-alert gl-auth-alert-success" role="status">{success}</p> : null}
-    {loading || !overview ? <Card><CardBody><p className="text-sm text-gray-400">Loading household access…</p></CardBody></Card> : <>
+    {!overview ? <Card><CardBody><p className="text-sm text-gray-400">Household access is unavailable. Retry by refreshing this page.</p></CardBody></Card> : <>
       {overview.available_ledgers.length > 1 ? <Card><CardHeader><div><p className="gl-page-eyebrow">Active workspace</p><h2 className="text-lg font-semibold text-white">Choose a ledger</h2></div></CardHeader><CardBody><Select label="Ledger" value={overview.ledger.id} disabled={busy} onChange={(event) => void changeLedger(event.target.value)}>{overview.available_ledgers.map((ledger) => <option key={ledger.id} value={ledger.id}>{ledger.name} · {ledger.role}</option>)}</Select></CardBody></Card> : null}
-      <Card variant="premium"><CardHeader><div><p className="gl-page-eyebrow">Current household</p><h2 className="text-xl font-semibold text-white">{overview.ledger.name}</h2></div><Badge variant={isOwner ? "success" : "neutral"}>{isOwner ? "Owner" : "Editor"}</Badge></CardHeader><CardBody className="space-y-4">
-        <p className="text-sm leading-6 text-gray-300">Editors can view and manage wallets, transactions, budgets, recurring entries, receipts, and exports. Only the owner can invite or remove people.</p>
+      <Card variant="premium"><CardHeader><div><p className="gl-page-eyebrow">Current household</p><h2 className="text-xl font-semibold text-white">{overview.ledger.name}</h2></div><Badge variant={isOwner ? "success" : "neutral"}>{isOwner ? "Ledger owner" : overview.ledger.role === "editor" ? "Editor" : "Viewer"}</Badge></CardHeader><CardBody className="space-y-4">
+        <p className="text-sm leading-6 text-gray-300">Editors can manage ledger records. Viewers can review them without making changes. Only the ledger owner can invite or remove people.</p>
         <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/[0.04] p-4"><p className="text-sm font-medium text-emerald-100">Separate accounts, shared ledger</p><p className="mt-1 text-xs leading-5 text-gray-400">Every family member keeps their own passwordless login and MFA settings. Access can be removed without changing anyone else’s account.</p></div>
-        <div className="divide-y divide-white/10 rounded-xl border border-white/10">{overview.members.map((member) => <div key={member.user_id} className="flex items-center justify-between gap-4 p-4"><div className="min-w-0"><p className="truncate text-sm font-medium text-white">{member.email}</p><p className="mt-1 text-xs text-gray-500">{member.role === "owner" ? "Ledger owner" : "Can view and edit"}{member.is_current_user ? " · You" : ""}</p></div><div className="flex items-center gap-2"><Badge variant={member.role === "owner" ? "success" : "neutral"}>{member.role === "owner" ? "Owner" : "Editor"}</Badge>{isOwner && member.role !== "owner" ? <Button variant="danger" size="sm" disabled={busy} onClick={() => void removeMember(member)}>Remove</Button> : null}</div></div>)}</div>
+        <div className="divide-y divide-white/10 rounded-xl border border-white/10">{overview.members.map((member) => <div key={member.user_id} className="flex items-center justify-between gap-4 p-4"><div className="min-w-0"><p className="truncate text-sm font-medium text-white">{member.email}</p><p className="mt-1 text-xs text-gray-500">{member.role === "owner" ? "Ledger owner" : member.role === "editor" ? "Can view and edit" : "View only"}{member.is_current_user ? " · You" : ""}</p></div><div className="flex items-center gap-2"><Badge variant={member.role === "owner" ? "success" : "neutral"}>{member.role === "owner" ? "Owner" : member.role === "editor" ? "Editor" : "Viewer"}</Badge>{isOwner && member.role !== "owner" ? <Button variant="danger" size="sm" disabled={busy} onClick={() => void removeMember(member)}>Remove</Button> : null}</div></div>)}</div>
       </CardBody></Card>
       {isOwner ? <Card><CardHeader><div><p className="gl-page-eyebrow">Add someone</p><h2 className="text-lg font-semibold text-white">Invite a family member</h2></div></CardHeader><CardBody className="space-y-5">
-        <form className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end" onSubmit={inviteMember}><Input label="Email address" type="email" placeholder="family@example.com" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required /><Button type="submit" disabled={busy}>{busy ? "Sending…" : "Send invitation"}</Button></form>
+        <form className="grid gap-4 sm:grid-cols-[1fr_12rem_auto] sm:items-end" onSubmit={inviteMember}><Input label="Email address" type="email" placeholder="family@example.com" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required /><Select label="Role" value={inviteRole} onChange={(event) => setInviteRole(event.target.value as "editor" | "viewer")}><option value="editor">Editor</option><option value="viewer">Viewer</option></Select><Button type="submit" disabled={busy}>{busy ? "Sending…" : "Send invitation"}</Button></form>
         <p className="text-xs leading-5 text-gray-500">The invitation expires after seven days and can only be accepted by this email address.</p>
-        {overview.invitations.length ? <div><h3 className="mb-2 text-sm font-semibold text-white">Pending invitations</h3><div className="divide-y divide-white/10 rounded-xl border border-white/10">{overview.invitations.map((invitation) => <div key={invitation.id} className="flex items-center justify-between gap-4 p-4"><div className="min-w-0"><p className="truncate text-sm text-white">{invitation.email}</p><p className="mt-1 text-xs text-gray-500">Expires {new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(invitation.expires_at))}</p></div><Button variant="ghost" size="sm" disabled={busy} onClick={() => void revokeInvitation(invitation)}>Revoke</Button></div>)}</div></div> : null}
-      </CardBody></Card> : <p className="text-center text-xs text-gray-600">Your access is managed by the ledger owner.</p>}
+        {overview.invitations.length ? <div><h3 className="mb-2 text-sm font-semibold text-white">Pending invitations</h3><div className="divide-y divide-white/10 rounded-xl border border-white/10">{overview.invitations.map((invitation) => <div key={invitation.id} className="flex items-center justify-between gap-4 p-4"><div className="min-w-0"><p className="truncate text-sm text-white">{invitation.email}</p><p className="mt-1 text-xs text-gray-500">{invitation.role === "viewer" ? "Viewer" : "Editor"} · Expires {new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(invitation.expires_at))}</p></div><Button variant="ghost" size="sm" disabled={busy} onClick={() => void revokeInvitation(invitation)}>Revoke</Button></div>)}</div></div> : null}
+      </CardBody></Card> : <p className="text-center text-xs text-gray-500">Your access is managed by the ledger owner.</p>}
+      {overview.activity?.length ? <Card><CardHeader><div><p className="gl-page-eyebrow">Audit trail</p><h2 className="text-lg font-semibold text-white">Recent household activity</h2></div></CardHeader><CardBody><div className="divide-y divide-white/10">{overview.activity.map((event) => <div key={event.id} className="flex items-center justify-between gap-4 py-3 text-sm"><span className="text-gray-200">{event.event_type.replace(".", " ").replaceAll("_", " ")}</span><time className="shrink-0 text-xs text-gray-400" dateTime={event.occurred_at}>{new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(event.occurred_at))}</time></div>)}</div></CardBody></Card> : null}
     </>}
   </PageShell>;
 }

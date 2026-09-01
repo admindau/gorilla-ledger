@@ -12,25 +12,16 @@ function daysSince(ms: number | null) {
   return Math.max(0, Math.floor((Date.now() - ms) / (1000 * 60 * 60 * 24)));
 }
 
-function securityScore({
+function protectionState({
   mfaEnabled,
   backupConfigured,
   lastCheckAt,
 }: Pick<SecurityCommandCenterProps, "mfaEnabled" | "backupConfigured" | "lastCheckAt">) {
   const checkAge = daysSince(lastCheckAt);
-  let score = 60;
-
-  if (mfaEnabled) score += 25;
-  if (backupConfigured) score += 10;
-  if (checkAge !== null && checkAge <= 30) score += 5;
-
-  return Math.min(score, 100);
-}
-
-function scoreLabel(score: number) {
-  if (score >= 90) return "Strong";
-  if (score >= 75) return "Good";
-  return "Foundation established";
+  if (!mfaEnabled) return { label: "At risk", detail: "No verified sign-in factor" };
+  if (!backupConfigured) return { label: "Protected", detail: "Add backup access" };
+  if (checkAge === null || checkAge > 30) return { label: "Review due", detail: "Confirm recovery access" };
+  return { label: "Strong", detail: "Core controls are active" };
 }
 
 function StatCard({
@@ -59,8 +50,7 @@ export function SecurityCommandCenter({
   lastCheckLabel,
   booting = false,
 }: SecurityCommandCenterProps) {
-  const score = securityScore({ mfaEnabled, backupConfigured, lastCheckAt });
-  const label = scoreLabel(score);
+  const state = protectionState({ mfaEnabled, backupConfigured, lastCheckAt });
   const checkAge = daysSince(lastCheckAt);
   const reviewCurrent = checkAge !== null && checkAge <= 30;
   const protectionStrong = mfaEnabled && backupConfigured;
@@ -70,13 +60,10 @@ export function SecurityCommandCenter({
       <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
         <div className="gl-premium-card min-w-0 p-3.5 sm:p-4">
           <p className="text-[11px] uppercase tracking-[0.2em] text-gray-500">
-            Security score
+            Protection status
           </p>
-          <div className="mt-3 flex items-end gap-2">
-            <p className="text-3xl font-semibold text-white">{booting ? "…" : score}</p>
-            <p className="pb-1 text-sm text-gray-400">/ 100</p>
-          </div>
-          <p className="mt-1 text-xs text-gray-400">{booting ? "Checking status…" : label}</p>
+          <p className="mt-3 text-xl font-semibold text-white sm:text-2xl">{booting ? "Checking…" : state.label}</p>
+          <p className="mt-1 text-xs text-gray-400">{booting ? "Resolving account controls" : state.detail}</p>
         </div>
 
         <StatCard

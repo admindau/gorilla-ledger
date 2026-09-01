@@ -246,7 +246,7 @@ export default function AppTopNav() {
         {isNavigating ? <div className="gl-navigation-progress" aria-label="Loading page" role="progressbar" /> : null}
         <div className="gl-app-topnav-inner">
         <div className="min-w-0">
-          <Link href="/dashboard" prefetch={false} className="gl-app-brand" aria-label="Go to dashboard">
+          <Link href="/dashboard" className="gl-app-brand" aria-label="Go to dashboard">
             Gorilla Ledger™
           </Link>
           <div className="gl-app-current-section" aria-live="polite">{activeLabel}</div>
@@ -259,7 +259,6 @@ export default function AppTopNav() {
               <Link
                 key={item.href}
                 href={item.href}
-                prefetch={false}
                 className={["gl-app-nav-link", active ? "gl-app-nav-link-active" : ""].filter(Boolean).join(" ")}
                 aria-current={active ? "page" : undefined}
                 onClick={() => {
@@ -311,7 +310,6 @@ export default function AppTopNav() {
             <Link
               key={item.href}
               href={item.href}
-              prefetch={false}
               className={["gl-mobile-nav-link", active ? "gl-mobile-nav-link-active" : ""].filter(Boolean).join(" ")}
               aria-current={active ? "page" : undefined}
               onClick={() => {
@@ -347,7 +345,6 @@ export default function AppTopNav() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    prefetch={false}
                     className={active ? "is-active" : ""}
                     aria-current={active ? "page" : undefined}
                     onClick={() => {
@@ -366,7 +363,6 @@ export default function AppTopNav() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  prefetch={false}
                   onClick={() => setMobileMoreOpen(false)}
                 >
                   <span>{item.label}</span>

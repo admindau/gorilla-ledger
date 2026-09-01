@@ -1174,21 +1174,9 @@ export default function TransactionsPage() {
                       if (nextCategory) setType(nextCategory.type);
                     }}
                   >
-                    <optgroup label="Expense categories">
+                    <optgroup label={`${type === "expense" ? "Expense" : "Income"} categories`}>
                       {activeCategories
-                        .filter((category) => category.type === "expense")
-                        .map((category) => {
-                          const internalMovement = isInternalTransferCategory(category);
-                          return (
-                          <option key={category.id} value={category.id} disabled={internalMovement}>
-                            {category.name}{internalMovement ? " — Use Transfer / FX" : ""}
-                          </option>
-                          );
-                        })}
-                    </optgroup>
-                    <optgroup label="Income categories">
-                      {activeCategories
-                        .filter((category) => category.type === "income")
+                        .filter((category) => category.type === type)
                         .map((category) => {
                           const internalMovement = isInternalTransferCategory(category);
                           return (
@@ -1200,7 +1188,7 @@ export default function TransactionsPage() {
                     </optgroup>
                   </select>
                   <p className="mt-1 text-[11px] leading-4 text-gray-500">
-                    All {activeCategories.length} active categories are visible. Transfer and FX categories use the paired balance-movement workflow below.
+                    Only {type} categories are shown. Transfer and FX categories use the paired balance-movement workflow below.
                   </p>
                 </div>
 

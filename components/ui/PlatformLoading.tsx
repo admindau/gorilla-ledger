@@ -150,8 +150,9 @@ export function PlatformPageSkeleton({
   variant = "standard",
 }: PlatformPageSkeletonProps) {
   return (
-    <PageShell>
-      <div className="space-y-8">
+    <PageShell role="status" aria-busy="true" aria-live="polite">
+      <span className="sr-only">Loading page content…</span>
+      <div className="space-y-8" aria-hidden="true">
         {variant === "dashboard" ? (
           <DashboardHeaderSkeleton />
         ) : (
@@ -217,4 +218,8 @@ export function CategoriesLoadingSkeleton() {
 
 export function SecurityLoadingSkeleton() {
   return <PlatformPageSkeleton variant="settings" titleWidth="w-80" descriptionWidth="w-[34rem]" />;
+}
+
+export function FamilyLoadingSkeleton() {
+  return <PlatformPageSkeleton variant="settings" titleWidth="w-64" descriptionWidth="w-[32rem]" />;
 }

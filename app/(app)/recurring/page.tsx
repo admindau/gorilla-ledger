@@ -11,8 +11,10 @@ import { RecurringRuleCard } from "@/components/recurring/RecurringRuleCard";
 import { RecurringTimeline } from "@/components/recurring/RecurringTimeline";
 import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
 import { PrerequisiteGuide } from "@/components/activation/PrerequisiteGuide";
+import { RecurringLoadingSkeleton } from "@/components/ui/PlatformLoading";
 import { isValidLedgerDate, parsePositiveMoneyToMinor } from "@/lib/finance/money";
 import { isInternalTransferCategory } from "@/lib/transactions/classification";
+import { advanceRecurringDate } from "@/lib/recurring/forecast";
 
 type Wallet = {
   id: string;
@@ -80,6 +82,7 @@ export default function RecurringPage() {
   const [firstRunDate, setFirstRunDate] = useState("");
   const [frequency, setFrequency] = useState<RecurringFrequency>("monthly");
   const [description, setDescription] = useState("");
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
 
   const now = useMemo(() => new Date(), []);
   const monthName = now.toLocaleString("en-US", { month: "long" });
@@ -92,6 +95,15 @@ export default function RecurringPage() {
     () => activeCategories.filter((category) => !isInternalTransferCategory(category)),
     [activeCategories]
   );
+  const schedulePreview = useMemo(() => {
+    if (!isValidLedgerDate(firstRunDate)) return [];
+    const configuredDay = Number(firstRunDate.slice(8, 10));
+    let cursor = new Date(`${firstRunDate}T00:00:00Z`);
+    return Array.from({ length: 3 }, (_, index) => {
+      if (index > 0) cursor = advanceRecurringDate(cursor, frequency, 1, configuredDay);
+      return cursor.toISOString();
+    });
+  }, [firstRunDate, frequency]);
 
   // Load wallets, categories, existing rules, and user email
   useEffect(() => {
@@ -217,11 +229,10 @@ export default function RecurringPage() {
 
     setSaving(true);
 
-    const { error } = await supabase.from("recurring_rules").insert({
-      user_id: user.id, // 🔑 satisfy NOT NULL + RLS
+    const ruleValues = {
       wallet_id: walletId,
       category_id: categoryId,
-      type, // 🔑 satisfy recurring_rules_type_check
+      type,
       amount_minor: amountMinor,
       currency_code: currencyCode,
       frequency,
@@ -231,21 +242,25 @@ export default function RecurringPage() {
       start_date: firstRunDate,
       next_run_at: nextRunAt,
       description: description || null,
-      is_active: true,
-    });
+    };
+    const { error } = editingRuleId
+      ? await supabase.from("recurring_rules").update(ruleValues).eq("id", editingRuleId)
+      : await supabase.from("recurring_rules").insert({ ...ruleValues, user_id: user.id, is_active: true });
 
     setSaving(false);
 
     if (error) {
       console.error("Failed to create recurring rule:", error);
-      showToast("Failed to create recurring rule.", "error");
+      showToast(editingRuleId ? "Failed to update recurring rule." : "Failed to create recurring rule.", "error");
       return;
     }
 
-    showToast("Recurring rule created.", "success");
+    showToast(editingRuleId ? "Recurring rule updated. Past transactions were not changed." : "Recurring rule created.", "success");
     setAmount("");
     setDescription("");
     setFrequency("monthly");
+    setFirstRunDate("");
+    setEditingRuleId(null);
 
     // reload rules from base table
     const { data: r, error: rErr } = await supabase
@@ -260,6 +275,27 @@ export default function RecurringPage() {
     } else {
       setRules((r as RecurringRule[]) ?? []);
     }
+  }
+
+  function beginEditRule(rule: RecurringRule) {
+    setEditingRuleId(rule.id);
+    setWalletId(rule.wallet_id);
+    setCategoryId(rule.category_id ?? "");
+    setAmount((rule.amount_minor / 100).toFixed(2));
+    setFirstRunDate(rule.next_run_at?.slice(0, 10) ?? rule.start_date ?? "");
+    setFrequency((rule.frequency as RecurringFrequency) || "monthly");
+    setDescription(rule.description ?? "");
+    window.requestAnimationFrame(() => document.getElementById("recurring-rule-form")?.focus());
+  }
+
+  function cancelEditRule() {
+    setEditingRuleId(null);
+    setWalletId("");
+    setCategoryId("");
+    setAmount("");
+    setFirstRunDate("");
+    setFrequency("monthly");
+    setDescription("");
   }
 
   async function toggleRuleActive(rule: RecurringRule, isActive: boolean) {
@@ -363,6 +399,7 @@ export default function RecurringPage() {
 
   const runLogSummary = getRunLogSummary();
 
+  if (loadingPage) return <RecurringLoadingSkeleton />;
 
   return (
     <div className="gl-page-migrated">
@@ -392,18 +429,22 @@ export default function RecurringPage() {
           ) : null}
 
           <form
+            id="recurring-rule-form"
+            tabIndex={-1}
             onSubmit={handleCreateRule}
             className="gl-premium-card mb-8 space-y-4 p-4 text-sm"
           >
             <div>
               <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500">
-                New rule
+                {editingRuleId ? "Edit rule" : "New rule"}
               </p>
-              <h2 className="mt-1 text-sm font-semibold">Add recurring transaction</h2>
+              <h2 className="mt-1 text-sm font-semibold">{editingRuleId ? "Update recurring transaction" : "Add recurring transaction"}</h2>
               <p className="mt-1 text-xs text-gray-500">
                 Create scheduled transactions for predictable income, bills, subscriptions, and renewals.
               </p>
             </div>
+
+            {schedulePreview.length ? <div className="rounded-xl border border-white/10 bg-white/[0.025] p-3"><p className="text-xs font-semibold text-white">Next three occurrences</p><ol className="mt-2 grid gap-1 text-xs text-gray-300 sm:grid-cols-3">{schedulePreview.map((date) => <li key={date}>{new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeZone: "UTC" }).format(new Date(date))}</li>)}</ol><p className="mt-2 text-[11px] leading-5 text-gray-500">Schedules run at 00:00 UTC. Monthly and yearly dates clamp to the final valid day when a month is shorter.</p></div> : null}
 
             <PrerequisiteGuide
               title="Before adding a recurring transaction"
@@ -524,13 +565,7 @@ export default function RecurringPage() {
               />
             </div>
 
-            <button
-              type="submit"
-              disabled={saving || loadingPage || loadError || wallets.length === 0 || activeCategories.length === 0}
-              className="gl-btn gl-btn-primary gl-btn-md mt-2"
-            >
-              {saving ? "Saving..." : "Save Rule"}
-            </button>
+            <div className="flex flex-wrap gap-2"><button type="submit" disabled={saving || loadingPage || loadError || wallets.length === 0 || activeCategories.length === 0} className="gl-btn gl-btn-primary gl-btn-md mt-2">{saving ? "Saving…" : editingRuleId ? "Update rule" : "Save rule"}</button>{editingRuleId ? <button type="button" onClick={cancelEditRule} disabled={saving} className="gl-btn gl-btn-secondary gl-btn-md mt-2">Cancel edit</button> : null}</div>
           </form>
 
           {/* Automation rules */}
@@ -570,6 +605,7 @@ export default function RecurringPage() {
                     wallet={wallets.find((wallet) => wallet.id === rule.wallet_id)}
                     category={categories.find((category) => category.id === rule.category_id)}
                     onToggle={(isActive) => toggleRuleActive(rule, isActive)}
+                    onEdit={() => beginEditRule(rule)}
                     onDelete={() => deleteRule(rule)}
                   />
                 ))}
@@ -640,9 +676,6 @@ export default function RecurringPage() {
 
                         <p className="mt-1 text-[11px] text-gray-500">
                           Run at {formatDateTimeWithTime(log.run_at)}
-                          {log.transaction_id
-                            ? ` • Transaction ${log.transaction_id.slice(0, 8)}`
-                            : ""}
                         </p>
 
                         {log.details ? (
@@ -650,6 +683,7 @@ export default function RecurringPage() {
                             {log.details}
                           </p>
                         ) : null}
+                        {log.transaction_id ? <details className="mt-2 text-[11px] text-gray-500"><summary className="cursor-pointer">Diagnostics</summary><p className="mt-1 break-all">Support reference: {log.transaction_id}</p></details> : null}
                       </div>
                     </div>
                   </div>

@@ -3,14 +3,13 @@ import { supabaseAdminClient } from "@/lib/supabase/admin";
 import { sanitizeConfirmationDestination } from "@/lib/auth/navigation";
 import { sendEmail } from "@/lib/email";
 import { COMPANY_NAME, PRODUCT_NAME } from "@/lib/brand";
+import { createHmac } from "node:crypto";
 
 const GENERIC_MESSAGE =
   "Check your email for a one-time sign-in code. It expires soon and can only be used once.";
 const RATE_LIMIT_MESSAGE =
   "A recent sign-in email is already on its way. Check all mail folders, then try again when the timer ends.";
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
-const RATE_LIMIT_MAX_REQUESTS = 5;
-const rateLimits = new Map<string, number[]>();
 
 type RequestBody = {
   email?: unknown;
@@ -30,34 +29,33 @@ function isEmail(value: unknown): value is string {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-function isRateLimited(key: string) {
-  const now = Date.now();
-  const recent = (rateLimits.get(key) ?? []).filter(
-    (timestamp) => now - timestamp < RATE_LIMIT_WINDOW_MS
-  );
-  recent.push(now);
-  rateLimits.set(key, recent);
-  return recent.length > RATE_LIMIT_MAX_REQUESTS;
+function privacySafeBucket(value: string) {
+  const pepper = process.env.AUTH_RATE_LIMIT_PEPPER || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!pepper) throw new Error("Authentication rate-limit pepper is not configured.");
+  return createHmac("sha256", pepper).update(value).digest("hex");
+}
+
+async function consumeRateLimit(key: string, maxRequests: number) {
+  const { data, error } = await supabaseAdminClient.rpc("consume_auth_rate_limit", {
+    p_bucket_hash: privacySafeBucket(key),
+    p_window_seconds: RATE_LIMIT_WINDOW_MS / 1000,
+    p_max_requests: maxRequests,
+  });
+  if (error) throw error;
+  const result = Array.isArray(data) ? data[0] : data;
+  return {
+    allowed: result?.allowed === true,
+    retryAfter: Number(result?.retry_after_seconds) || 0,
+  };
 }
 
 async function userExists(email: string) {
-  for (let page = 1; page <= 10; page += 1) {
-    const { data, error } = await supabaseAdminClient.auth.admin.listUsers({
-      page,
-      perPage: 1000,
-    });
-
-    if (error) throw error;
-    if (data.users.some((user) => user.email?.toLowerCase() === email)) {
-      return true;
-    }
-    if (data.users.length < 1000) return false;
-  }
-
-  throw new Error("Auth user lookup exceeded the supported page limit.");
+  const { data, error } = await supabaseAdminClient.rpc("auth_user_exists", { p_email: email });
+  if (error) throw error;
+  return data === true;
 }
 
-function signInCodeEmail(emailOtp: string, mode: "login" | "signup") {
+function signInCodeEmail(emailOtp: string, mode: "login" | "signup", reference: string) {
   const heading =
     mode === "signup" ? `Welcome to ${PRODUCT_NAME}` : `Sign in to ${PRODUCT_NAME}`;
   const intro =
@@ -99,7 +97,7 @@ function signInCodeEmail(emailOtp: string, mode: "login" | "signup") {
                 The code expires soon and can only be used once. If you requested more than one email, use only the newest code. Gorilla Ledger will never ask you to forward or reply with this code. If you did not request it, you can safely ignore this email.
               </p>
               <p style="margin:0;padding-top:18px;border-top:1px solid #e8e8e8;color:#8a8a8a;font-size:11px;">
-                ${COMPANY_NAME}
+                ${COMPANY_NAME} · Request ${reference.slice(0, 8)} · ${new Date().toISOString()}
               </p>
             </td>
           </tr>
@@ -109,12 +107,12 @@ function signInCodeEmail(emailOtp: string, mode: "login" | "signup") {
   `;
 }
 
-function signInCodeEmailText(emailOtp: string, mode: "login" | "signup") {
+function signInCodeEmailText(emailOtp: string, mode: "login" | "signup", reference: string) {
   const action = mode === "signup" ? "Create your Gorilla Ledger account" : "Sign in to Gorilla Ledger";
   const instructions = mode === "signup"
     ? "Open Gorilla Ledger and select Create account. Enter the email address that received this message, then type the code under Already have an account code?"
     : "Open Gorilla Ledger and select Sign in. Enter the email address that received this message, then type the code under Already have a code?";
-  return `${action}\n\nSign-in code: ${emailOtp}\nEnter this code on the computer where you started signing in.\n\n${instructions}\n\nThe code expires soon and can only be used once. If you requested more than one email, use only the newest code. Gorilla Ledger will never ask you to forward or reply with this code. If you did not request it, you can safely ignore this email.\n\n${COMPANY_NAME}`;
+  return `${action}\n\nSign-in code: ${emailOtp}\nEnter this code on the computer where you started signing in.\n\n${instructions}\n\nThe code expires soon and can only be used once. If you requested more than one email, use only the newest code. Gorilla Ledger will never ask you to forward or reply with this code. If you did not request it, you can safely ignore this email.\n\n${COMPANY_NAME}\nRequest ${reference.slice(0, 8)} · ${new Date().toISOString()}`;
 }
 
 export async function POST(request: NextRequest) {
@@ -132,14 +130,15 @@ export async function POST(request: NextRequest) {
   const forwardedFor = request.headers.get("x-forwarded-for");
   const clientIp = forwardedFor?.split(",")[0]?.trim() || "unknown";
 
-  if (
-    isRateLimited(`email:${email}`) ||
-    isRateLimited(`ip:${clientIp}`)
-  ) {
-    return json(RATE_LIMIT_MESSAGE, 429, RATE_LIMIT_WINDOW_MS / 1000, reference);
-  }
-
   try {
+    const [emailLimit, ipLimit] = await Promise.all([
+      consumeRateLimit(`send-code:email:${email}`, 5),
+      consumeRateLimit(`send-code:ip:${clientIp}`, 20),
+    ]);
+    if (!emailLimit.allowed || !ipLimit.allowed) {
+      return json(RATE_LIMIT_MESSAGE, 429, Math.max(emailLimit.retryAfter, ipLimit.retryAfter), reference);
+    }
+
     const exists = await userExists(email);
     if (mode === "login" && !exists) return json(GENERIC_MESSAGE, 200, undefined, reference);
     const deliveryMode: "login" | "signup" = exists ? "login" : "signup";
@@ -167,23 +166,29 @@ export async function POST(request: NextRequest) {
       return json(GENERIC_MESSAGE, 200, undefined, reference);
     }
 
+    const deliveryStartedAt = performance.now();
     const delivery = await sendEmail({
       to: email,
       subject:
         deliveryMode === "signup"
           ? `Your ${PRODUCT_NAME} account code`
           : `Your ${PRODUCT_NAME} sign-in code`,
-      html: signInCodeEmail(emailOtp, deliveryMode),
-      text: signInCodeEmailText(emailOtp, deliveryMode),
+      html: signInCodeEmail(emailOtp, deliveryMode, reference),
+      text: signInCodeEmailText(emailOtp, deliveryMode, reference),
       idempotencyKey: `auth/${reference}`,
     });
 
     if (!delivery.success) {
-      console.error("[send-magic-link] Resend delivery failed.", { reference });
+      console.error("[send-magic-link] Resend delivery failed.", {
+        reference,
+        latencyMs: Math.round(performance.now() - deliveryStartedAt),
+        failureClass: delivery.error instanceof Error ? delivery.error.name : "provider_error",
+      });
     } else {
       console.info("[send-magic-link] Delivery accepted.", {
         reference,
         deliveryId: delivery.data?.id,
+        latencyMs: Math.round(performance.now() - deliveryStartedAt),
       });
     }
 

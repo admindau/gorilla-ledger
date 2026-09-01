@@ -7,8 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test tests/*.test.mjs",
-    "certify": "pnpm lint && pnpm test && pnpm build"
+    "audit:prod": "pnpm audit --prod --audit-level high",
+    "test:smoke": "node scripts/smoke-production.mjs",
+    "test:performance": "node scripts/check-performance-budget.mjs",
+    "test:e2e": "playwright test",
+    "certify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
@@ -21,6 +26,8 @@
     "resend": "^6.14.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4.3.1",
     "@types/node": "^20.19.43",
     "@types/react": "^19.2.17",
@@ -30,5 +37,6 @@
     "eslint-config-next": "16.2.11",
     "tailwindcss": "^4.3.1",
     "typescript": "^5.9.3"
-  }
+  },
+  "packageManager": "pnpm@11.8.0"
 }

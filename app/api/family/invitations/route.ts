@@ -25,14 +25,15 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return response({ error: "Unauthorized." }, 401);
 
-  const body = await request.json().catch(() => null) as { email?: unknown } | null;
+  const body = await request.json().catch(() => null) as { email?: unknown; role?: unknown } | null;
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+  const role = body?.role === "viewer" ? "viewer" : "editor";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return response({ error: "Enter a valid email address." }, 400);
   }
 
   const { data: rawData, error } = await supabase
-    .rpc("create_ledger_invitation", { p_email: email, p_role: "editor" })
+    .rpc("create_ledger_invitation", { p_email: email, p_role: role })
     .single();
   const data = rawData as InvitationResult | null;
 
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
           <tr><td style="padding:32px;border-radius:20px;background:#fff">
             <p style="margin:0 0 8px;color:#686868;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase">Family access</p>
             <h1 style="margin:0 0 12px;font-size:28px;line-height:1.2">Work on the household ledger together</h1>
-            <p style="margin:0 0 24px;color:#454545;font-size:15px;line-height:1.6">You’ve been invited as an editor of <strong>${safeLedgerName}</strong>. Use your own secure account to help manage transactions, wallets, budgets, receipts, and recurring entries.</p>
+            <p style="margin:0 0 24px;color:#454545;font-size:15px;line-height:1.6">You’ve been invited as a ${role} of <strong>${safeLedgerName}</strong>. Use your own secure account to ${role === "viewer" ? "review the household ledger without changing it" : "help manage transactions, wallets, budgets, receipts, and recurring entries"}.</p>
             <p style="margin:0 0 24px;text-align:center"><a href="${safeInviteUrl}" style="display:inline-block;padding:13px 24px;border-radius:999px;background:#050505;color:#fff;font-size:14px;font-weight:700;text-decoration:none">Accept invitation</a></p>
             <p style="margin:0;color:#686868;font-size:12px;line-height:1.6">This single-use invitation expires in seven days. If you weren’t expecting it, you can ignore this email.</p>
           </td></tr>

@@ -14,9 +14,10 @@ function formatMinor(minor: number) {
 }
 
 function confidenceHelper(confidence?: string) {
-  if (confidence === "High") return "Recurring rules and activity history are sufficient.";
-  if (confidence === "Medium") return "Some recurring or recent activity exists.";
-  return "Add recurring rules and more transactions to improve confidence.";
+  if (confidence === "Established") return "Twelve or more months of ledger history support this projection.";
+  if (confidence === "Reliable") return "Six or more months support this projection; twelve months establishes a stronger baseline.";
+  if (confidence === "Emerging") return "Three or more months are available; the estimate will mature with more history.";
+  return "Less than three months of history is available, so treat this as an early estimate.";
 }
 
 export default function ForecastMonthEndBalance({

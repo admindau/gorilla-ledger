@@ -18,10 +18,10 @@ function toneClasses(tone: SmartAlert["tone"]) {
 }
 
 function toneLabel(tone: SmartAlert["tone"]) {
-  if (tone === "good") return "Healthy";
+  if (tone === "good" || tone === "neutral") return "Healthy";
   if (tone === "danger") return "Critical";
   if (tone === "watch") return "Watch";
-  return "Info";
+  return "Healthy";
 }
 
 function toneDot(tone: SmartAlert["tone"]) {
@@ -35,15 +35,15 @@ export default function SmartAlertsPanel({
   alerts,
   riskLevel,
 }: SmartAlertsPanelProps) {
-  const visibleAlerts = alerts.slice(0, 4);
+  const visibleAlerts = alerts.slice(0, 3);
 
   return (
     <div>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold tracking-tight">Smart Alerts</h3>
+          <h3 className="text-sm font-semibold tracking-tight">What needs attention</h3>
           <p className="mt-1 text-[11px] text-gray-400">
-            Prioritized issues that need attention now.
+            Up to three prioritized signals for the selected month.
           </p>
         </div>
         <span className="rounded-full border border-gray-800 px-2 py-1 text-[10px] uppercase tracking-wide text-gray-300">

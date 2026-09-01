@@ -53,6 +53,14 @@ export function SecurityMfaPanel({
   disableMfa,
   verifyEnroll,
 }: SecurityMfaPanelProps) {
+  const qrImageSource = enroll.status === "enrolling"
+    ? enroll.qr.startsWith("data:image/svg+xml")
+      ? enroll.qr
+      : enroll.qr.includes("<svg")
+        ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(enroll.qr)}`
+        : ""
+    : "";
+
   return (
     <Card variant="premium" className="p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -214,10 +222,21 @@ export function SecurityMfaPanel({
 
           <div className="mt-4 grid gap-4 lg:grid-cols-[280px_1fr]">
             <div className="rounded-2xl border border-white/10 bg-black/40 p-3">
-              <div
-                className="w-full overflow-hidden rounded-xl bg-white p-2"
-                dangerouslySetInnerHTML={{ __html: enroll.qr }}
-              />
+              {qrImageSource ? (
+                // The SVG is isolated in an image document rather than injected into the DOM.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={qrImageSource}
+                  alt="QR code for the authenticator enrollment secret"
+                  width={256}
+                  height={256}
+                  className="aspect-square w-full rounded-xl bg-white p-2"
+                />
+              ) : (
+                <p className="flex aspect-square items-center justify-center rounded-xl bg-white p-4 text-center text-xs text-black">
+                  QR code unavailable. Enter the secret manually.
+                </p>
+              )}
             </div>
 
             <form onSubmit={verifyEnroll} className="space-y-4">

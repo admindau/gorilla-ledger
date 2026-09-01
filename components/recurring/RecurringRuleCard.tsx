@@ -31,6 +31,7 @@ type RecurringRuleCardProps = {
   wallet?: Wallet;
   category?: Category;
   onToggle: (isActive: boolean) => void;
+  onEdit: () => void;
   onDelete: () => void;
 };
 
@@ -77,7 +78,7 @@ function formatSchedule(rule: RecurringRule) {
   return `Runs monthly${rule.day_of_month != null ? ` on day ${rule.day_of_month}` : ""}`;
 }
 
-export function RecurringRuleCard({ rule, wallet, category, onToggle, onDelete }: RecurringRuleCardProps) {
+export function RecurringRuleCard({ rule, wallet, category, onToggle, onEdit, onDelete }: RecurringRuleCardProps) {
   const title = rule.description || category?.name || "Recurring rule";
 
   return (
@@ -138,6 +139,7 @@ export function RecurringRuleCard({ rule, wallet, category, onToggle, onDelete }
         </div>
 
         <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px]">
+          <button type="button" onClick={onEdit} aria-label={`Edit ${title} recurring rule`} className="gl-btn gl-btn-secondary gl-btn-sm">Edit</button>
           {rule.is_active ? (
             <button
               type="button"

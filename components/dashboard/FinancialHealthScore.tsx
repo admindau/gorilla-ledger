@@ -18,6 +18,7 @@ function formatMinor(minor: number) {
 }
 
 function riskLabel(riskLevel: IntelligenceRiskLevel) {
+  if (riskLevel === "warning") return "At risk";
   return riskLevel.charAt(0).toUpperCase() + riskLevel.slice(1);
 }
 

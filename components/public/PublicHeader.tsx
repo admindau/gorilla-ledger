@@ -14,7 +14,7 @@ export function PublicHeader() {
         <PublicNav />
 
         <Link href="/dashboard" className="gl-btn gl-btn-secondary gl-btn-sm gl-public-open-app">
-          Open ledger <span aria-hidden="true">↗</span>
+          Open dashboard <span aria-hidden="true">↗</span>
         </Link>
       </div>
     </header>

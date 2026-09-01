@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
 import { PrerequisiteGuide } from "@/components/activation/PrerequisiteGuide";
+import { BudgetsLoadingSkeleton } from "@/components/ui/PlatformLoading";
 import { parsePositiveMoneyToMinor } from "@/lib/finance/money";
 import {
   isInternalTransferCategory,
@@ -433,6 +434,8 @@ export default function BudgetsPage() {
     if (editingId === budget.id) cancelEdit();
     setRowBusyId(null);
   }
+
+  if (loading) return <BudgetsLoadingSkeleton />;
 
   return (
     <div className="gl-page-migrated">

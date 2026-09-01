@@ -72,10 +72,29 @@ export type LedgerExportInput = {
   transactions: ExportTransaction[];
   budgets: ExportBudget[];
   recurringRules: ExportRecurringRule[];
+  receipts?: ExportReceiptMetadata[];
+  householdMembers?: ExportHouseholdMember[];
+};
+
+export type ExportReceiptMetadata = {
+  id: string;
+  transaction_id: string;
+  original_name: string;
+  mime_type: string;
+  size_bytes: number;
+  created_at: string;
+};
+
+export type ExportHouseholdMember = {
+  user_id: string;
+  email: string;
+  role: string;
+  joined_at: string;
+  is_current_user: boolean;
 };
 
 export type LedgerExportDataset = {
-  id: "wallets" | "categories" | "transactions" | "budgets" | "recurring";
+  id: "wallets" | "categories" | "transactions" | "budgets" | "recurring" | "receipts" | "household";
   label: string;
   description: string;
   filename: string;
@@ -209,11 +228,54 @@ export function buildLedgerExports(input: LedgerExportInput): LedgerExportDatase
     ])
   );
 
+  const receipts = input.receipts ?? [];
+  const receiptsCsv = buildCsv(
+    ["Receipt ID", "Transaction ID", "Original Name", "MIME Type", "Size Bytes", "Created At"],
+    receipts.map((receipt) => [receipt.id, receipt.transaction_id, receipt.original_name, receipt.mime_type, receipt.size_bytes, receipt.created_at])
+  );
+  const householdMembers = input.householdMembers ?? [];
+  const householdCsv = buildCsv(
+    ["Member ID", "Email", "Role", "Joined At", "Current Exporting User"],
+    householdMembers.map((member) => [member.user_id, member.email, member.role, member.joined_at, member.is_current_user])
+  );
+
   return [
     { id: "transactions", label: "Transactions", description: "Complete activity history with wallet, category, amount, currency, event time precision, and recording timestamp.", filename: `gorilla-ledger-transactions-${exportStamp}.csv`, rowCount: input.transactions.length, csv: transactionsCsv },
     { id: "wallets", label: "Wallets", description: "Asset definitions and opening positions, explicitly separated by currency.", filename: `gorilla-ledger-wallets-${exportStamp}.csv`, rowCount: input.wallets.length, csv: walletsCsv },
     { id: "categories", label: "Categories", description: "Active and disabled income and expense classifications.", filename: `gorilla-ledger-categories-${exportStamp}.csv`, rowCount: input.categories.length, csv: categoriesCsv },
     { id: "budgets", label: "Budgets", description: "Monthly planning limits with resolved wallet, category, and currency context.", filename: `gorilla-ledger-budgets-${exportStamp}.csv`, rowCount: input.budgets.length, csv: budgetsCsv },
     { id: "recurring", label: "Recurring Rules", description: "Automation schedules, run state, and upcoming execution details.", filename: `gorilla-ledger-recurring-rules-${exportStamp}.csv`, rowCount: input.recurringRules.length, csv: recurringCsv },
+    { id: "receipts", label: "Receipt Metadata", description: "Receipt names, types, sizes, and transaction links. Private file contents and signed URLs are excluded.", filename: `gorilla-ledger-receipts-${exportStamp}.csv`, rowCount: receipts.length, csv: receiptsCsv },
+    { id: "household", label: "Household Membership", description: "Ledger roles and join dates. Authentication and invitation secrets are excluded.", filename: `gorilla-ledger-household-${exportStamp}.csv`, rowCount: householdMembers.length, csv: householdCsv },
   ];
+}
+
+async function sha256(value: string) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+export async function buildLedgerArchive(datasets: LedgerExportDataset[]) {
+  const files = await Promise.all(datasets.map(async (dataset) => ({
+    filename: dataset.filename,
+    row_count: dataset.rowCount,
+    sha256: await sha256(dataset.csv),
+    content_type: "text/csv;charset=utf-8",
+    csv: dataset.csv,
+  })));
+  return JSON.stringify({
+    manifest: {
+      product: "Gorilla Ledger",
+      schema_version: "1.0.0",
+      generated_at: new Date().toISOString(),
+      amount_convention: "Integer minor units are authoritative; decimal amount columns are convenience values.",
+      currency_convention: "ISO currency codes remain isolated; no FX conversion or aggregation is applied.",
+      timezone_convention: "Timestamps are ISO 8601 UTC. Date-only events retain their declared precision and event timezone.",
+      spreadsheet_safety: "Text beginning with =, +, -, or @ is prefixed with an apostrophe.",
+      checksum_algorithm: "SHA-256",
+      excluded_secrets: ["authentication tokens", "one-time codes", "invitation tokens", "signed receipt URLs"],
+      file_count: files.length,
+    },
+    files,
+  }, null, 2);
 }

@@ -7,6 +7,7 @@ type DashboardAnalyticsAccordionItemProps = {
   kicker?: string;
   description?: string;
   defaultOpenOnMobile?: boolean;
+  placeholderMinHeight?: number;
   children: ReactNode;
 };
 
@@ -15,6 +16,7 @@ export default function DashboardAnalyticsAccordionItem({
   kicker = "Analytics",
   description,
   defaultOpenOnMobile = false,
+  placeholderMinHeight = 352,
   children,
 }: DashboardAnalyticsAccordionItemProps) {
   const contentId = useId();
@@ -112,6 +114,7 @@ export default function DashboardAnalyticsAccordionItem({
         ) : (
           <div
             className="gl-dashboard-deferred-placeholder"
+            style={{ minHeight: placeholderMinHeight }}
             role="status"
             aria-label={`Preparing ${title}`}
           >

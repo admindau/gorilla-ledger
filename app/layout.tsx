@@ -3,6 +3,7 @@ import "./globals.css";
 import { ToastProvider } from "@/components/ui/ToastProvider";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import BfcacheAuthGuard from "@/components/auth/BfcacheAuthGuard";
+import { WebVitals } from "@/components/observability/WebVitals";
 import {
   COMPANY_NAME,
   PRODUCT_DESCRIPTION,
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
     url: PRODUCT_URL,
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: PRODUCT_NAME,
     description: PRODUCT_DESCRIPTION,
   },
@@ -45,6 +46,7 @@ export default function RootLayout({
       <body>
         <ToastProvider>
           <BfcacheAuthGuard />
+          <WebVitals />
           {children}
         </ToastProvider>
         <SpeedInsights />

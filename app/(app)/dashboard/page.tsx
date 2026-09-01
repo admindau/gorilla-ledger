@@ -5,9 +5,7 @@ import dynamic from "next/dynamic";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
 // Dashboard charts
-import SmartInsightsPanel from "@/components/dashboard/SmartInsightsPanel";
 import BudgetInsightsPanel from "@/components/dashboard/BudgetInsightsPanel";
-import AiInsightsSidebar from "@/components/dashboard/AiInsightsSidebar";
 import ExecutiveKpiCards from "@/components/dashboard/ExecutiveKpiCards";
 import QuickStatsRow from "@/components/dashboard/QuickStatsRow";
 import RecentTransactionsWidget from "@/components/dashboard/RecentTransactionsWidget";
@@ -15,7 +13,6 @@ import LargestExpenseWidget from "@/components/dashboard/LargestExpenseWidget";
 import BudgetHealthWidget from "@/components/dashboard/BudgetHealthWidget";
 import FinancialHealthScore from "@/components/dashboard/FinancialHealthScore";
 import SmartAlertsPanel from "@/components/dashboard/SmartAlertsPanel";
-import ExecutiveInsightsPanel from "@/components/dashboard/ExecutiveInsightsPanel";
 import ForecastMonthEndBalance from "@/components/dashboard/ForecastMonthEndBalance";
 import ExecutiveHeroCard from "@/components/dashboard/ExecutiveHeroCard";
 import { ActivationGuide } from "@/components/activation/ActivationGuide";
@@ -803,7 +800,7 @@ export default function DashboardPage() {
     criticalAlertsCount > 0 || financialHealthScore < 45
       ? "Critical"
       : highestAlertRank >= 2 || financialHealthScore < 65
-      ? "Warning"
+      ? "At risk"
       : financialHealthScore < 80 || watchAlertsCount > 0
       ? "Watch"
       : "Healthy";
@@ -837,7 +834,7 @@ export default function DashboardPage() {
   const executiveHeroMessage =
     executiveRiskLevel === "Critical"
       ? "Immediate review recommended. Cash flow or budget pressure needs attention."
-      : executiveRiskLevel === "Warning"
+      : executiveRiskLevel === "At risk"
       ? "Review the highlighted alerts before month-end to stay in control."
       : executiveRiskLevel === "Watch"
       ? "Your position is manageable, with a few items worth monitoring."
@@ -1078,7 +1075,7 @@ export default function DashboardPage() {
                 Financial outlook – {monthLabel}
               </h2>
               <p className="mt-1 max-w-2xl text-sm text-gray-400">
-                Forecasts, alerts, and suggested actions for this month.
+                Position, priority signals, and a currency-safe month-end projection.
               </p>
             </div>
           </div>
@@ -1090,39 +1087,28 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-12 xl:gap-5">
-              <div className={`${CARD} md:col-span-1 xl:col-span-4`}>
+            <div className="grid gap-4 lg:grid-cols-3 lg:gap-5">
+              <div className={CARD}>
                 <FinancialHealthScore model={dashboardInsightModel} />
               </div>
 
-              <div className={`${CARD} md:col-span-1 xl:col-span-4`}>
+              <div className={CARD}>
                 <SmartAlertsPanel alerts={smartAlerts} riskLevel={executiveRiskLevel} />
               </div>
 
-              <div className={`${CARD} md:col-span-1 xl:col-span-4`}>
+              <div className={CARD}>
                 <ForecastMonthEndBalance
                   model={dashboardInsightModel}
                   confidence={forecastConfidence}
                 />
               </div>
 
-              <div className={`${CARD} md:col-span-1 xl:col-span-4`}>
-                <ExecutiveInsightsPanel model={dashboardInsightModel} />
-              </div>
-
-              <div className={`${CARD} md:col-span-1 xl:col-span-4`}>
-                <SmartInsightsPanel model={dashboardInsightModel} />
-              </div>
-
-              <div className={`${CARD} md:col-span-1 xl:col-span-4`}>
-                <AiInsightsSidebar model={dashboardInsightModel} />
-              </div>
             </div>
           )}
         </section>
 
         {/* Spending trend */}
-        <DashboardAnalyticsAccordionItem title="Spending Trend" kicker="Spending signal" description="Daily expense movement for the selected month." defaultOpenOnMobile>
+        <DashboardAnalyticsAccordionItem title="Spending Trend" kicker="Spending signal" description="Daily expense movement for the selected month." defaultOpenOnMobile placeholderMinHeight={430}>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <span className="gl-section-eyebrow">Spending signal</span>
@@ -1149,7 +1135,7 @@ export default function DashboardPage() {
         </DashboardAnalyticsAccordionItem>
 
         {/* Executive trend (Hero chart) */}
-        <DashboardAnalyticsAccordionItem title="Calendar-Year Income vs Expenses" kicker="Executive trend" description="Monthly income versus expenses for the selected year.">
+        <DashboardAnalyticsAccordionItem title="Calendar-Year Income vs Expenses" kicker="Executive trend" description="Monthly income versus expenses for the selected year." placeholderMinHeight={500}>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <span className="gl-section-eyebrow">Executive trend</span>
@@ -1180,7 +1166,7 @@ export default function DashboardPage() {
         </DashboardAnalyticsAccordionItem>
 
         {/* Total Balance by currency */}
-        <DashboardAnalyticsAccordionItem title="Net Worth by Currency" kicker="Wallet position" description="Current balances grouped by currency.">
+        <DashboardAnalyticsAccordionItem title="Net Worth by Currency" kicker="Wallet position" description="Current balances grouped by currency." placeholderMinHeight={460}>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <span className="gl-section-eyebrow">Wallet position</span>
@@ -1307,7 +1293,7 @@ export default function DashboardPage() {
         </section>
 
         {/* Composition */}
-        <DashboardAnalyticsAccordionItem title="Spending breakdown" kicker="Spending" description="Categories ranked for the selected filters.">
+        <DashboardAnalyticsAccordionItem title="Spending breakdown" kicker="Spending" description="Categories ranked for the selected filters." placeholderMinHeight={560}>
           <div className="mb-4 flex flex-col gap-2">
             <h2 className="text-xl font-semibold tracking-tight">Spending composition</h2>
             <p className="text-[12px] text-gray-400">Categories ranked for the selected filters.</p>
@@ -1351,7 +1337,7 @@ export default function DashboardPage() {
         </DashboardAnalyticsAccordionItem>
 
         {/* Budget control */}
-        <DashboardAnalyticsAccordionItem title="Budget progress" kicker="Budgets" description="Planned amounts compared with spending.">
+        <DashboardAnalyticsAccordionItem title="Budget progress" kicker="Budgets" description="Planned amounts compared with spending." placeholderMinHeight={640}>
           <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 mb-2">
             <div>
               <h2 className="text-lg font-semibold tracking-tight">
@@ -1519,7 +1505,7 @@ export default function DashboardPage() {
         </DashboardAnalyticsAccordionItem>
 
         {/* Advanced analytics */}
-        <DashboardAnalyticsAccordionItem title="Analytics Vault" kicker="Advanced analytics" description="Long-term charts for seasonality, history, and net flow.">
+        <DashboardAnalyticsAccordionItem title="Analytics Vault" kicker="Advanced analytics" description="Long-term charts for seasonality, history, and net flow." placeholderMinHeight={1080}>
           <details className="group" open>
             <summary className="mb-5 flex cursor-pointer list-none flex-col gap-3 rounded-[1.35rem] border border-white/10 bg-white/[0.025] p-4 transition hover:border-white/20 sm:flex-row sm:items-center sm:justify-between">
               <div>

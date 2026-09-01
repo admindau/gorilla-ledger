@@ -13,6 +13,8 @@ import {
 
 function redirectPreservingCookies(url: URL, sourceResponse: NextResponse) {
   const redirectResponse = NextResponse.redirect(url);
+  const requestId = sourceResponse.headers.get("X-Request-ID");
+  if (requestId) redirectResponse.headers.set("X-Request-ID", requestId);
   sourceResponse.cookies.getAll().forEach((cookie) => {
     redirectResponse.cookies.set(cookie);
   });
@@ -47,6 +49,7 @@ function authUnavailableRedirect(
 
 export async function proxy(req: NextRequest) {
   const res = NextResponse.next();
+  res.headers.set("X-Request-ID", req.headers.get("X-Request-ID") || crypto.randomUUID());
   const pathname = req.nextUrl.pathname;
   const protectedPath = isProtectedAppPath(pathname);
 

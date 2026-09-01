@@ -10,6 +10,7 @@ import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { isMissingLedgerMetadata } from "@/lib/supabase/schemaCompatibility";
 import {
   buildLedgerExports,
+  buildLedgerArchive,
   type ExportBudget,
   type ExportCategory,
   type ExportRecurringRule,
@@ -63,17 +64,19 @@ export default function ExportCenterPage() {
       setLoadError(false);
 
       try {
-        const [userResult, wallets, categories, transactions, budgets, recurringRules] = await Promise.all([
+        const [userResult, wallets, categories, transactions, budgets, recurringRules, receipts, familyResponse] = await Promise.all([
           supabaseBrowserClient.auth.getUser(),
           loadPagedTable("wallets", "id,name,type,currency_code,starting_balance_minor,created_at,updated_at"),
           loadPagedTable("categories", "id,name,type,is_active,created_at"),
           loadTransactionsForExport(),
           loadPagedTable("budgets", "id,wallet_id,category_id,year,month,amount_minor,created_at,updated_at"),
           loadPagedTable("recurring_rules", "id,wallet_id,category_id,type,amount_minor,currency_code,frequency,interval,day_of_month,day_of_week,start_date,end_date,next_run_at,last_run_at,total_runs,description,is_active,created_at"),
+          loadPagedTable("receipts", "id,transaction_id,original_name,mime_type,size_bytes,created_at"),
+          fetch("/api/family/overview", { cache: "no-store" }),
         ]);
 
         if (cancelled) return;
-        const sourceError = [wallets, categories, transactions, budgets, recurringRules].find(
+        const sourceError = [wallets, categories, transactions, budgets, recurringRules, receipts].find(
           (result) => result.error
         )?.error;
 
@@ -88,12 +91,15 @@ export default function ExportCenterPage() {
           return;
         }
 
+        const family = familyResponse.ok ? await familyResponse.json().catch(() => ({})) : {};
         setLedgerData({
           wallets: wallets.data as ExportWallet[],
           categories: categories.data as ExportCategory[],
           transactions: transactions.data as ExportTransaction[],
           budgets: budgets.data as ExportBudget[],
           recurringRules: recurringRules.data as ExportRecurringRule[],
+          receipts: receipts.data as LedgerExportInput["receipts"],
+          householdMembers: Array.isArray(family.members) ? family.members : [],
         });
         setLoading(false);
       } catch (error) {
@@ -123,6 +129,20 @@ export default function ExportCenterPage() {
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
+  async function downloadCompleteArchive() {
+    if (!window.confirm("Create a complete local export? It contains financial records and receipt metadata. Store it somewhere private.")) return;
+    const archive = await buildLedgerArchive(datasets);
+    const blob = new Blob([archive], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `gorilla-ledger-complete-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
@@ -162,6 +182,7 @@ export default function ExportCenterPage() {
               Files are created in your browser and are not sent elsewhere.
             </p>
           </div>
+          {!loading && !loadError ? <button type="button" className="gl-btn gl-btn-primary gl-btn-md mt-5" onClick={() => void downloadCompleteArchive()}>Download complete archive</button> : null}
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <div className="gl-inner-card p-4">

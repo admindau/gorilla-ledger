@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageShell } from "@/components/ui/PageShell";
 import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
+import { CategoriesLoadingSkeleton } from "@/components/ui/PlatformLoading";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
 type Category = {
@@ -366,6 +367,8 @@ export default function CategoriesPage() {
       />
     );
   }
+
+  if (loading) return <CategoriesLoadingSkeleton />;
 
   return (
     <div className="gl-page-migrated">

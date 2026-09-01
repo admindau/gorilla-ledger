@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export function LoginForm({
@@ -19,6 +19,15 @@ export function LoginForm({
   const [otp, setOtp] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [reference, setReference] = useState("");
+  const codeInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (successMsg) codeInputRef.current?.focus();
+  }, [successMsg]);
+
+  const maskedDestination = email.trim().replace(/^(.)([^@]*)(@.*)$/, (_, first, middle, domain) =>
+    `${first}${"•".repeat(Math.min(5, Math.max(2, middle.length)))}${domain}`
+  );
 
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -122,6 +131,7 @@ export function LoginForm({
       {successMsg && (
         <div className="gl-auth-alert gl-auth-alert-success" role="status">
           <p>{successMsg}</p>
+          <p className="mt-2 text-xs font-medium text-white/80">Sent to {maskedDestination}</p>
           <p className="mt-2 text-xs leading-5 text-white/65">
             Enter the code below on this computer. Search all mail folders for hello@savvyrilla.tech if it is not visible,
             and use only the newest code.
@@ -172,6 +182,7 @@ export function LoginForm({
             <label htmlFor="login-code" className="gl-label">Sign-in code</label>
             <input
               id="login-code"
+              ref={codeInputRef}
               className="gl-input text-center text-xl tracking-[0.28em]"
               value={otp}
               onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 8))}
@@ -182,7 +193,6 @@ export function LoginForm({
               maxLength={8}
               required
               aria-describedby="login-code-help"
-              autoFocus={Boolean(successMsg)}
             />
             <p id="login-code-help" className="mt-2 text-xs leading-5 text-white/55">
               Type the 6–8 digit code from the newest Gorilla Ledger email.
