@@ -84,7 +84,7 @@ export function RecurringRuleCard({ rule, wallet, category, onToggle, onEdit, on
   return (
     <article className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/20">
       <div className="flex flex-col gap-4">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col items-start gap-3 min-[420px]:flex-row min-[420px]:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-lg">{rule.type === "income" ? "💰" : "🔁"}</span>
@@ -99,7 +99,7 @@ export function RecurringRuleCard({ rule, wallet, category, onToggle, onEdit, on
 
           <span
             className={[
-              "rounded-full border px-2 py-1 text-[10px] uppercase tracking-[0.16em]",
+              "shrink-0 self-start rounded-full border px-2 py-1 text-[10px] uppercase tracking-[0.16em]",
               rule.is_active
                 ? "border-emerald-500/50 bg-emerald-950/20 text-emerald-300"
                 : "border-gray-600 bg-white/[0.02] text-gray-400",

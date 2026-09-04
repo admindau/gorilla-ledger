@@ -3484,6 +3484,7 @@ body {
   }
 
   .gl-app-nav { display: none; }
+  .gl-app-nav-meta .gl-btn { min-height: 2.75rem; }
 
   .gl-mobile-nav {
     position: fixed;
@@ -3563,6 +3564,11 @@ body {
   .gl-mobile-more-menu a.is-active { background: rgba(255,255,255,0.08); color: #fff; }
   .gl-mobile-more-menu svg { width: 1.15rem; height: 1.15rem; flex: 0 0 auto; }
   .gl-mobile-more-current { margin-left: auto; font-size: 0.75rem; color: rgb(156 163 175); }
+}
+
+.gl-chart-card [role="group"] button,
+.gl-intelligence-suite [role="group"] button {
+  min-height: 2.75rem;
 }
 
 @media (max-width: 760px) {
