@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { type ReactNode, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 
 type DashboardAnalyticsAccordionItemProps = {
   title: string;
@@ -28,6 +28,16 @@ export default function DashboardAnalyticsAccordionItem({
   // desktop layout after matchMedia runs.
   const [isOpen, setIsOpen] = useState(defaultOpenOnMobile);
   const [shouldRender, setShouldRender] = useState(defaultOpenOnMobile);
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useLayoutEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 768px)");
+    const syncViewport = () => setIsDesktop(mediaQuery.matches);
+
+    syncViewport();
+    mediaQuery.addEventListener("change", syncViewport);
+    return () => mediaQuery.removeEventListener("change", syncViewport);
+  }, []);
 
   useEffect(() => {
     if (shouldRender) return;
@@ -109,7 +119,7 @@ export default function DashboardAnalyticsAccordionItem({
         role="region"
         aria-labelledby={headingId}
       >
-        {shouldRender ? (
+        {shouldRender && (isOpen || isDesktop) ? (
           children
         ) : (
           <div

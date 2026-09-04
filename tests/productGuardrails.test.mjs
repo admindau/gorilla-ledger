@@ -38,6 +38,7 @@ const cumulativeChart = await read("../components/dashboard/CumulativeNetBalance
 const yearlyChart = await read("../components/dashboard/YearlyIncomeExpenseBarChart.tsx");
 const spendingCategoryChart = await read("../components/dashboard/SpendingByCategoryChart.tsx");
 const topCategoriesChart = await read("../components/dashboard/TopCategoriesBarChart.tsx");
+const dashboardAccordion = await read("../components/dashboard/DashboardAnalyticsAccordionItem.tsx");
 const globalStyles = await read("../app/globals.css");
 const sameOrigin = await read("../lib/http/sameOrigin.ts");
 const familyInvitations = await read("../app/api/family/invitations/route.ts");
@@ -162,6 +163,11 @@ test("chart headers stack before currency toggles can clip", () => {
     assert.match(chart, /flex shrink-0 items-center gap-2 text-xs/);
     assert.match(chart, /inline-flex shrink-0 rounded-full/);
   }
+});
+
+test("collapsed mobile chart sections unmount zero-size chart canvases", () => {
+  assert.match(dashboardAccordion, /matchMedia\("\(min-width: 768px\)"\)/);
+  assert.match(dashboardAccordion, /shouldRender && \(isOpen \|\| isDesktop\)/);
 });
 
 test("cookie-authenticated family mutations verify their request origin", () => {
