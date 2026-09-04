@@ -12,6 +12,7 @@ import { TransactionCommandCenter } from "@/components/transactions/TransactionC
 import { TransactionActivityCard } from "@/components/transactions/TransactionActivityCard";
 import { TransactionTimeline } from "@/components/transactions/TransactionTimeline";
 import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
+import { TransactionsLoadingSkeleton } from "@/components/ui/PlatformLoading";
 import { PrerequisiteGuide } from "@/components/activation/PrerequisiteGuide";
 import { isValidLedgerDate, parsePositiveMoneyToMinor } from "@/lib/finance/money";
 import { isMissingLedgerMetadata } from "@/lib/supabase/schemaCompatibility";
@@ -1080,6 +1081,22 @@ export default function TransactionsPage() {
     setToDate("");
   }
 
+  if (loading) return <TransactionsLoadingSkeleton />;
+
+  if (loadError) {
+    return (
+      <div className="gl-page-migrated">
+        <div className="gl-page-shell max-w-6xl">
+          <PageHeader
+            title="Transactions"
+            description="Add and review income, expenses, transfers, and receipts."
+          />
+          <DataLoadAlert onRetry={() => setLoadVersion((value) => value + 1)} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="gl-page-migrated">
       {/* Tight, app-like header (less link-bar) */}
@@ -1096,7 +1113,6 @@ export default function TransactionsPage() {
           scopeLabel="This month"
         />
 
-        {loadError ? <DataLoadAlert onRetry={() => setLoadVersion((value) => value + 1)} /> : null}
         {errorMsg && <p className="text-red-400 text-sm">{errorMsg}</p>}
 
         {/* Add Transaction */}

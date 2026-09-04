@@ -113,14 +113,16 @@ export default function AppTopNav({
     if (!nav || !activeLink) return;
 
     const frame = window.requestAnimationFrame(() => {
-      const linkLeft = activeLink.offsetLeft;
-      const linkRight = linkLeft + activeLink.offsetWidth;
-      const visibleLeft = nav.scrollLeft;
-      const visibleRight = visibleLeft + nav.clientWidth;
+      const navRect = nav.getBoundingClientRect();
+      const linkRect = activeLink.getBoundingClientRect();
 
-      if (linkLeft < visibleLeft || linkRight > visibleRight) {
+      if (linkRect.left < navRect.left || linkRect.right > navRect.right) {
+        const centeredOffset =
+          linkRect.left -
+          navRect.left -
+          (nav.clientWidth - linkRect.width) / 2;
         nav.scrollTo({
-          left: Math.max(0, linkLeft - (nav.clientWidth - activeLink.offsetWidth) / 2),
+          left: Math.max(0, nav.scrollLeft + centeredOffset),
           behavior: "smooth",
         });
       }

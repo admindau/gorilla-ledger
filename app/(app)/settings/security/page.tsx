@@ -16,6 +16,7 @@ import { SecurityMfaPanel } from "@/components/security/SecurityMfaPanel";
 import { SecurityRecommendations } from "@/components/security/SecurityRecommendations";
 import { CompanyLegalLinks } from "@/components/public/CompanyLegalLinks";
 import { SecurityLoadingSkeleton } from "@/components/ui/PlatformLoading";
+import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
 
 /* =============================================================================
    Constants & Helpers
@@ -80,6 +81,8 @@ export default function SecuritySettingsPage() {
 
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [loadError, setLoadError] = useState(false);
+  const [loadVersion, setLoadVersion] = useState(0);
 
   const [enroll, setEnroll] = useState<EnrollState>({ status: "idle" });
   const [otp, setOtp] = useState("");
@@ -194,6 +197,7 @@ export default function SecuritySettingsPage() {
       setBooting(true);
       setErrorMsg("");
       setSuccessMsg("");
+      setLoadError(false);
 
       try {
         const [{ data: u }] = await Promise.all([
@@ -222,6 +226,7 @@ export default function SecuritySettingsPage() {
       } catch (error: unknown) {
         if (!cancelled) {
           setErrorMsg(getErrorMessage(error, "Unable to load security settings."));
+          setLoadError(true);
         }
       } finally {
         if (!cancelled) setBooting(false);
@@ -240,7 +245,7 @@ export default function SecuritySettingsPage() {
       cancelled = true;
       window.removeEventListener("focus", onFocus);
     };
-  }, []);
+  }, [loadVersion]);
 
   // ---------------------------------------------------------------------------
   // Actions: Enroll / Verify / Disable
@@ -470,6 +475,24 @@ export default function SecuritySettingsPage() {
   // Render
   // ---------------------------------------------------------------------------
   if (booting) return <SecurityLoadingSkeleton />;
+
+  if (loadError) {
+    return (
+      <div className="gl-page-migrated">
+        <div className="gl-page-shell max-w-6xl">
+          <PageHeader
+            title="Security & access"
+            description="Manage multi-factor authentication and backup access."
+          />
+          <DataLoadAlert
+            title="Security status is temporarily unavailable"
+            message="MFA and backup-factor status are hidden until they can be verified. No security settings have changed."
+            onRetry={() => setLoadVersion((version) => version + 1)}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="gl-page-migrated">

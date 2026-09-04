@@ -401,6 +401,20 @@ export default function RecurringPage() {
 
   if (loadingPage) return <RecurringLoadingSkeleton />;
 
+  if (loadError) {
+    return (
+      <div className="gl-page-migrated">
+        <div className="gl-page-shell max-w-6xl">
+          <PageHeader
+            title="Recurring transactions"
+            description={`Scheduled income and expenses for ${monthName} ${year}.`}
+          />
+          <DataLoadAlert onRetry={() => setLoadVersion((value) => value + 1)} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="gl-page-migrated">
       {/* ========================= Hardened Top Navigation ========================= */}
@@ -417,16 +431,12 @@ export default function RecurringPage() {
             dataState={loadingPage ? "loading" : loadError ? "error" : "ready"}
           />
 
-          {loadError ? <DataLoadAlert onRetry={() => setLoadVersion((value) => value + 1)} /> : null}
-
-          {!loadError ? (
-            <RecurringTimeline
-              rules={rules}
-              wallets={wallets}
-              categories={categories}
-              loading={loadingPage}
-            />
-          ) : null}
+          <RecurringTimeline
+            rules={rules}
+            wallets={wallets}
+            categories={categories}
+            loading={loadingPage}
+          />
 
           <form
             id="recurring-rule-form"

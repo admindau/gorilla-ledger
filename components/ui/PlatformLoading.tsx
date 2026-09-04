@@ -186,8 +186,9 @@ export function DashboardLoadingSkeleton() {
 
 export function WalletsLoadingSkeleton() {
   return (
-    <PageShell>
-      <div className="space-y-6">
+    <PageShell role="status" aria-busy="true" aria-live="polite">
+      <span className="sr-only">Loading wallets…</span>
+      <div className="space-y-6" aria-hidden="true">
         <HeaderSkeleton titleWidth="w-44" descriptionWidth="w-80" />
         <Skeleton className="h-[23rem] sm:h-[21rem]" rounded="2xl" />
         <div className="grid gap-4 md:grid-cols-3">
@@ -222,4 +223,33 @@ export function SecurityLoadingSkeleton() {
 
 export function FamilyLoadingSkeleton() {
   return <PlatformPageSkeleton variant="settings" titleWidth="w-64" descriptionWidth="w-[32rem]" />;
+}
+
+export function AnalyticsLoadingSkeleton() {
+  return (
+    <PageShell role="status" aria-busy="true" aria-live="polite">
+      <span className="sr-only">Loading platform usage…</span>
+      <div className="space-y-8" aria-hidden="true">
+        <HeaderSkeleton titleWidth="w-64" descriptionWidth="w-[34rem]" />
+        <div className="gl-usage-grid">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div key={index} className="gl-premium-card p-5">
+              <Skeleton className="h-3 w-24" rounded="full" />
+              <Skeleton className="mt-5 h-10 w-20" rounded="lg" />
+              <Skeleton className="mt-4 h-3 w-32 max-w-full" rounded="full" />
+            </div>
+          ))}
+        </div>
+        <div className="gl-premium-card p-5 sm:p-6">
+          <Skeleton className="h-3 w-24" rounded="full" />
+          <Skeleton className="mt-3 h-6 w-52" rounded="lg" />
+          <div className="mt-6 space-y-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <Skeleton key={index} className="h-10 w-full" rounded="lg" />
+            ))}
+          </div>
+        </div>
+      </div>
+    </PageShell>
+  );
 }

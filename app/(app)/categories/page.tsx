@@ -370,6 +370,20 @@ export default function CategoriesPage() {
 
   if (loading) return <CategoriesLoadingSkeleton />;
 
+  if (loadError) {
+    return (
+      <div className="gl-page-migrated">
+        <PageShell size="xl" className="gl-page-stack">
+          <PageHeader
+            title="Categories"
+            description="Organize income and expenses for transactions and budgets."
+          />
+          <DataLoadAlert onRetry={() => setLoadVersion((value) => value + 1)} />
+        </PageShell>
+      </div>
+    );
+  }
+
   return (
     <div className="gl-page-migrated">
       {createOpen ? (
@@ -476,7 +490,6 @@ export default function CategoriesPage() {
           </div>
         </section>
 
-        {loadError ? <DataLoadAlert onRetry={() => setLoadVersion((value) => value + 1)} /> : null}
         {errorMsg ? <p className="rounded-2xl border border-red-900/70 bg-red-950/20 p-3 text-sm text-red-300">{errorMsg}</p> : null}
 
         <CategoryCommandCenter

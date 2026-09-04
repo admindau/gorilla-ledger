@@ -6,6 +6,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
+import { AnalyticsLoadingSkeleton } from "@/components/ui/PlatformLoading";
 
 type DailyPoint = { date: string; new_users: number; active_users: number };
 type UsageMetrics = {
@@ -45,6 +47,7 @@ export default function PlatformAnalyticsPage() {
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
+    setLoading(true);
     setError("");
     try {
       const request = await fetch("/api/admin/analytics", { cache: "no-store" });
@@ -67,6 +70,8 @@ export default function PlatformAnalyticsPage() {
     };
   }, [load]);
 
+  if (!metrics && loading) return <AnalyticsLoadingSkeleton />;
+
   return (
     <PageShell className="gl-page-stack" size="xl">
       <PageHeader
@@ -76,8 +81,13 @@ export default function PlatformAnalyticsPage() {
         action={<Button variant="secondary" size="sm" onClick={() => void load()} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</Button>}
       />
 
-      {error ? <p className="gl-auth-alert gl-auth-alert-error" role="alert">{error}</p> : null}
-      {!metrics && loading ? <Card><CardBody><p className="text-sm text-gray-400" role="status">Loading platform usage…</p></CardBody></Card> : null}
+      {error && !metrics ? (
+        <DataLoadAlert
+          title="Platform usage is temporarily unavailable"
+          message="No usage totals are shown until the authenticated metrics can be verified."
+          onRetry={() => void load()}
+        />
+      ) : error ? <p className="gl-auth-alert gl-auth-alert-error" role="alert">{error}</p> : null}
 
       {metrics ? (
         <>

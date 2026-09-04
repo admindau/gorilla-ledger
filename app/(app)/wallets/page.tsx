@@ -10,6 +10,7 @@ import { Input, Select } from "@/components/ui/Input";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageSection } from "@/components/ui/PageSection";
 import { PageShell } from "@/components/ui/PageShell";
+import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
 import Skeleton from "@/components/ui/Skeleton";
 import { parseMoneyToMinor } from "@/lib/finance/money";
 
@@ -96,6 +97,8 @@ export default function WalletsPage() {
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [walletBalances, setWalletBalances] = useState<Record<string, WalletBalance>>({});
   const [errorMsg, setErrorMsg] = useState("");
+  const [loadError, setLoadError] = useState(false);
+  const [loadVersion, setLoadVersion] = useState(0);
   const [showCreatePanel, setShowCreatePanel] = useState(false);
 
   // create form state
@@ -126,6 +129,7 @@ export default function WalletsPage() {
     async function loadWallets() {
       setLoading(true);
       setErrorMsg("");
+      setLoadError(false);
 
       const [sessionResult, walletResult, balanceResult] = await Promise.all([
         supabaseBrowserClient.auth.getSession(),
@@ -143,7 +147,7 @@ export default function WalletsPage() {
       const user = session?.user ?? null;
 
       if (sessionError || !user) {
-        setErrorMsg("You must be logged in to view wallets.");
+        setLoadError(true);
         setLoading(false);
         return;
       }
@@ -152,23 +156,26 @@ export default function WalletsPage() {
 
       if (error) {
         console.error(error);
-        setErrorMsg(error.message);
+        setLoadError(true);
         setLoading(false);
         return;
       }
 
-      setWallets(data as Wallet[]);
       if (balanceResult.error) {
         console.warn("Unable to load transaction-adjusted wallet balances", balanceResult.error);
-      } else {
-        const rows = (balanceResult.data ?? []) as WalletBalance[];
-        setWalletBalances(Object.fromEntries(rows.map((row) => [row.wallet_id, row])));
+        setLoadError(true);
+        setLoading(false);
+        return;
       }
+
+      const rows = (balanceResult.data ?? []) as WalletBalance[];
+      setWallets(data as Wallet[]);
+      setWalletBalances(Object.fromEntries(rows.map((row) => [row.wallet_id, row])));
       setLoading(false);
     }
 
     loadWallets();
-  }, []);
+  }, [loadVersion]);
 
   function beginEdit(id: string) {
     const w = walletById[id];
@@ -362,6 +369,22 @@ export default function WalletsPage() {
     setWallets((prev) => prev.filter((x) => x.id !== id));
     if (editingId === id) cancelEdit();
     setRowBusyId(null);
+  }
+
+  if (loadError && !loading) {
+    return (
+      <PageShell className="gl-page-stack" size="xl">
+        <PageHeader
+          title="Wallets"
+          description="Track balances across cash, bank, mobile money, and other accounts."
+        />
+        <DataLoadAlert
+          title="Wallet balances are temporarily unavailable"
+          message="Balances and wallet records are hidden until every total can be verified. Your saved data has not changed."
+          onRetry={() => setLoadVersion((version) => version + 1)}
+        />
+      </PageShell>
+    );
   }
 
   return (

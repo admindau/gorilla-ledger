@@ -437,6 +437,20 @@ export default function BudgetsPage() {
 
   if (loading) return <BudgetsLoadingSkeleton />;
 
+  if (loadError) {
+    return (
+      <div className="gl-page-migrated">
+        <div className="gl-page-shell max-w-6xl">
+          <PageHeader
+            title="Budgets"
+            description="Set monthly targets and monitor spending against each plan."
+          />
+          <DataLoadAlert onRetry={() => setLoadVersion((value) => value + 1)} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="gl-page-migrated">
       <div className="gl-page-shell max-w-6xl">
@@ -454,7 +468,6 @@ export default function BudgetsPage() {
           }
         />
 
-        {loadError ? <DataLoadAlert onRetry={() => setLoadVersion((value) => value + 1)} /> : null}
         {errorMsg && <p className="text-sm text-red-400">{errorMsg}</p>}
 
         <section className="gl-inner-card rounded-2xl p-4">

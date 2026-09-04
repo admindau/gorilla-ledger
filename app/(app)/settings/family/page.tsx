@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { FamilyLoadingSkeleton } from "@/components/ui/PlatformLoading";
+import { DataLoadAlert } from "@/components/ui/DataLoadAlert";
 
 type HouseholdRole = "owner" | "editor" | "viewer";
 type LedgerSummary = { id: string; name: string; role: HouseholdRole };
@@ -32,6 +33,7 @@ export default function FamilySettingsPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [loadVersion, setLoadVersion] = useState(0);
 
   const loadOverview = useCallback(async () => {
     const response = await fetch("/api/family/overview", { cache: "no-store" });
@@ -62,7 +64,7 @@ export default function FamilySettingsPage() {
     }
     void boot();
     return () => { cancelled = true; };
-  }, [inviteToken, loadOverview, router]);
+  }, [inviteToken, loadOverview, loadVersion, router]);
 
   async function inviteMember(event: React.FormEvent) {
     event.preventDefault(); setBusy(true); setError(""); setSuccess("");
@@ -113,11 +115,22 @@ export default function FamilySettingsPage() {
   const isOwner = overview?.ledger.role === "owner";
   if (loading) return <FamilyLoadingSkeleton />;
 
+  if (!overview) {
+    return <PageShell className="gl-page-stack" size="lg">
+      <PageHeader eyebrow="Household collaboration" title="Family & access" description="Invite someone you trust to help manage the same ledger using their own secure account." />
+      <DataLoadAlert
+        title="Household access is temporarily unavailable"
+        message="Members, invitations, and roles are hidden until access can be verified."
+        onRetry={() => setLoadVersion((version) => version + 1)}
+      />
+    </PageShell>;
+  }
+
   return <PageShell className="gl-page-stack" size="lg">
     <PageHeader eyebrow="Household collaboration" title="Family & access" description="Invite someone you trust to help manage the same ledger using their own secure account." />
     {error ? <p className="gl-auth-alert gl-auth-alert-error" role="alert">{error}</p> : null}
     {success ? <p className="gl-auth-alert gl-auth-alert-success" role="status">{success}</p> : null}
-    {!overview ? <Card><CardBody><p className="text-sm text-gray-400">Household access is unavailable. Retry by refreshing this page.</p></CardBody></Card> : <>
+    <>
       {overview.available_ledgers.length > 1 ? <Card><CardHeader><div><p className="gl-page-eyebrow">Active workspace</p><h2 className="text-lg font-semibold text-white">Choose a ledger</h2></div></CardHeader><CardBody><Select label="Ledger" value={overview.ledger.id} disabled={busy} onChange={(event) => void changeLedger(event.target.value)}>{overview.available_ledgers.map((ledger) => <option key={ledger.id} value={ledger.id}>{ledger.name} · {ledger.role}</option>)}</Select></CardBody></Card> : null}
       <Card variant="premium"><CardHeader><div><p className="gl-page-eyebrow">Current household</p><h2 className="text-xl font-semibold text-white">{overview.ledger.name}</h2></div><Badge variant={isOwner ? "success" : "neutral"}>{isOwner ? "Ledger owner" : overview.ledger.role === "editor" ? "Editor" : "Viewer"}</Badge></CardHeader><CardBody className="space-y-4">
         <p className="text-sm leading-6 text-gray-300">Editors can manage ledger records. Viewers can review them without making changes. Only the ledger owner can invite or remove people.</p>
@@ -130,6 +143,6 @@ export default function FamilySettingsPage() {
         {overview.invitations.length ? <div><h3 className="mb-2 text-sm font-semibold text-white">Pending invitations</h3><div className="divide-y divide-white/10 rounded-xl border border-white/10">{overview.invitations.map((invitation) => <div key={invitation.id} className="flex items-center justify-between gap-4 p-4"><div className="min-w-0"><p className="truncate text-sm text-white">{invitation.email}</p><p className="mt-1 text-xs text-gray-500">{invitation.role === "viewer" ? "Viewer" : "Editor"} · Expires {new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(invitation.expires_at))}</p></div><Button variant="ghost" size="sm" disabled={busy} onClick={() => void revokeInvitation(invitation)}>Revoke</Button></div>)}</div></div> : null}
       </CardBody></Card> : <p className="text-center text-xs text-gray-500">Your access is managed by the ledger owner.</p>}
       {overview.activity?.length ? <Card><CardHeader><div><p className="gl-page-eyebrow">Audit trail</p><h2 className="text-lg font-semibold text-white">Recent household activity</h2></div></CardHeader><CardBody><div className="divide-y divide-white/10">{overview.activity.map((event) => <div key={event.id} className="flex items-center justify-between gap-4 py-3 text-sm"><span className="text-gray-200">{event.event_type.replace(".", " ").replaceAll("_", " ")}</span><time className="shrink-0 text-xs text-gray-400" dateTime={event.occurred_at}>{new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(event.occurred_at))}</time></div>)}</div></CardBody></Card> : null}
-    </>}
+    </>
   </PageShell>;
 }

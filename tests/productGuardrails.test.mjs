@@ -20,6 +20,12 @@ const analyticsLayout = await read("../app/(app)/admin/analytics/layout.tsx");
 const analyticsPage = await read("../app/(app)/admin/analytics/page.tsx");
 const dashboardPage = await read("../app/(app)/dashboard/page.tsx");
 const recurringInsights = await read("../components/recurring/RecurringInsights.tsx");
+const walletsPage = await read("../app/(app)/wallets/page.tsx");
+const transactionsPage = await read("../app/(app)/transactions/page.tsx");
+const familyPagePolished = await read("../app/(app)/settings/family/page.tsx");
+const securityPage = await read("../app/(app)/settings/security/page.tsx");
+const analyticsLoading = await read("../app/(app)/admin/analytics/loading.tsx");
+const transactionsLoading = await read("../app/(app)/transactions/loading.tsx");
 const workspaceConfig = await read("../pnpm-workspace.yaml");
 const lockfile = await read("../pnpm-lock.yaml");
 
@@ -108,4 +114,13 @@ test("the production dependency graph pins the patched Browserslist release", ()
   assert.match(workspaceConfig, /browserslist: 4\.28\.7/);
   assert.match(lockfile, /browserslist@4\.28\.7/);
   assert.doesNotMatch(lockfile, /browserslist@4\.28\.[0-6]/);
+});
+
+test("every private data surface has a deliberate loading and retry path", () => {
+  assert.match(transactionsPage, /TransactionsLoadingSkeleton/);
+  assert.match(transactionsLoading, /TransactionsLoadingSkeleton/);
+  assert.match(analyticsLoading, /AnalyticsLoadingSkeleton/);
+  assert.match(walletsPage, /Wallet balances are temporarily unavailable/);
+  assert.match(familyPagePolished, /Household access is temporarily unavailable/);
+  assert.match(securityPage, /Security status is temporarily unavailable/);
 });

@@ -95,7 +95,8 @@ test("desktop navigation keeps the active destination visible", () => {
   assert.match(topNavSource, /desktopNavRef/);
   assert.match(topNavSource, /activeDesktopLinkRef/);
   assert.match(topNavSource, /nav\.scrollTo/);
-  assert.match(topNavSource, /linkRight > visibleRight/);
+  assert.match(topNavSource, /linkRect\.right > navRect\.right/);
+  assert.match(topNavSource, /nav\.scrollLeft \+ centeredOffset/);
 });
 
 test("admin navigation is supplied by the shared server-side access policy", () => {
