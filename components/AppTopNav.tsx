@@ -257,7 +257,7 @@ export default function AppTopNav() {
         <div className="gl-app-topnav-inner">
         <div className="min-w-0">
           <Link href="/dashboard" className="gl-app-brand" aria-label="Go to dashboard">
-            <Image src="/logos/gorilla-ledger-logo.png" alt="" width={28} height={28} priority />
+            <Image src="/logos/gorilla-ledger-logo-polished.png" alt="" width={28} height={28} priority />
             <span>Gorilla Ledger™</span>
           </Link>
           <div className="gl-app-current-section" aria-live="polite">{activeLabel}</div>

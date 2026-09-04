@@ -10,7 +10,7 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#020202",
     theme_color: "#050505",
     icons: [
-      { src: "/logos/gorilla-ledger-logo.png", sizes: "512x512", type: "image/png" },
+      { src: "/logos/gorilla-ledger-logo-polished.png", sizes: "512x512", type: "image/png" },
       { src: "/icon.svg", sizes: "any", type: "image/svg+xml" },
     ],
   };

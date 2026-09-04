@@ -3046,6 +3046,13 @@ body {
   color: rgba(255, 255, 255, 0.62);
   font-weight: 750;
   letter-spacing: -0.03em;
+  overflow: hidden;
+}
+
+.gl-home-monogram img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .gl-home-hero > .gl-home-feature-rail {

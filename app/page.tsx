@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { PublicFooter } from "@/components/public/PublicFooter";
 import { PublicHeader } from "@/components/public/PublicHeader";
@@ -52,7 +53,9 @@ export default function HomePage() {
                 <span>Private product preview</span>
                 <strong>No real financial data</strong>
               </div>
-              <span className="gl-home-monogram" aria-hidden="true">GL</span>
+              <span className="gl-home-monogram" aria-hidden="true">
+                <Image src="/logos/gorilla-ledger-logo-polished.png" alt="" width={32} height={32} />
+              </span>
             </div>
           </aside>
         </div>
