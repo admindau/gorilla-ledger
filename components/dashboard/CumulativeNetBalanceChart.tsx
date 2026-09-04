@@ -129,8 +129,8 @@ export default function CumulativeNetBalanceChart({
 
   return (
     <section className="mt-2">
-      <div className="flex items-center justify-between mb-1">
-        <div>
+      <div className="mb-1 flex flex-col items-start gap-3 sm:flex-row sm:justify-between">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold">
             Cumulative Net Flow — All Time
           </h2>
@@ -141,7 +141,7 @@ export default function CumulativeNetBalanceChart({
         </div>
 
         {hasCurrencyInfo && (
-          <div className="inline-flex rounded-full border border-gray-800 bg-black/60 p-0.5 text-[11px]"
+          <div className="inline-flex shrink-0 rounded-full border border-gray-800 bg-black/60 p-0.5 text-[11px]"
             role="group"
             aria-label="Cumulative net flow currency">
             {currencies.map((code) => (

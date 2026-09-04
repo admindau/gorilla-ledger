@@ -135,8 +135,8 @@ export default function FullHistoryIncomeExpenseChart({
 
   return (
     <section className="mt-2">
-      <div className="flex items-center justify-between mb-1">
-        <div>
+      <div className="mb-1 flex flex-col items-start gap-3 sm:flex-row sm:justify-between">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold">All-Time Income vs Expenses</h2>
           <p className="text-xs text-gray-400">
             Monthly totals across your full transaction history. Use the
@@ -145,7 +145,7 @@ export default function FullHistoryIncomeExpenseChart({
         </div>
 
         {hasCurrencyInfo && (
-          <div className="inline-flex rounded-full border border-gray-800 bg-black/60 p-0.5 text-[11px]"
+          <div className="inline-flex shrink-0 rounded-full border border-gray-800 bg-black/60 p-0.5 text-[11px]"
             role="group"
             aria-label="All-time income and expense currency">
             {currencies.map((code) => (

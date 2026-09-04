@@ -31,6 +31,13 @@ const lockfile = await read("../pnpm-lock.yaml");
 const financialHealth = await read("../components/dashboard/FinancialHealthScore.tsx");
 const forecastBalance = await read("../components/dashboard/ForecastMonthEndBalance.tsx");
 const spendingTrend = await read("../components/dashboard/SpendingTrendChart.tsx");
+const monthlyChart = await read("../components/dashboard/MonthlyIncomeExpenseChart.tsx");
+const historicalChart = await read("../components/dashboard/HistoricalIncomeExpenseChart.tsx");
+const fullHistoryChart = await read("../components/dashboard/FullHistoryIncomeExpenseChart.tsx");
+const cumulativeChart = await read("../components/dashboard/CumulativeNetBalanceChart.tsx");
+const yearlyChart = await read("../components/dashboard/YearlyIncomeExpenseBarChart.tsx");
+const spendingCategoryChart = await read("../components/dashboard/SpendingByCategoryChart.tsx");
+const topCategoriesChart = await read("../components/dashboard/TopCategoriesBarChart.tsx");
 const globalStyles = await read("../app/globals.css");
 const sameOrigin = await read("../lib/http/sameOrigin.ts");
 const familyInvitations = await read("../app/api/family/invitations/route.ts");
@@ -144,6 +151,16 @@ test("narrow dashboards preserve complete planning and chart values", () => {
   assert.doesNotMatch(spendingTrend, /mt-1 truncate text-base font-semibold tabular-nums/);
   assert.match(globalStyles, /\.gl-dashboard-filter-dock \{\s+margin-inline: -0\.75rem;/);
   assert.match(globalStyles, /\.gl-home-hero > \.gl-home-feature-rail \{\s+grid-template-columns: 1fr;/);
+});
+
+test("chart headers stack before currency toggles can clip", () => {
+  for (const chart of [monthlyChart, historicalChart, fullHistoryChart, cumulativeChart, yearlyChart]) {
+    assert.match(chart, /flex flex-col items-start gap-3 sm:flex-row sm:justify-between/);
+    assert.match(chart, /inline-flex shrink-0 rounded-full/);
+  }
+  for (const chart of [spendingCategoryChart, topCategoriesChart]) {
+    assert.match(chart, /inline-flex shrink-0 rounded-full/);
+  }
 });
 
 test("cookie-authenticated family mutations verify their request origin", () => {

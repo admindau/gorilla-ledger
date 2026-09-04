@@ -264,8 +264,8 @@ export default function YearlyIncomeExpenseBarChart({
 
   return (
     <section className="mb-6">
-      <div className="flex items-center justify-between mb-2">
-        <div>
+      <div className="mb-2 flex flex-col items-start gap-3 sm:flex-row sm:justify-between">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold">
             Calendar Year Income vs Expenses
           </h2>
@@ -282,7 +282,7 @@ export default function YearlyIncomeExpenseBarChart({
         </div>
 
         {hasCurrencyInfo && (
-          <div className="inline-flex rounded-full border border-gray-800 bg-black/60 p-0.5 text-[11px]"
+          <div className="inline-flex shrink-0 rounded-full border border-gray-800 bg-black/60 p-0.5 text-[11px]"
             role="group"
             aria-label="Yearly income and expense currency">
             {currencies.map((code) => (

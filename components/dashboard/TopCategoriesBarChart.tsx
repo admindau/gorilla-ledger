@@ -164,7 +164,7 @@ export default function TopCategoriesBarChart({
             <span className="text-gray-500">No data</span>
           ) : (
             <div
-              className="inline-flex rounded-full border border-gray-700 bg-black/60 p-1"
+              className="inline-flex shrink-0 rounded-full border border-gray-700 bg-black/60 p-1"
               role="group"
               aria-label="Top spending categories currency"
             >
