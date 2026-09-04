@@ -870,6 +870,12 @@ body {
   display: none;
 }
 
+.gl-app-nav::after {
+  content: "";
+  flex: 0 0 2rem;
+  height: 1px;
+}
+
 .gl-app-nav-link {
   flex: 0 0 auto;
   display: inline-flex;

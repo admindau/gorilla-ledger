@@ -22,6 +22,10 @@ const topNavSource = await readFile(
   new URL("../components/AppTopNav.tsx", import.meta.url),
   "utf8"
 );
+const globalCss = await readFile(
+  new URL("../app/globals.css", import.meta.url),
+  "utf8"
+);
 const logoutRouteSource = await readFile(
   new URL("../app/auth/logout/route.ts", import.meta.url),
   "utf8"
@@ -97,6 +101,7 @@ test("desktop navigation keeps the active destination visible", () => {
   assert.match(topNavSource, /nav\.scrollTo/);
   assert.match(topNavSource, /linkRect\.right > navRect\.right/);
   assert.match(topNavSource, /nav\.scrollLeft \+ centeredOffset/);
+  assert.match(globalCss, /\.gl-app-nav::after[\s\S]*flex:\s*0 0 2rem/);
 });
 
 test("admin navigation is supplied by the shared server-side access policy", () => {
