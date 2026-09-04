@@ -90,3 +90,10 @@ test("logout clears both server and browser sessions", () => {
   assert.match(logoutRouteSource, /signOut\(\{ scope: "local" \}\)/);
   assert.match(logoutRouteSource, /NEXT_PUBLIC_SITE_URL/);
 });
+
+test("desktop navigation keeps the active destination visible", () => {
+  assert.match(topNavSource, /desktopNavRef/);
+  assert.match(topNavSource, /activeDesktopLinkRef/);
+  assert.match(topNavSource, /nav\.scrollTo/);
+  assert.match(topNavSource, /linkRight > visibleRight/);
+});

@@ -76,6 +76,8 @@ export default function AppTopNav() {
   const [lastCheckAt, setLastCheckAt] = useState<number | null>(null);
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const desktopNavRef = useRef<HTMLElement>(null);
+  const activeDesktopLinkRef = useRef<HTMLAnchorElement>(null);
   const mobileMoreRef = useRef<HTMLDivElement>(null);
   const mobileMoreButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -101,6 +103,28 @@ export default function AppTopNav() {
     window.addEventListener("popstate", handleHistoryNavigation);
     return () => window.removeEventListener("popstate", handleHistoryNavigation);
   }, []);
+
+  useEffect(() => {
+    const nav = desktopNavRef.current;
+    const activeLink = activeDesktopLinkRef.current;
+    if (!nav || !activeLink) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      const linkLeft = activeLink.offsetLeft;
+      const linkRight = linkLeft + activeLink.offsetWidth;
+      const visibleLeft = nav.scrollLeft;
+      const visibleRight = visibleLeft + nav.clientWidth;
+
+      if (linkLeft < visibleLeft || linkRight > visibleRight) {
+        nav.scrollTo({
+          left: Math.max(0, linkLeft - (nav.clientWidth - activeLink.offsetWidth) / 2),
+          behavior: "smooth",
+        });
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [pathname, navItems]);
 
   useEffect(() => {
     if (!mobileMoreOpen) return;
@@ -263,12 +287,13 @@ export default function AppTopNav() {
           <div className="gl-app-current-section" aria-live="polite">{activeLabel}</div>
         </div>
 
-        <nav className="gl-app-nav" aria-label="Primary navigation">
+        <nav ref={desktopNavRef} className="gl-app-nav" aria-label="Primary navigation">
           {navItems.map((item) => {
             const active = pathname === item.href || pathname?.startsWith(`${item.href}/`);
             return (
               <Link
                 key={item.href}
+                ref={active ? activeDesktopLinkRef : undefined}
                 href={item.href}
                 className={["gl-app-nav-link", active ? "gl-app-nav-link-active" : ""].filter(Boolean).join(" ")}
                 aria-current={active ? "page" : undefined}
