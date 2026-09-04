@@ -488,6 +488,16 @@ export default function DashboardPage() {
     () => Object.fromEntries(categories.map((category) => [category.id, category] as const)),
     [categories]
   );
+  const analyticsCategories = useMemo(() => {
+    const referencedCategoryIds = new Set(
+      transactions.flatMap((transaction) =>
+        transaction.category_id ? [transaction.category_id] : []
+      )
+    );
+    return categories.filter(
+      (category) => category.is_active || referencedCategoryIds.has(category.id)
+    );
+  }, [categories, transactions]);
   const walletNamesById = useMemo(
     () => Object.fromEntries(wallets.map((wallet) => [wallet.id, wallet.name] as const)),
     [wallets]
@@ -642,7 +652,10 @@ export default function DashboardPage() {
   );
 
   const activeCategoryCount = useMemo(
-    () => categories.filter((category) => category.type === "expense").length,
+    () =>
+      categories.filter(
+        (category) => category.is_active && category.type === "expense"
+      ).length,
     [categories]
   );
 
@@ -1261,7 +1274,7 @@ export default function DashboardPage() {
                   className="gl-dashboard-filter-select"
                 >
                   <option value="all">All categories</option>
-                  {categories.map((c) => (
+                  {analyticsCategories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>

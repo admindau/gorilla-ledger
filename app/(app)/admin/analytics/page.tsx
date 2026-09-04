@@ -85,7 +85,7 @@ export default function PlatformAnalyticsPage() {
             <Metric label="Using Gorilla Ledger now" value={metrics.live_users_5m} detail="Active in the last 5 minutes" live />
             <Metric label="Total users" value={metrics.total_users} detail="Registered accounts" />
             <Metric label="New users" value={metrics.new_users_7d} detail={`${number.format(metrics.new_users_24h)} in 24 hours · ${number.format(metrics.new_users_30d)} in 30 days`} />
-            <Metric label="Monthly active" value={metrics.active_users_30d} detail={`${number.format(metrics.active_users_24h)} today · ${number.format(metrics.active_users_7d)} in 7 days`} />
+            <Metric label="30-day active" value={metrics.active_users_30d} detail={`${number.format(metrics.active_users_24h)} in 24 hours · ${number.format(metrics.active_users_7d)} in 7 days`} />
             <Metric label="Returning users" value={metrics.returning_users_30d} detail="Active this month and created earlier" />
           </section>
 

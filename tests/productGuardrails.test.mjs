@@ -15,6 +15,11 @@ const adminClient = await read("../lib/supabase/admin.ts");
 const browserClient = await read("../lib/supabase/client.ts");
 const ciWorkflow = await read("../.github/workflows/ci.yml");
 const playwrightConfig = await read("../playwright.config.ts");
+const appLayout = await read("../app/(app)/layout.tsx");
+const analyticsLayout = await read("../app/(app)/admin/analytics/layout.tsx");
+const analyticsPage = await read("../app/(app)/admin/analytics/page.tsx");
+const dashboardPage = await read("../app/(app)/dashboard/page.tsx");
+const recurringInsights = await read("../components/recurring/RecurringInsights.tsx");
 
 test("passwordless throttling is distributed and account lookup does not enumerate users", () => {
   assert.match(authRoute, /consume_auth_rate_limit/);
@@ -71,4 +76,28 @@ test("CI browser checks use inert public configuration and Chromium on mobile", 
   assert.match(ciWorkflow, /NEXT_PUBLIC_SUPABASE_URL: http:\/\/127\.0\.0\.1:54321/);
   assert.match(ciWorkflow, /NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-public-anon-key/);
   assert.match(playwrightConfig, /devices\["iPhone 13"\], browserName: "chromium"/);
+});
+
+test("platform analytics navigation and page access share the server-side admin policy", () => {
+  assert.match(appLayout, /isPlatformAdmin\(user\?\.email\)/);
+  assert.match(appLayout, /showPlatformAnalytics=/);
+  assert.match(analyticsLayout, /isPlatformAdmin\(user\?\.email\)/);
+  assert.match(analyticsLayout, /redirect\("\/dashboard"\)/);
+});
+
+test("usage metrics describe rolling windows accurately", () => {
+  assert.match(analyticsPage, /label="30-day active"/);
+  assert.match(analyticsPage, /in 24 hours/);
+  assert.doesNotMatch(analyticsPage, /active_users_24h\)} today/);
+});
+
+test("dashboard category metrics and filters respect soft deletion", () => {
+  assert.match(dashboardPage, /category\.is_active && category\.type === "expense"/);
+  assert.match(dashboardPage, /category\.is_active \|\| referencedCategoryIds\.has\(category\.id\)/);
+  assert.match(dashboardPage, /analyticsCategories\.map/);
+});
+
+test("recurring upcoming net preserves its financial sign", () => {
+  assert.match(recurringInsights, /value: formatAmount\(upcomingNetMinor, currencyCode\)/);
+  assert.doesNotMatch(recurringInsights, /Math\.abs\(upcomingNetMinor\)/);
 });

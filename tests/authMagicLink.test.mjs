@@ -97,3 +97,8 @@ test("desktop navigation keeps the active destination visible", () => {
   assert.match(topNavSource, /nav\.scrollTo/);
   assert.match(topNavSource, /linkRight > visibleRight/);
 });
+
+test("admin navigation is supplied by the shared server-side access policy", () => {
+  assert.match(topNavSource, /showPlatformAnalytics/);
+  assert.doesNotMatch(topNavSource, /admindau@proton\.me/);
+});

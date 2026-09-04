@@ -68,7 +68,11 @@ function formatLastSecurityCheck(value: number | null) {
   return `${days} days ago`;
 }
 
-export default function AppTopNav() {
+export default function AppTopNav({
+  showPlatformAnalytics,
+}: {
+  showPlatformAnalytics: boolean;
+}) {
   const pathname = usePathname();
   const [email, setEmail] = useState("");
   const [signingOut, setSigningOut] = useState(false);
@@ -81,10 +85,9 @@ export default function AppTopNav() {
   const mobileMoreRef = useRef<HTMLDivElement>(null);
   const mobileMoreButtonRef = useRef<HTMLButtonElement>(null);
 
-  const isAdmin = email.trim().toLowerCase() === "admindau@proton.me";
   const navItems: readonly NavItem[] = useMemo(
-    () => isAdmin ? [...baseNavItems, adminNavItem] : baseNavItems,
-    [isAdmin]
+    () => showPlatformAnalytics ? [...baseNavItems, adminNavItem] : baseNavItems,
+    [showPlatformAnalytics]
   );
   const activeLabel = useMemo(() => {
     return navItems.find((item) => pathname === item.href || pathname?.startsWith(`${item.href}/`))?.label ?? "Gorilla Ledger";

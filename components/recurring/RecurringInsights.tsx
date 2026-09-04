@@ -104,7 +104,7 @@ export function RecurringInsights({
       {
         key: `${currencyCode}-net`,
         label: `${currencyCode} Upcoming Net`,
-        value: formatAmount(Math.abs(upcomingNetMinor), currencyCode),
+        value: formatAmount(upcomingNetMinor, currencyCode),
         detail:
           upcomingNetMinor >= 0
             ? "Net positive next occurrences"
