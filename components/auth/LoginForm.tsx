@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export function LoginForm({
   next,
@@ -10,7 +10,6 @@ export function LoginForm({
   next: string;
   initialError?: string;
 }) {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(initialError);
@@ -229,13 +228,9 @@ export function LoginForm({
 
       <div className="gl-auth-card-footer">
         New to Gorilla Ledger?{" "}
-        <button
-          type="button"
-          onClick={() => router.push("/auth/register")}
-          className="gl-auth-text-link"
-        >
+        <Link href="/auth/register" className="gl-auth-text-link">
           Create an account
-        </button>
+        </Link>
       </div>
     </div>
   );

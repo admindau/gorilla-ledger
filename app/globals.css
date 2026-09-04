@@ -2427,7 +2427,7 @@ body {
   letter-spacing: -0.025em;
 }
 
-.gl-public-auth-header span {
+.gl-public-auth-header > span {
   color: rgba(156, 163, 175, 0.68);
   font-size: 0.66rem;
   font-weight: 700;
@@ -2704,7 +2704,7 @@ body {
     padding-inline: 1rem;
   }
 
-  .gl-public-auth-header span {
+  .gl-public-auth-header > span {
     display: none;
   }
 
@@ -3273,5 +3273,83 @@ body {
   .gl-home-feature-rail > div + div {
     border-top: 1px solid var(--gl-hairline);
     border-left: 0;
+  }
+}
+
+/* GL-POLISH-06 — Readability and account-flow refinement */
+.gl-public-nav a {
+  font-size: 0.84rem;
+}
+
+.gl-home-assurance,
+.gl-home-feature-rail p,
+.gl-home-showcase-caption span,
+.gl-home-showcase-caption strong {
+  color: rgba(209, 213, 219, 0.74);
+  font-size: 0.78rem;
+}
+
+.gl-home-feature-rail strong {
+  font-size: 0.86rem;
+}
+
+.gl-home-proof-grid p {
+  color: rgba(209, 213, 219, 0.76);
+  font-size: 0.9rem;
+}
+
+.gl-public-auth-header a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.gl-public-auth-main {
+  padding-inline: 1rem;
+}
+
+.gl-auth-card-heading > p:last-child {
+  color: rgba(229, 231, 235, 0.76);
+  font-size: 0.9rem;
+}
+
+.gl-auth-card .gl-label {
+  font-size: 0.8125rem;
+}
+
+.gl-auth-card :where(.text-xs) {
+  font-size: 0.8125rem;
+}
+
+.gl-auth-card :where(.text-\[11px\]) {
+  font-size: 0.75rem;
+}
+
+.gl-auth-legal,
+.gl-auth-card-footer {
+  font-size: 0.8125rem;
+}
+
+.gl-public-footer-inner > div:first-child > p,
+.gl-public-footer-links a {
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 600px) {
+  .gl-public-open-app {
+    min-height: 2.75rem;
+  }
+
+  .gl-home-hero {
+    padding-top: 3rem;
+  }
+
+  .gl-home-copy h1 {
+    font-size: clamp(2.65rem, 14vw, 3.7rem);
+    line-height: 0.97;
+  }
+
+  .gl-auth-card {
+    border-radius: 1.1rem;
   }
 }

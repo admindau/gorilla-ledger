@@ -1,7 +1,17 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
-const publicRoutes = ["/", "/auth/login", "/about", "/security", "/privacy", "/terms"];
+const publicRoutes = [
+  "/",
+  "/auth/login",
+  "/auth/register",
+  "/auth/reset-password",
+  "/about",
+  "/contact",
+  "/security",
+  "/privacy",
+  "/terms",
+];
 
 for (const route of publicRoutes) {
   test(`${route} has a stable landmark and no serious axe violations`, async ({ page }) => {
@@ -22,4 +32,15 @@ test("login is keyboard operable and reveals the code field", async ({ page }, t
     await expect(page.getByRole("button", { name: /email me a sign-in code/i })).toBeFocused();
   }
   await expect(page.locator("#login-code")).toBeVisible();
+});
+
+test("registration keeps both account steps keyboard accessible", async ({ page }, testInfo) => {
+  await page.goto("/auth/register");
+  await expect(page.locator("#register-email")).toBeVisible();
+  await expect(page.locator("#register-code")).toBeVisible();
+  if (!testInfo.project.name.includes("mobile")) {
+    await page.locator("#register-email").focus();
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("button", { name: /email me an account code/i })).toBeFocused();
+  }
 });

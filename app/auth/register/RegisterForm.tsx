@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function RegisterForm({ next, familyInvite = false }: { next: string; familyInvite?: boolean }) {
   const [email, setEmail] = useState("");
@@ -11,6 +11,11 @@ export function RegisterForm({ next, familyInvite = false }: { next: string; fam
   const [otp, setOtp] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [reference, setReference] = useState("");
+  const codeInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (successMsg) codeInputRef.current?.focus();
+  }, [successMsg]);
 
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -83,7 +88,7 @@ export function RegisterForm({ next, familyInvite = false }: { next: string; fam
       <button type="submit" disabled={loading || Boolean(successMsg)} className="gl-btn gl-btn-primary gl-btn-md w-full">{loading ? "Sending account code…" : successMsg ? "Code sent" : "Email me an account code"}</button>
       <p className="gl-auth-legal">By continuing, you agree to the <a href="/terms" className="text-gray-300 underline underline-offset-4">Terms</a> and acknowledge the <a href="/privacy" className="text-gray-300 underline underline-offset-4">Privacy Notice</a>.</p>
     </form>
-    <form onSubmit={verifyCode} className="mt-5 space-y-3 border-t border-white/10 pt-5"><div><p className="gl-auth-eyebrow">Already have an account code?</p><p className="mt-1 text-xs leading-5 text-white/55">Enter the email address above, then type the code from your newest Gorilla Ledger email.</p></div><div><label htmlFor="register-code" className="gl-label">Account code</label><input id="register-code" className="gl-input text-center text-xl tracking-[0.28em]" value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 8))} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,8}" minLength={6} maxLength={8} required aria-describedby="register-code-help" autoFocus={Boolean(successMsg)} /><p id="register-code-help" className="mt-2 text-xs leading-5 text-white/55">Type the 6–8 digit code from the newest Gorilla Ledger email.</p></div><button type="submit" disabled={verifying} className="gl-btn gl-btn-primary gl-btn-md w-full">{verifying ? "Verifying code…" : "Continue with code"}</button></form>
+    <form onSubmit={verifyCode} className="mt-5 space-y-3 border-t border-white/10 pt-5"><div><p className="gl-auth-eyebrow">Already have an account code?</p><p className="mt-1 text-xs leading-5 text-white/55">Enter the email address above, then type the code from your newest Gorilla Ledger email.</p></div><div><label htmlFor="register-code" className="gl-label">Account code</label><input id="register-code" ref={codeInputRef} className="gl-input text-center text-xl tracking-[0.28em]" value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 8))} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,8}" minLength={6} maxLength={8} required aria-describedby="register-code-help" /><p id="register-code-help" className="mt-2 text-xs leading-5 text-white/55">Type the 6–8 digit code from the newest Gorilla Ledger email.</p></div><button type="submit" disabled={verifying} className="gl-btn gl-btn-primary gl-btn-md w-full">{verifying ? "Verifying code…" : "Continue with code"}</button></form>
     {successMsg ? <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3 text-sm"><button type="button" disabled={loading || resendIn > 0} onClick={() => void sendMagicLink()} className="gl-auth-text-link disabled:cursor-not-allowed disabled:opacity-45">{resendIn > 0 ? `Send another email in ${resendIn}s` : "Send another email"}</button><button type="button" onClick={() => { setSuccessMsg(""); setEmail(""); setOtp(""); setReference(""); setResendIn(0); }} className="gl-auth-text-link">Use a different email address</button></div> : null}
     <p className="gl-auth-card-footer">Already have an account? <a href={`/auth/login?next=${encodeURIComponent(next)}`} className="gl-auth-text-link">Sign in</a></p>
   </div>;
