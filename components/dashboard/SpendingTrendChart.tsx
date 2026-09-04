@@ -270,7 +270,7 @@ export default function SpendingTrendChart({ data }: Props) {
             </div>
           ) : null}
 
-          <div className="grid grid-cols-2 gap-2 text-xs sm:min-w-[34rem] sm:grid-cols-4">
+          <div className="grid grid-cols-1 gap-2 text-xs min-[360px]:grid-cols-2 sm:min-w-[34rem] sm:grid-cols-4">
           <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
             <div className="text-[10px] uppercase tracking-[0.16em] text-gray-500">
               Total spent
@@ -309,7 +309,7 @@ export default function SpendingTrendChart({ data }: Props) {
             <div className="text-[10px] uppercase tracking-[0.16em] text-gray-500">
               Peak day
             </div>
-            <div className="mt-1 truncate text-base font-semibold tabular-nums text-white">
+            <div className="mt-1 break-words text-base font-semibold tabular-nums text-white">
               {peakRow ? formatCompactAmount(peakRow.expense) : "—"}
               {selectedCurrency && peakRow ? (
                 <span className="ml-1 text-[10px] font-medium uppercase text-gray-500">

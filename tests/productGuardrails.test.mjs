@@ -29,6 +29,9 @@ const transactionsLoading = await read("../app/(app)/transactions/loading.tsx");
 const workspaceConfig = await read("../pnpm-workspace.yaml");
 const lockfile = await read("../pnpm-lock.yaml");
 const financialHealth = await read("../components/dashboard/FinancialHealthScore.tsx");
+const forecastBalance = await read("../components/dashboard/ForecastMonthEndBalance.tsx");
+const spendingTrend = await read("../components/dashboard/SpendingTrendChart.tsx");
+const globalStyles = await read("../app/globals.css");
 const sameOrigin = await read("../lib/http/sameOrigin.ts");
 const familyInvitations = await read("../app/api/family/invitations/route.ts");
 
@@ -132,6 +135,15 @@ test("financial health values are responsive without ellipsis", () => {
   assert.match(financialHealth, /financial-health-grid/);
   assert.match(financialHealth, /break-words text-sm font-semibold tabular-nums/);
   assert.doesNotMatch(financialHealth, /truncate text-xs font-semibold tabular-nums/);
+});
+
+test("narrow dashboards preserve complete planning and chart values", () => {
+  assert.match(forecastBalance, /min-\[400px\]:flex-row/);
+  assert.match(forecastBalance, /flex flex-wrap items-center justify-between gap-2/);
+  assert.match(spendingTrend, /grid-cols-1 gap-2 text-xs min-\[360px\]:grid-cols-2/);
+  assert.doesNotMatch(spendingTrend, /mt-1 truncate text-base font-semibold tabular-nums/);
+  assert.match(globalStyles, /\.gl-dashboard-filter-dock \{\s+margin-inline: -0\.75rem;/);
+  assert.match(globalStyles, /\.gl-home-hero > \.gl-home-feature-rail \{\s+grid-template-columns: 1fr;/);
 });
 
 test("cookie-authenticated family mutations verify their request origin", () => {

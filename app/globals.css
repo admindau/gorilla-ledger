@@ -3266,7 +3266,7 @@ body {
     min-height: 19rem;
   }
 
-  .gl-home-feature-rail {
+  .gl-home-hero > .gl-home-feature-rail {
     grid-template-columns: 1fr;
   }
 
@@ -3396,6 +3396,12 @@ body {
 .gl-btn-md,
 .gl-btn-lg,
 .gl-dashboard-link-button {
+  min-height: 2.75rem;
+}
+
+.gl-app-brand,
+.gl-app-nav-link,
+.gl-public-nav a {
   min-height: 2.75rem;
 }
 
@@ -3590,6 +3596,11 @@ body {
 
   .gl-category-toolbar-controls { grid-template-columns: 1fr; }
   .gl-category-toolbar-controls .gl-btn { grid-column: auto; width: 100%; }
+
+  .gl-dashboard-filter-dock {
+    margin-inline: -0.75rem;
+    padding-inline: 0.75rem;
+  }
 
   .gl-premium-card,
   .gl-card,

@@ -43,20 +43,20 @@ export default function ForecastMonthEndBalance({
 
   return (
     <div>
-      <div className="flex items-start justify-between gap-3">
-        <div>
+      <div className="flex flex-col items-start gap-3 min-[400px]:flex-row min-[400px]:justify-between">
+        <div className="min-w-0">
           <h3 className="text-sm font-semibold tracking-tight">Forecasted Month-End</h3>
           <p className="mt-1 text-[11px] text-gray-400">
             Projection using current balances and every active recurring occurrence due in the period.
           </p>
         </div>
-        <span className="rounded-full border border-gray-800 px-2 py-1 text-[10px] uppercase tracking-wide text-gray-300">
+        <span className="shrink-0 rounded-full border border-gray-800 px-2 py-1 text-[10px] uppercase tracking-wide text-gray-300">
           {monthLabel}
         </span>
       </div>
 
       <div className="mt-5 gl-inner-card rounded-2xl p-3">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-[10px] uppercase tracking-wide text-gray-500">Forecast Confidence</div>
           <div className="text-xs font-semibold text-white">{confidence}</div>
         </div>
