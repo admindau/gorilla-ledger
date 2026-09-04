@@ -101,7 +101,10 @@ export default function CategoriesPage() {
     if (!createOpen) return;
 
     const previousOverflow = document.documentElement.style.overflow;
+    const previousPaddingRight = document.documentElement.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
     document.documentElement.style.overflow = "hidden";
+    if (scrollbarWidth > 0) document.documentElement.style.paddingRight = `${scrollbarWidth}px`;
 
     const t = window.setTimeout(() => {
       createNameRef.current?.focus();
@@ -129,6 +132,7 @@ export default function CategoriesPage() {
       window.clearTimeout(t);
       window.removeEventListener("keydown", onKeyDown);
       document.documentElement.style.overflow = previousOverflow;
+      document.documentElement.style.paddingRight = previousPaddingRight;
     };
   }, [createOpen]);
 
