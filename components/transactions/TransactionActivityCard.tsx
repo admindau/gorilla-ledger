@@ -84,8 +84,8 @@ export function TransactionActivityCard({
               {isIncome ? "+" : "−"}
             </span>
             <div className="min-w-0">
-              <h3 className="truncate text-sm font-semibold text-white">{title}</h3>
-              <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500">
+              <h3 className="break-words text-sm font-semibold text-white">{title}</h3>
+              <p className="mt-1 break-words text-xs uppercase tracking-[0.12em] text-gray-400">
               {tx.type} • {wallet?.name ?? "Unknown wallet"} · {wallet?.currency_code ?? tx.currency_code}
               </p>
             </div>
@@ -115,7 +115,7 @@ export function TransactionActivityCard({
         <div className="flex shrink-0 flex-row items-center justify-between gap-3 sm:flex-col sm:items-end">
           <div
             className={[
-              "text-lg font-semibold tracking-tight",
+              "break-words text-left text-lg font-semibold tracking-tight tabular-nums sm:text-right",
               isIncome ? "text-green-300" : "text-red-300",
             ].join(" ")}
           >

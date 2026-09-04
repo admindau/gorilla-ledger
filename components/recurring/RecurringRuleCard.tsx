@@ -82,13 +82,13 @@ export function RecurringRuleCard({ rule, wallet, category, onToggle, onEdit, on
   const title = rule.description || category?.name || "Recurring rule";
 
   return (
-    <article className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/20">
+    <article className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/20">
       <div className="flex flex-col gap-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-lg">{rule.type === "income" ? "💰" : "🔁"}</span>
-              <h3 className="truncate text-sm font-semibold text-white">{title}</h3>
+              <h3 className="min-w-0 break-words text-sm font-semibold text-white">{title}</h3>
             </div>
             <p className="mt-1 text-xs text-gray-500">
               {wallet ? `${wallet.name} • ${wallet.currency_code}` : rule.currency_code}
@@ -145,7 +145,7 @@ export function RecurringRuleCard({ rule, wallet, category, onToggle, onEdit, on
               type="button"
               onClick={() => onToggle(false)}
               aria-label={`Pause ${title} recurring rule`}
-              className="rounded-lg border border-white/10 px-3 py-1.5 text-gray-300 transition hover:bg-white/5"
+            className="gl-btn gl-btn-secondary gl-btn-sm"
             >
               Pause
             </button>
@@ -154,7 +154,7 @@ export function RecurringRuleCard({ rule, wallet, category, onToggle, onEdit, on
               type="button"
               onClick={() => onToggle(true)}
               aria-label={`Activate ${title} recurring rule`}
-              className="rounded-lg border border-white/10 px-3 py-1.5 text-gray-300 transition hover:bg-white/5"
+              className="gl-btn gl-btn-secondary gl-btn-sm"
             >
               Activate
             </button>
@@ -163,7 +163,7 @@ export function RecurringRuleCard({ rule, wallet, category, onToggle, onEdit, on
             type="button"
             onClick={onDelete}
             aria-label={`Delete ${title} recurring rule`}
-            className="rounded-lg border border-red-500/40 px-3 py-1.5 text-red-300 transition hover:bg-red-950/30"
+            className="gl-btn gl-btn-danger gl-btn-sm"
           >
             Delete
           </button>

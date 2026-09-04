@@ -78,22 +78,22 @@ export default function ForecastMonthEndBalance({
             const movementMinor = forecast.scheduledIncomeMinor - forecast.scheduledExpenseMinor;
 
             return (
-              <div key={currency.currencyCode} className="gl-inner-card rounded-2xl p-3 transition hover:bg-white/[0.035]">
+              <div key={currency.currencyCode} className="gl-inner-card min-w-0 rounded-2xl p-3 transition hover:bg-white/[0.035]">
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-[10px] uppercase tracking-wide text-gray-500">{currency.currencyCode}</div>
                   <div className="text-[11px] text-gray-400">
                     {forecast.scheduledOccurrencesCount} occurrence{forecast.scheduledOccurrencesCount === 1 ? "" : "s"}
                   </div>
                 </div>
-                <div className="mt-3 text-2xl font-semibold tabular-nums text-white">
+                <div className="mt-3 break-words text-2xl font-semibold tabular-nums text-white">
                   {formatMinor(forecast.projectedBalanceMinor)}{" "}
                   <span className="text-sm text-gray-300">{currency.currencyCode}</span>
                 </div>
                 <div className="mt-3 grid gap-2 text-[11px] text-gray-400">
-                  <div className="flex justify-between gap-3"><span>Current</span><span className="tabular-nums text-gray-200">{formatMinor(forecast.currentBalanceMinor)}</span></div>
-                  <div className="flex justify-between gap-3"><span>Scheduled income</span><span className="tabular-nums text-gray-200">{formatMinor(forecast.scheduledIncomeMinor)}</span></div>
-                  <div className="flex justify-between gap-3"><span>Scheduled expense</span><span className="tabular-nums text-gray-200">{formatMinor(forecast.scheduledExpenseMinor)}</span></div>
-                  <div className="flex justify-between gap-3 border-t border-white/5 pt-2"><span>Scheduled movement</span><span className="tabular-nums text-gray-200">{formatMinor(movementMinor)}</span></div>
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3"><span>Current</span><span className="break-words text-right tabular-nums text-gray-200">{formatMinor(forecast.currentBalanceMinor)}</span></div>
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3"><span>Scheduled income</span><span className="break-words text-right tabular-nums text-gray-200">{formatMinor(forecast.scheduledIncomeMinor)}</span></div>
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3"><span>Scheduled expense</span><span className="break-words text-right tabular-nums text-gray-200">{formatMinor(forecast.scheduledExpenseMinor)}</span></div>
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 border-t border-white/5 pt-2"><span>Scheduled movement</span><span className="break-words text-right tabular-nums text-gray-200">{formatMinor(movementMinor)}</span></div>
                 </div>
               </div>
             );

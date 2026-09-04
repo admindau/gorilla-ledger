@@ -601,7 +601,7 @@ export default function WalletsPage() {
                             {meta.icon}
                           </div>
                           <div className="min-w-0">
-                            <h3 className="truncate text-lg font-semibold text-white">{wallet.name}</h3>
+                            <h3 className="break-words text-lg font-semibold text-white">{wallet.name}</h3>
                             <p className="text-xs text-white/45">{meta.description}</p>
                           </div>
                         </div>

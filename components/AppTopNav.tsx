@@ -316,8 +316,8 @@ export default function AppTopNav({
         <div className="gl-app-nav-meta">
           <div className="hidden w-[220px] min-w-0 flex-col items-end leading-tight lg:flex">
             <span className="block w-full truncate text-right text-xs text-gray-300">{email || "\u00a0"}</span>
-            <span className="text-[10px] uppercase tracking-[0.16em] text-gray-500" aria-live="polite">
-              MFA {mfaEnabled ? "enabled" : mfaEnabled === false ? "off" : "checking"} · {formatLastSecurityCheck(lastCheckAt)}
+            <span className="text-xs uppercase tracking-[0.12em] text-gray-400" aria-live="polite">
+              {mfaEnabled === null ? "Verifying security…" : `MFA ${mfaEnabled ? "enabled" : "off"} · ${formatLastSecurityCheck(lastCheckAt)}`}
             </span>
           </div>
           <Button

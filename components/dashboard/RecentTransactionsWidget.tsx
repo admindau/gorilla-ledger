@@ -63,11 +63,11 @@ export default function RecentTransactionsWidget({
             return (
               <div
                 key={tx.id}
-                className="flex items-center justify-between gap-3 px-3.5 py-3 sm:px-4"
+                className="grid min-w-0 gap-2 px-3.5 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-3 sm:px-4"
               >
                 <div className="min-w-0">
                   <div className="flex min-w-0 items-center gap-2">
-                    <span className="truncate text-sm font-medium text-white">
+                    <span className="break-words text-sm font-medium text-white">
                       {tx.categoryName}
                     </span>
                     <span className="rounded-full border border-gray-800 px-2 py-0.5 text-[9px] uppercase tracking-wide text-gray-400">
@@ -80,7 +80,7 @@ export default function RecentTransactionsWidget({
                 </div>
 
                 <div
-                  className={`max-w-[48%] shrink-0 text-right text-sm font-semibold tabular-nums ${
+                  className={`break-words text-left text-sm font-semibold tabular-nums sm:text-right ${
                     isIncome ? "text-gray-100" : "text-gray-300"
                   }`}
                 >

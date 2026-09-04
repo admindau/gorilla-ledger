@@ -269,7 +269,7 @@ export default function TransactionsPage() {
   const [walletId, setWalletId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [type, setType] = useState<TransactionType>("expense");
-  const [amount, setAmount] = useState("0");
+  const [amount, setAmount] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [timeKnown, setTimeKnown] = useState(true);
@@ -379,19 +379,6 @@ export default function TransactionsPage() {
       if (walletData && walletData.length > 0 && !walletId) setWalletId(walletData[0].id);
       if (walletData && walletData.length > 0 && !sourceWalletId) setSourceWalletId(walletData[0].id);
       if (walletData && walletData.length > 1 && !destinationWalletId) setDestinationWalletId(walletData[1].id);
-      const loadedCategories = (categoryData as Category[] | null) ?? [];
-      const initialCategory = loadedCategories.find(
-        (category) =>
-          category.is_active &&
-          category.type === "expense" &&
-          !isInternalTransferCategory(category)
-      ) ?? loadedCategories.find(
-        (category) => category.is_active && !isInternalTransferCategory(category)
-      );
-      if (initialCategory && !categoryId) {
-        setCategoryId(initialCategory.id);
-        setType(initialCategory.type);
-      }
       if (!date) setDate(currentLocalDate());
       if (!time) setTime(currentLocalTime());
       if (!transferDate) setTransferDate(currentLocalDate());
@@ -645,7 +632,7 @@ export default function TransactionsPage() {
       setOldestTransactionId(created.id);
     }
 
-    setAmount("0");
+    setAmount("");
     setDescription("");
     setDate(currentLocalDate());
     setTime(currentLocalTime());
@@ -1190,6 +1177,7 @@ export default function TransactionsPage() {
                       if (nextCategory) setType(nextCategory.type);
                     }}
                   >
+                    <option value="">Select a category</option>
                     <optgroup label={`${type === "expense" ? "Expense" : "Income"} categories`}>
                       {activeCategories
                         .filter((category) => category.type === type)
@@ -1219,7 +1207,7 @@ export default function TransactionsPage() {
                     onChange={(e) => {
                       const nextType = e.target.value as TransactionType;
                       setType(nextType);
-                      setCategoryId(operationalCategories.find((category) => category.type === nextType)?.id ?? "");
+                      setCategoryId("");
                     }}
                   >
                     <option value="expense">Expense</option>
@@ -1237,6 +1225,8 @@ export default function TransactionsPage() {
                     className="gl-input"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
+                    placeholder="0.00"
+                    inputMode="decimal"
                   />
                 </div>
 

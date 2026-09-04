@@ -1100,7 +1100,7 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : (
-            <div className="grid gap-4 lg:grid-cols-3 lg:gap-5">
+            <div className="grid gap-4 xl:grid-cols-3 xl:gap-5">
               <div className={CARD}>
                 <FinancialHealthScore model={dashboardInsightModel} />
               </div>

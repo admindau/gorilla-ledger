@@ -89,7 +89,7 @@ export function CategoryCard({
               {isIncome ? "↗" : "↘"}
             </div>
             <div className="min-w-0">
-              <h3 className="truncate text-sm font-semibold text-white">{category.name}</h3>
+              <h3 className="break-words text-sm font-semibold text-white">{category.name}</h3>
               <p className="mt-0.5 text-xs text-gray-500">Created {formatDate(category.created_at)}</p>
             </div>
           </div>
@@ -115,7 +115,7 @@ export function CategoryCard({
           onClick={onDelete}
           disabled={isBusy}
           aria-label={`Delete ${category.name} category`}
-          className="rounded-full border border-red-900/80 px-3 py-1.5 text-xs text-red-300 transition hover:bg-red-500/10"
+          className="gl-btn gl-btn-danger gl-btn-sm"
         >
           {isBusy ? "Working..." : "Delete"}
         </button>

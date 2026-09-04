@@ -98,7 +98,7 @@ export function BudgetCard({
                   ◌
                 </span>
                 <div className="min-w-0">
-                  <h3 className="truncate text-sm font-semibold text-white">
+                  <h3 className="break-words text-sm font-semibold text-white">
                     {summary.category?.name ?? "Unknown category"}
                   </h3>
                   <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500">

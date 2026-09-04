@@ -82,9 +82,19 @@ export default function SmartAlertsPanel({
       </div>
 
       {alerts.length > visibleAlerts.length && (
-        <div className="mt-3 text-[11px] text-gray-500">
-          +{alerts.length - visibleAlerts.length} more alert(s)
-        </div>
+        <details className="mt-3 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+          <summary className="min-h-11 cursor-pointer text-sm font-medium text-gray-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70">
+            View {alerts.length - visibleAlerts.length} more alert{alerts.length - visibleAlerts.length === 1 ? "" : "s"}
+          </summary>
+          <div className="mt-3 space-y-3 border-t border-white/10 pt-3">
+            {alerts.slice(3).map((alert) => (
+              <div key={alert.id} className={`rounded-2xl border bg-black/30 p-3 ${toneClasses(alert.tone)}`}>
+                <div className="text-sm font-semibold text-white">{alert.title}</div>
+                <p className="mt-1 text-xs leading-5 text-gray-400">{alert.detail}</p>
+              </div>
+            ))}
+          </div>
+        </details>
       )}
     </div>
   );

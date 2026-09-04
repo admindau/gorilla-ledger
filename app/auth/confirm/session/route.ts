@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { isEmailOtpType } from "@/lib/auth/confirmation";
+import { hasTrustedMutationOrigin } from "@/lib/http/sameOrigin";
 
 function json(body: Record<string, unknown>, status: number) {
   const response = NextResponse.json(body, { status });
@@ -11,6 +12,7 @@ function json(body: Record<string, unknown>, status: number) {
 }
 
 export async function POST(req: NextRequest) {
+  if (!hasTrustedMutationOrigin(req)) return json({ error: "untrusted_origin" }, 403);
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 

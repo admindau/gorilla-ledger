@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { applyPrivateNoStore } from "@/lib/http/privateCache";
+import { hasTrustedMutationOrigin } from "@/lib/http/sameOrigin";
 
 type InvitationResult = {
   invitation_id: string;
@@ -21,6 +22,7 @@ function escapeHtml(value: string) {
 }
 
 export async function POST(request: NextRequest) {
+  if (!hasTrustedMutationOrigin(request)) return response({ error: "Request origin could not be verified." }, 403);
   const supabase = await createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return response({ error: "Unauthorized." }, 401);
@@ -81,11 +83,13 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  if (!hasTrustedMutationOrigin(request)) return response({ error: "Request origin could not be verified." }, 403);
   const supabase = await createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return response({ error: "Unauthorized." }, 401);
   const body = await request.json().catch(() => null) as { invitation_id?: unknown } | null;
   if (typeof body?.invitation_id !== "string") return response({ error: "Invitation ID is required." }, 400);
   const { error } = await supabase.rpc("revoke_ledger_invitation", { p_invitation_id: body.invitation_id });
-  return error ? response({ error: error.message }, 400) : response({ message: "Invitation revoked." });
+  if (error) console.error("[family-invitations] Unable to revoke invitation.", { code: error.code });
+  return error ? response({ error: "Unable to revoke this invitation. Try again." }, 400) : response({ message: "Invitation revoked." });
 }

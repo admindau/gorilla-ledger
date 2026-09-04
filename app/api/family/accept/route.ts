@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { applyPrivateNoStore } from "@/lib/http/privateCache";
+import { hasTrustedMutationOrigin } from "@/lib/http/sameOrigin";
 
 export async function POST(request: NextRequest) {
+  if (!hasTrustedMutationOrigin(request)) return NextResponse.json({ error: "Request origin could not be verified." }, { status: 403 });
   const supabase = await createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Sign in to accept this invitation." }, { status: 401 });

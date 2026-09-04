@@ -31,16 +31,18 @@ test("login is keyboard operable and reveals the code field", async ({ page }, t
     await page.keyboard.press("Tab");
     await expect(page.getByRole("button", { name: /email me a sign-in code/i })).toBeFocused();
   }
+  await page.getByRole("button", { name: /already have a code/i }).click();
   await expect(page.locator("#login-code")).toBeVisible();
 });
 
 test("registration keeps both account steps keyboard accessible", async ({ page }, testInfo) => {
   await page.goto("/auth/register");
   await expect(page.locator("#register-email")).toBeVisible();
-  await expect(page.locator("#register-code")).toBeVisible();
   if (!testInfo.project.name.includes("mobile")) {
     await page.locator("#register-email").focus();
     await page.keyboard.press("Tab");
     await expect(page.getByRole("button", { name: /email me an account code/i })).toBeFocused();
   }
+  await page.getByRole("button", { name: /already have an account code/i }).click();
+  await expect(page.locator("#register-code")).toBeVisible();
 });

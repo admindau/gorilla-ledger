@@ -135,7 +135,7 @@ export function RecurringTimeline({ rules, wallets, categories, loading = false 
                             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-xs text-gray-300">
                               {rule.type === "income" ? "↗" : "↘"}
                             </span>
-                            <p className="truncate text-sm font-semibold text-white">
+                            <p className="min-w-0 break-words text-sm font-semibold text-white">
                               {getRuleTitle(rule, categories)}
                             </p>
                             <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-gray-400">

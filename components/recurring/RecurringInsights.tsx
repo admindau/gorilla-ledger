@@ -163,7 +163,7 @@ export function RecurringInsights({
             <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">
               {card.label}
             </p>
-            <p className="mt-2 truncate text-sm font-semibold text-white">
+            <p className="mt-2 break-words text-sm font-semibold text-white">
               {card.value}
             </p>
             <p className="mt-1 text-xs text-gray-500">{card.detail}</p>

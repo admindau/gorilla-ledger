@@ -61,7 +61,7 @@ export function BudgetInsights({ summaries }: BudgetInsightsProps) {
       {items.map((item) => (
         <div key={item.label} className="gl-inner-card rounded-2xl p-4">
           <p className="text-[11px] uppercase tracking-[0.22em] text-gray-500">{item.label}</p>
-          <p className="mt-2 truncate text-sm font-semibold text-white">{item.title}</p>
+          <p className="mt-2 break-words text-sm font-semibold text-white">{item.title}</p>
           <p className="mt-1 text-xs text-gray-500">{item.caption}</p>
         </div>
       ))}

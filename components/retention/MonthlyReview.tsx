@@ -84,24 +84,24 @@ export function MonthlyReview({ model }: MonthlyReviewProps) {
         <div className="grid gap-4 lg:grid-cols-3">
           {model.entries.map((entry) => (
             <article key={entry.currencyCode} className="gl-premium-card p-5">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <span className="text-xs font-semibold tracking-[0.18em] text-white">{entry.currencyCode}</span>
                 <span className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] ${trendClasses(entry)}`}>
                   {changeLabel(entry)}
                 </span>
               </div>
-              <dl className="mt-5 grid grid-cols-3 gap-3">
+              <dl className="mt-5 grid gap-3 min-[420px]:grid-cols-3">
                 <div>
                   <dt className="text-[10px] uppercase tracking-[0.14em] text-gray-500">Income</dt>
-                  <dd className="mt-2 text-sm font-semibold tabular-nums text-emerald-200">{formatMinor(entry.current.incomeMinor)}</dd>
+                  <dd className="mt-2 break-words text-sm font-semibold tabular-nums text-emerald-200">{formatMinor(entry.current.incomeMinor)}</dd>
                 </div>
                 <div>
                   <dt className="text-[10px] uppercase tracking-[0.14em] text-gray-500">Expense</dt>
-                  <dd className="mt-2 text-sm font-semibold tabular-nums text-red-200">{formatMinor(entry.current.expenseMinor)}</dd>
+                  <dd className="mt-2 break-words text-sm font-semibold tabular-nums text-red-200">{formatMinor(entry.current.expenseMinor)}</dd>
                 </div>
                 <div>
                   <dt className="text-[10px] uppercase tracking-[0.14em] text-gray-500">Net</dt>
-                  <dd className={`mt-2 text-sm font-semibold tabular-nums ${entry.current.netMinor < 0 ? "text-red-200" : "text-white"}`}>
+                  <dd className={`mt-2 break-words text-sm font-semibold tabular-nums ${entry.current.netMinor < 0 ? "text-red-200" : "text-white"}`}>
                     {formatMinor(entry.current.netMinor)}
                   </dd>
                 </div>

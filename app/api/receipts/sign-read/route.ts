@@ -99,8 +99,9 @@ export async function POST(req: Request) {
     .createSignedUrl(storagePath, expiresIn);
 
   if (error || !data?.signedUrl) {
+    if (error) console.error("[receipt-read] URL signing failed.", { name: error.name });
     return NextResponse.json(
-      { error: error?.message ?? "Failed to create signed URL." },
+      { error: "Unable to open this receipt. Try again." },
       { status: 500 }
     );
   }

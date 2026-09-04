@@ -28,6 +28,9 @@ const analyticsLoading = await read("../app/(app)/admin/analytics/loading.tsx");
 const transactionsLoading = await read("../app/(app)/transactions/loading.tsx");
 const workspaceConfig = await read("../pnpm-workspace.yaml");
 const lockfile = await read("../pnpm-lock.yaml");
+const financialHealth = await read("../components/dashboard/FinancialHealthScore.tsx");
+const sameOrigin = await read("../lib/http/sameOrigin.ts");
+const familyInvitations = await read("../app/api/family/invitations/route.ts");
 
 test("passwordless throttling is distributed and account lookup does not enumerate users", () => {
   assert.match(authRoute, /consume_auth_rate_limit/);
@@ -123,4 +126,16 @@ test("every private data surface has a deliberate loading and retry path", () =>
   assert.match(walletsPage, /Wallet balances are temporarily unavailable/);
   assert.match(familyPagePolished, /Household access is temporarily unavailable/);
   assert.match(securityPage, /Security status is temporarily unavailable/);
+});
+
+test("financial health values are responsive without ellipsis", () => {
+  assert.match(financialHealth, /financial-health-grid/);
+  assert.match(financialHealth, /break-words text-sm font-semibold tabular-nums/);
+  assert.doesNotMatch(financialHealth, /truncate text-xs font-semibold tabular-nums/);
+});
+
+test("cookie-authenticated family mutations verify their request origin", () => {
+  assert.match(sameOrigin, /sec-fetch-site/);
+  assert.match(sameOrigin, /request\.nextUrl\.origin/);
+  assert.match(familyInvitations, /hasTrustedMutationOrigin/);
 });

@@ -12,20 +12,24 @@ const links = [
 export function PublicNav() {
   const pathname = usePathname();
 
+  const items = links.map((link) => {
+    const active = pathname === link.href;
+    return (
+      <Link key={link.href} href={link.href} aria-current={active ? "page" : undefined}>
+        {link.label}
+      </Link>
+    );
+  });
+
   return (
+    <>
     <nav className="gl-public-nav" aria-label="Public navigation">
-      {links.map((link) => {
-        const active = pathname === link.href;
-        return (
-          <Link
-            key={link.href}
-            href={link.href}
-            aria-current={active ? "page" : undefined}
-          >
-            {link.label}
-          </Link>
-        );
-      })}
+      {items}
     </nav>
+    <details className="gl-public-mobile-nav">
+      <summary aria-label="Open site navigation">Menu</summary>
+      <nav aria-label="Mobile public navigation">{items}</nav>
+    </details>
+    </>
   );
 }

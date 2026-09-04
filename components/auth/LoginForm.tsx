@@ -18,6 +18,7 @@ export function LoginForm({
   const [otp, setOtp] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [reference, setReference] = useState("");
+  const [showCodeEntry, setShowCodeEntry] = useState(false);
   const codeInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -64,6 +65,7 @@ export function LoginForm({
         body.message ??
           "Check your email for a secure sign-in link. You can close this tab after opening it."
       );
+      setShowCodeEntry(true);
       setOtp("");
       setReference(typeof body.reference === "string" ? body.reference.slice(0, 8) : "");
       setResendIn(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 60);
@@ -170,6 +172,11 @@ export function LoginForm({
         </button>
       </form>
 
+      {!showCodeEntry ? (
+        <button type="button" className="gl-auth-code-disclosure" onClick={() => setShowCodeEntry(true)} aria-expanded="false">
+          Already have a code? <span aria-hidden="true">→</span>
+        </button>
+      ) : (
       <form onSubmit={verifyCode} className="mt-5 space-y-3 border-t border-white/10 pt-5">
           <div>
             <p className="gl-auth-eyebrow">Already have a code?</p>
@@ -201,6 +208,7 @@ export function LoginForm({
             {verifying ? "Verifying code…" : "Continue with code"}
           </button>
       </form>
+      )}
 
       <p className="gl-auth-legal">
         Codes are single-use and expire automatically. If one has expired, request a fresh email here.
@@ -218,7 +226,7 @@ export function LoginForm({
           </button>
           <button
             type="button"
-            onClick={() => { setSuccessMsg(""); setEmail(""); setOtp(""); setReference(""); setResendIn(0); }}
+            onClick={() => { setSuccessMsg(""); setEmail(""); setOtp(""); setReference(""); setResendIn(0); setShowCodeEntry(false); }}
             className="gl-auth-text-link"
           >
             Use a different email address

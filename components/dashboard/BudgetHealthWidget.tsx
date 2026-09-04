@@ -47,12 +47,12 @@ export default function BudgetHealthWidget({ model, summaries, riskThreshold }: 
             const barPercent = Math.max(0, Math.min(usedPercent, 100));
             const currency = item.currencyCode ?? item.wallet?.currency_code ?? "";
             return (
-              <div key={item.budget.id} className="gl-inner-card rounded-2xl p-4">
+              <div key={item.budget.id} className="gl-inner-card min-w-0 rounded-2xl p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0"><div className="truncate text-sm font-medium text-white">{item.category?.name ?? "Unknown category"}</div><div className="mt-1 text-xs text-gray-400">{item.wallet?.name ?? "All wallets"}{currency ? ` • ${currency}` : ""}</div></div>
+                  <div className="min-w-0"><div className="break-words text-sm font-medium text-white">{item.category?.name ?? "Unknown category"}</div><div className="mt-1 break-words text-xs text-gray-400">{item.wallet?.name ?? "All wallets"}{currency ? ` • ${currency}` : ""}</div></div>
                   <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] uppercase tracking-wide ${status.className}`} title={status.helper}>{status.label}</span>
                 </div>
-                <div className="mt-4 flex items-baseline justify-between gap-3 text-xs"><span className="text-gray-400">{isCurrencySafe ? `${formatMinor(item.actualMinor)} / ${formatMinor(item.budget.amount_minor)} ${currency}` : "Currency not established"}</span><span className="tabular-nums text-gray-300">{isCurrencySafe ? `${usedPercent}%` : "—"}</span></div>
+                <div className="mt-4 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-end gap-3 text-xs"><span className="break-words tabular-nums text-gray-300">{isCurrencySafe ? `${formatMinor(item.actualMinor)} / ${formatMinor(item.budget.amount_minor)} ${currency}` : "Currency not established"}</span><span className="tabular-nums text-gray-300">{isCurrencySafe ? `${usedPercent}%` : "—"}</span></div>
                 <div className="mt-2 h-2 overflow-hidden rounded-full border border-gray-700 bg-black"><div className="h-full bg-white" style={{ width: `${barPercent}%` }} /></div>
               </div>
             );

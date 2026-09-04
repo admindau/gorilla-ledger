@@ -78,7 +78,7 @@ export default function ExecutiveScorecardRow({
           <div className="text-[10px] uppercase tracking-wide text-gray-500">
             {card.label}
           </div>
-          <div className="mt-2 truncate text-lg font-semibold tracking-tight text-white">
+          <div className="mt-2 break-words text-lg font-semibold tracking-tight text-white">
             {card.value}
           </div>
           <div className="mt-1 text-[11px] text-gray-400">{card.helper}</div>

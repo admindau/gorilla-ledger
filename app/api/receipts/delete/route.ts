@@ -56,10 +56,8 @@ export async function POST(req: Request) {
     .single();
 
   if (rErr || !receipt) {
-    return NextResponse.json(
-      { error: rErr?.message ?? "Receipt not found." },
-      { status: 404 }
-    );
+    if (rErr) console.error("[receipt-delete] Lookup failed.", { code: rErr.code });
+    return NextResponse.json({ error: "Receipt not found." }, { status: 404 });
   }
 
   const access = await getLedgerAccessForOwner(userId, receipt.user_id);
@@ -73,13 +71,15 @@ export async function POST(req: Request) {
     .remove([receipt.storage_path]);
 
   if (sErr) {
-    return NextResponse.json({ error: sErr.message }, { status: 500 });
+    console.error("[receipt-delete] Storage removal failed.", { name: sErr.name });
+    return NextResponse.json({ error: "Unable to remove this receipt. Try again." }, { status: 500 });
   }
 
   const { error: dErr } = await supabase.from("receipts").delete().eq("id", receipt.id);
 
   if (dErr) {
-    return NextResponse.json({ error: dErr.message }, { status: 500 });
+    console.error("[receipt-delete] Record removal failed.", { code: dErr.code });
+    return NextResponse.json({ error: "Receipt storage was cleared, but the record needs support review." }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true }, { status: 200 });

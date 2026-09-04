@@ -14,8 +14,8 @@ export function PublicHeader() {
 
         <PublicNav />
 
-        <Link href="/dashboard" className="gl-btn gl-btn-secondary gl-btn-sm gl-public-open-app">
-          Open dashboard <span aria-hidden="true">↗</span>
+        <Link href="/auth/login" className="gl-btn gl-btn-secondary gl-btn-sm gl-public-open-app">
+          Sign in <span aria-hidden="true">↗</span>
         </Link>
       </div>
     </header>

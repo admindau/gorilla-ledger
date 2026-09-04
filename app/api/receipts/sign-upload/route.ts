@@ -115,8 +115,9 @@ export async function POST(req: Request) {
     .createSignedUploadUrl(path);
 
   if (error || !data?.token) {
+    if (error) console.error("[receipt-upload] URL signing failed.", { name: error.name });
     return NextResponse.json(
-      { error: error?.message ?? "Failed to create signed upload URL." },
+      { error: "Unable to prepare this receipt upload. Try again." },
       { status: 500 }
     );
   }

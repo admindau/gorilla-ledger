@@ -51,14 +51,14 @@ export default function FinancialHealthScore({ model }: FinancialHealthScoreProp
           Add activity to generate currency-specific health scores.
         </div>
       ) : (
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+        <div className="mt-5 grid gap-3 financial-health-grid">
           {model.currencies.map((currency) => {
             const score = clampScore(currency.health.score);
             const circumference = 2 * Math.PI * 30;
             const dash = (score / 100) * circumference;
 
             return (
-              <div key={currency.currencyCode} className="gl-inner-card rounded-2xl p-4">
+              <div key={currency.currencyCode} className="gl-inner-card min-w-0 rounded-2xl p-4">
                 <div className="flex items-center justify-between gap-3">
                   <span className="rounded-full border border-white/10 bg-white/[0.035] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-gray-300">
                     {currency.currencyCode}
@@ -92,7 +92,7 @@ export default function FinancialHealthScore({ model }: FinancialHealthScoreProp
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold text-white">{currency.health.label}</div>
                     <div className="mt-2 text-[10px] uppercase tracking-wide text-gray-500">Cash flow</div>
-                    <div className="mt-1 truncate text-xs font-semibold tabular-nums text-gray-200">
+                    <div className="mt-1 break-words text-sm font-semibold tabular-nums text-gray-200">
                       {formatMinor(currency.netMinor)} {currency.currencyCode}
                     </div>
                     <div className="mt-2 text-[10px] text-gray-500">

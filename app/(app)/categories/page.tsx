@@ -43,6 +43,8 @@ export default function CategoriesPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const createNameRef = useRef<HTMLInputElement | null>(null);
+  const createTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const createDialogRef = useRef<HTMLDivElement | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -98,18 +100,35 @@ export default function CategoriesPage() {
   useEffect(() => {
     if (!createOpen) return;
 
+    const previousOverflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+
     const t = window.setTimeout(() => {
       createNameRef.current?.focus();
     }, 0);
 
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setCreateOpen(false);
+      if (e.key === "Escape") {
+        setCreateOpen(false);
+        window.requestAnimationFrame(() => createTriggerRef.current?.focus());
+      }
+      if (e.key === "Tab") {
+        const focusable = createDialogRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+        );
+        if (!focusable?.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
     }
 
     window.addEventListener("keydown", onKeyDown);
     return () => {
       window.clearTimeout(t);
       window.removeEventListener("keydown", onKeyDown);
+      document.documentElement.style.overflow = previousOverflow;
     };
   }, [createOpen]);
 
@@ -119,7 +138,10 @@ export default function CategoriesPage() {
   }
 
   function closeCreateModal() {
-    if (!saving) setCreateOpen(false);
+    if (!saving) {
+      setCreateOpen(false);
+      window.requestAnimationFrame(() => createTriggerRef.current?.focus());
+    }
   }
 
   function resetCreateForm() {
@@ -389,7 +411,7 @@ export default function CategoriesPage() {
       {createOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4" role="dialog" aria-modal="true" aria-label="Add Category">
           <button type="button" aria-label="Close modal" onClick={closeCreateModal} className="absolute inset-0 bg-black/70" />
-          <div className="relative w-full max-w-lg rounded-3xl border border-gray-800 bg-black/90 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.06)] backdrop-blur">
+          <div ref={createDialogRef} className="relative w-full max-w-lg rounded-3xl border border-gray-800 bg-black/90 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.06)] backdrop-blur">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.22em] text-gray-500">New category</p>
@@ -451,7 +473,7 @@ export default function CategoriesPage() {
           title="Categories"
           description="Organize income and expenses for transactions and budgets."
           action={
-            <button type="button" onClick={openCreateModal} className="gl-btn gl-btn-primary gl-btn-sm">
+            <button ref={createTriggerRef} type="button" onClick={openCreateModal} className="gl-btn gl-btn-primary gl-btn-sm">
               Add Category
             </button>
           }

@@ -63,8 +63,8 @@ export default function ExecutiveHeroCard({
       className={`gl-hero-card gl-dashboard-hero-slot rounded-[1.9rem] p-5 sm:p-7 ${classes.glow}`}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/40" />
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div className="max-w-3xl">
+      <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,26.25rem)] lg:items-end">
+        <div className="min-w-0 max-w-3xl">
           <div className="flex flex-wrap items-center gap-2">
             <span className="gl-section-eyebrow">
               Monthly overview
@@ -82,12 +82,12 @@ export default function ExecutiveHeroCard({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 min-[520px]:grid-cols-2 lg:min-w-[420px]">
+        <div className="grid min-w-0 grid-cols-1 gap-3 min-[520px]:grid-cols-2">
           <div className="gl-inner-card rounded-2xl p-4">
             <div className="text-[10px] uppercase tracking-wide text-gray-500">
               Health Score
             </div>
-            <div className="mt-2 flex items-end gap-2">
+            <div className="mt-2 flex min-w-0 flex-wrap items-end gap-2">
               <span className="text-4xl font-semibold tabular-nums text-white">
                 {safeScore}
               </span>

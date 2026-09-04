@@ -39,16 +39,16 @@ export default function LargestExpenseWidget({
       {items.length === 0 ? (
         <div className="mt-5 gl-empty-state rounded-2xl p-4 text-sm text-gray-400">No expenses recorded for this month yet.</div>
       ) : (
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+        <div className="mt-5 grid gap-3 financial-health-grid">
           {items.map((item) => (
-            <div key={`${item.currencyCode}-${item.id}`} className="gl-inner-card rounded-2xl p-4">
+            <div key={`${item.currencyCode}-${item.id}`} className="gl-inner-card min-w-0 rounded-2xl p-4">
               <div className="flex items-center justify-between gap-3">
-                <div className="truncate text-[11px] uppercase tracking-wide text-gray-500">{item.categoryName ?? "Uncategorized"}</div>
+                <div className="min-w-0 break-words text-xs uppercase tracking-wide text-gray-400">{item.categoryName ?? "Uncategorized"}</div>
                 <span className="rounded-full border border-white/10 bg-white/[0.035] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-gray-300">{item.currencyCode}</span>
               </div>
-              <div className="mt-3 text-2xl font-semibold leading-none tracking-tight tabular-nums text-white">{formatMinor(item.amountMinor)}</div>
-              <div className="mt-4 grid gap-2 text-[11px] text-gray-400">
-                <div className="flex items-center justify-between gap-3"><span>Wallet</span><span className="truncate text-right text-gray-200">{walletNamesById[item.walletId] ?? "Unknown wallet"}</span></div>
+              <div className="mt-3 break-words text-2xl font-semibold leading-tight tracking-tight tabular-nums text-white">{formatMinor(item.amountMinor)} <span className="text-sm text-gray-400">{item.currencyCode}</span></div>
+              <div className="mt-4 grid gap-2 text-xs text-gray-400">
+                <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-3"><span>Wallet</span><span className="break-words text-right text-gray-200">{walletNamesById[item.walletId] ?? "Unknown wallet"}</span></div>
                 <div className="flex items-center justify-between gap-3"><span>Date</span><span className="text-gray-200">{formatDate(item.occurredAt)}</span></div>
               </div>
             </div>
