@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import AppTopNav from "@/components/AppTopNav";
+import { UsageHeartbeat } from "@/components/observability/UsageHeartbeat";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -13,6 +14,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </a>
 
       <div className="gl-app-content">
+        <UsageHeartbeat />
         <AppTopNav />
         <main id="main-content" className="gl-app-page-region" tabIndex={-1}>
           {children}

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
@@ -8,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 
 const LAST_SECURITY_CHECK_AT_KEY = "gl_last_security_check_at_v1";
 
-const navItems = [
+const baseNavItems = [
   { href: "/dashboard", label: "Dashboard", shortLabel: "Home" },
   { href: "/wallets", label: "Wallets", shortLabel: "Wallets" },
   { href: "/categories", label: "Categories", shortLabel: "Categories" },
@@ -20,6 +21,9 @@ const navItems = [
   { href: "/settings/security", label: "Security", shortLabel: "Security" },
 ] as const;
 
+const adminNavItem = { href: "/admin/analytics", label: "Analytics", shortLabel: "Analytics" } as const;
+type NavItem = (typeof baseNavItems)[number] | typeof adminNavItem;
+
 const mobilePrimaryHrefs = ["/dashboard", "/transactions", "/wallets", "/budgets"] as const;
 
 const companyLinks = [
@@ -29,8 +33,8 @@ const companyLinks = [
   { href: "/terms", label: "Terms" },
 ] as const;
 
-function NavIcon({ href }: { href: (typeof navItems)[number]["href"] }) {
-  const paths: Record<(typeof navItems)[number]["href"], React.ReactNode> = {
+function NavIcon({ href }: { href: NavItem["href"] }) {
+  const paths: Record<NavItem["href"], React.ReactNode> = {
     "/dashboard": <><path d="M3 10.5 10 4l7 6.5" /><path d="M5.5 9.5V17h9V9.5" /></>,
     "/transactions": <><path d="M4 6h12M4 10h8M4 14h10" /><path d="m14 12 2 2-2 2" /></>,
     "/wallets": <><path d="M3.5 6.5h13v9h-13z" /><path d="M13 9.5h3.5v3H13zM5.5 6.5V5h8v1.5" /></>,
@@ -40,6 +44,7 @@ function NavIcon({ href }: { href: (typeof navItems)[number]["href"] }) {
     "/exports": <><path d="M10 3v9m0 0 3-3m-3 3L7 9" /><path d="M4 13v3h12v-3" /></>,
     "/settings/family": <><circle cx="7" cy="7" r="2.5" /><circle cx="14" cy="8" r="2" /><path d="M2.5 16c.4-3 2-4.5 4.5-4.5s4.1 1.5 4.5 4.5M11 12.5c2.8-.6 5 .8 5.8 3.5" /></>,
     "/settings/security": <><path d="M10 3 4.5 5v4.5c0 3.6 2.2 6.2 5.5 7.5 3.3-1.3 5.5-3.9 5.5-7.5V5z" /><path d="m7.5 10 1.5 1.5 3.5-3.5" /></>,
+    "/admin/analytics": <><path d="M4 16V9m4 7V5m4 11v-4m4 4V7" /><path d="M3 16.5h14" /></>,
   };
 
   return (
@@ -74,9 +79,14 @@ export default function AppTopNav() {
   const mobileMoreRef = useRef<HTMLDivElement>(null);
   const mobileMoreButtonRef = useRef<HTMLButtonElement>(null);
 
+  const isAdmin = email.trim().toLowerCase() === "admindau@proton.me";
+  const navItems: readonly NavItem[] = useMemo(
+    () => isAdmin ? [...baseNavItems, adminNavItem] : baseNavItems,
+    [isAdmin]
+  );
   const activeLabel = useMemo(() => {
     return navItems.find((item) => pathname === item.href || pathname?.startsWith(`${item.href}/`))?.label ?? "Gorilla Ledger";
-  }, [pathname]);
+  }, [pathname, navItems]);
   const isNavigating = Boolean(navigatingTo && navigatingTo !== pathname);
   const mobilePrimaryItems = navItems.filter((item) => mobilePrimaryHrefs.includes(item.href as (typeof mobilePrimaryHrefs)[number]));
   const mobileMoreItems = navItems.filter((item) => !mobilePrimaryHrefs.includes(item.href as (typeof mobilePrimaryHrefs)[number]));
@@ -247,7 +257,8 @@ export default function AppTopNav() {
         <div className="gl-app-topnav-inner">
         <div className="min-w-0">
           <Link href="/dashboard" className="gl-app-brand" aria-label="Go to dashboard">
-            Gorilla Ledger™
+            <Image src="/logos/gorilla-ledger-logo.png" alt="" width={28} height={28} priority />
+            <span>Gorilla Ledger™</span>
           </Link>
           <div className="gl-app-current-section" aria-live="polite">{activeLabel}</div>
         </div>

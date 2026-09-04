@@ -8,6 +8,7 @@ Gorilla Ledger is a passwordless, multi-currency personal and household ledger. 
 - Supabase Auth provides email OTP and TOTP MFA. PostgreSQL, RLS, RPCs, and Storage protect ledger and receipt data.
 - Resend delivers one-time-code and household invitation email.
 - Vercel hosts the application, runs the recurring cron, and receives Speed Insights.
+- A privacy-conscious activity rollup powers the private platform analytics view for `admindau@proton.me` (or addresses configured in `PLATFORM_ADMIN_EMAILS`).
 - Household data retains a canonical ledger owner while `created_by` and `updated_by` preserve the acting member.
 
 Financial amounts are authoritative integer minor units. Currencies are never combined unless a future, explicit FX layer supplies a rate and provenance. Operational transactions exclude paired transfer/FX legs from income, expense, and budget totals.
@@ -30,6 +31,7 @@ Required environment variable names:
 - `RESEND_API_KEY` (server only)
 - `CRON_SECRET` (server only)
 - `AUTH_RATE_LIMIT_PEPPER` (server only, recommended and distinct from other keys)
+- `PLATFORM_ADMIN_EMAILS` (server only, optional comma-separated override for platform analytics access)
 
 Never expose server-only values through a `NEXT_PUBLIC_` name, logs, screenshots, fixtures, or client bundles.
 

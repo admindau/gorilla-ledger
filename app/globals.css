@@ -831,6 +831,13 @@ body {
   font-weight: 750;
   letter-spacing: -0.02em;
   line-height: 1;
+  gap: 0.55rem;
+}
+
+.gl-app-brand img {
+  width: 1.75rem;
+  height: 1.75rem;
+  object-fit: contain;
 }
 
 .gl-app-current-section {
@@ -2777,7 +2784,55 @@ body {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 22px rgba(0, 0, 0, 0.3);
   font-size: 0.74rem;
   font-weight: 800;
+  overflow: hidden;
 }
+
+.gl-public-brand-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Private platform usage dashboard */
+.gl-usage-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.gl-usage-metric p {
+  color: rgb(209 213 219);
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+.gl-usage-metric strong {
+  display: block;
+  margin-top: 1.2rem;
+  color: #fff;
+  font-size: clamp(1.9rem, 3vw, 2.75rem);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.gl-usage-metric > div > span:last-child {
+  display: block;
+  margin-top: 0.65rem;
+  color: rgb(107 114 128);
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+.gl-usage-table-wrap { overflow-x: auto; }
+.gl-usage-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.gl-usage-table th { padding: 0 0.85rem 0.75rem; color: rgb(107 114 128); font-size: 0.65rem; letter-spacing: 0.12em; text-align: right; text-transform: uppercase; }
+.gl-usage-table th:first-child { text-align: left; }
+.gl-usage-table td { border-top: 1px solid rgba(255,255,255,0.08); padding: 0.75rem 0.85rem; color: rgb(229 231 235); text-align: right; font-variant-numeric: tabular-nums; }
+.gl-usage-table td:first-child { color: rgb(156 163 175); text-align: left; }
+
+@media (max-width: 1000px) { .gl-usage-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .gl-usage-grid { grid-template-columns: 1fr; } }
 
 .gl-public-open-app span,
 .gl-home-actions .gl-btn span {
