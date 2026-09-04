@@ -20,6 +20,8 @@ const analyticsLayout = await read("../app/(app)/admin/analytics/layout.tsx");
 const analyticsPage = await read("../app/(app)/admin/analytics/page.tsx");
 const dashboardPage = await read("../app/(app)/dashboard/page.tsx");
 const recurringInsights = await read("../components/recurring/RecurringInsights.tsx");
+const workspaceConfig = await read("../pnpm-workspace.yaml");
+const lockfile = await read("../pnpm-lock.yaml");
 
 test("passwordless throttling is distributed and account lookup does not enumerate users", () => {
   assert.match(authRoute, /consume_auth_rate_limit/);
@@ -100,4 +102,10 @@ test("dashboard category metrics and filters respect soft deletion", () => {
 test("recurring upcoming net preserves its financial sign", () => {
   assert.match(recurringInsights, /value: formatAmount\(upcomingNetMinor, currencyCode\)/);
   assert.doesNotMatch(recurringInsights, /Math\.abs\(upcomingNetMinor\)/);
+});
+
+test("the production dependency graph pins the patched Browserslist release", () => {
+  assert.match(workspaceConfig, /browserslist: 4\.28\.7/);
+  assert.match(lockfile, /browserslist@4\.28\.7/);
+  assert.doesNotMatch(lockfile, /browserslist@4\.28\.[0-6]/);
 });
