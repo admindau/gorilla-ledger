@@ -159,6 +159,7 @@ test("chart headers stack before currency toggles can clip", () => {
     assert.match(chart, /inline-flex shrink-0 rounded-full/);
   }
   for (const chart of [spendingCategoryChart, topCategoriesChart]) {
+    assert.match(chart, /flex shrink-0 items-center gap-2 text-xs/);
     assert.match(chart, /inline-flex shrink-0 rounded-full/);
   }
 });

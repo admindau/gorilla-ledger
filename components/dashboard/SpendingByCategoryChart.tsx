@@ -165,7 +165,7 @@ export default function SpendingByCategoryChart({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex shrink-0 items-center gap-2 text-xs">
           <span className="text-gray-400">Currency:</span>
           {currencyCodes.length === 0 ? (
             <span className="text-gray-500">No data</span>
