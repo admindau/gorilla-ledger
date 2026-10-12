@@ -27,16 +27,16 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
-    "@playwright/test": "^1.62.1",
-    "@tailwindcss/postcss": "^4.3.1",
-    "@types/node": "^20.19.43",
+    "@playwright/test": "^1.64.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.6.5",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "baseline-browser-mapping": "^2.10.38",
-    "eslint": "^9.39.4",
-    "eslint-config-next": "16.2.11",
-    "tailwindcss": "^4.3.1",
-    "typescript": "^5.9.3"
+    "baseline-browser-mapping": "^2.11.28",
+    "eslint": "^10.12.0",
+    "eslint-config-next": "16.4.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2"
   },
   "packageManager": "pnpm@11.8.0"
 }
